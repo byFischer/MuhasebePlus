@@ -4,6 +4,7 @@ import com.MuhasebePlus.demo.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
@@ -13,6 +14,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "customer")
+@EqualsAndHashCode(callSuper = true)
 public class Customer extends BaseEntity {
 
     @Id
