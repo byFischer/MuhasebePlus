@@ -25,7 +25,6 @@ public class userService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    // ─── Admin: Tüm kullanıcıları listele ────────────────────────────────────
 
     public List<UserResponseDto> getAllUsers() {
         return userRepository.findAll().stream()
@@ -33,14 +32,12 @@ public class userService {
                 .collect(Collectors.toList());
     }
 
-    // ─── Admin: ID ile kullanıcı getir ───────────────────────────────────────
 
     public UserResponseDto getUserById(Long userId) {
         User user = findUserById(userId);
         return toResponseDto(user);
     }
 
-    // ─── Admin: Kullanıcıyı tamamen sil ──────────────────────────────────────
 
     public void deleteUserById(Long userId) {
         if (!userRepository.existsById(userId)) {
@@ -49,11 +46,10 @@ public class userService {
         userRepository.deleteById(userId);
     }
 
-    // ─── AUTH.1: Yeni kullanıcı kaydı ────────────────────────────────────────
 
     public UserResponseDto registerUser(UserRequestDto dto) {
         if (userRepository.existsByEmail(dto.email())) {
-            throw new RuntimeException("Bu e-posta ile hesap mevcut: " + dto.email());
+            throw new RuntimeException("This email is already registered: " + dto.email());
         }
 
         User user = new User();
@@ -71,7 +67,6 @@ public class userService {
         return toResponseDto(userRepository.save(user));
     }
 
-    // ─── AUTH.1: Aktif kullanıcı profilini getir ─────────────────────────────
 
     @Transactional(readOnly = true)
     public UserResponseDto getCurrentUserProfile(String email) {
@@ -79,7 +74,6 @@ public class userService {
         return toResponseDto(user);
     }
 
-    // ─── AUTH.1: Kendi profilini güncelle ────────────────────────────────────
 
     public UserResponseDto updateOwnProfile(String email, UpdateProfileRequestDto dto) {
         User user = findUserByEmail(email);
@@ -90,43 +84,39 @@ public class userService {
         return toResponseDto(userRepository.save(user));
     }
 
-    // ─── AUTH.1: Şifre değiştir ───────────────────────────────────────────────
 
     public void changePassword(String email, ChangePasswordRequestDto dto) {
         User user = findUserByEmail(email);
         if (!passwordEncoder.matches(dto.currentPassword(), user.getPassword())) {
-            throw new RuntimeException("Mevcut şifre hatalı");
+            throw new RuntimeException("Current password is incorrect");
         }
         user.setPassword(passwordEncoder.encode(dto.newPassword()));
         userRepository.save(user);
     }
 
-    // ─── AUTH.1: Email güncelle ───────────────────────────────────────────────
 
     public void changeEmail(String currentEmail, String newEmail) {
         if (userRepository.existsByEmail(newEmail)) {
-            throw new RuntimeException("Bu e-posta ile hesap mevcut: " + newEmail);
+            throw new RuntimeException("This email is already registered: " + newEmail);
         }
         User user = findUserByEmail(currentEmail);
         user.setEmail(newEmail);
         userRepository.save(user);
     }
 
-    // ─── Admin: Kullanıcı rolünü güncelle ────────────────────────────────────
 
     public UserResponseDto updateUserRole(Long userId, String newRole) {
         UserRole role;
         try {
             role = UserRole.valueOf(newRole.toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new RuntimeException("Geçersiz rol: " + newRole);
+            throw new RuntimeException("Invalid role: " + newRole);
         }
         User user = findUserById(userId);
         user.setRole(role);
         return toResponseDto(userRepository.save(user));
     }
 
-    // ─── Admin / Güvenlik: Hesap kilitle ─────────────────────────────────────
 
     public void lockUser(Long userId) {
         User user = findUserById(userId);
@@ -134,7 +124,6 @@ public class userService {
         userRepository.save(user);
     }
 
-    // ─── Admin: Hesap kilidini aç ─────────────────────────────────────────────
 
     public void unlockUser(Long userId) {
         User user = findUserById(userId);
@@ -143,7 +132,6 @@ public class userService {
         userRepository.save(user);
     }
 
-    // ─── Güvenlik: Başarısız giriş sayacını artır (Security servisi çağırır) ─
 
     public void incrementFailedLoginAttempts(String email) {
         User user = findUserByEmail(email);
@@ -155,7 +143,6 @@ public class userService {
         userRepository.save(user);
     }
 
-    // ─── Güvenlik: Başarılı girişte sayacı sıfırla ───────────────────────────
 
     public void resetFailedLoginAttempts(String email) {
         User user = findUserByEmail(email);
@@ -163,7 +150,6 @@ public class userService {
         userRepository.save(user);
     }
 
-    // ─── Soft delete: Kullanıcıyı pasife al ──────────────────────────────────
 
     public void deactivateUser(Long userId) {
         User user = findUserById(userId);
@@ -171,21 +157,18 @@ public class userService {
         userRepository.save(user);
     }
 
-    // ─── Internal: Email ile kullanıcı getir (Security modülü kullanır) ──────
 
     @Transactional(readOnly = true)
     public User getUserByEmail(String email) {
         return findUserByEmail(email);
     }
 
-    // ─── Internal: Email benzersizlik kontrolü ────────────────────────────────
 
     @Transactional(readOnly = true)
     public boolean existsByEmail(String email) {
         return userRepository.existsByEmail(email);
     }
 
-    // ─── Private yardımcı metodlar ────────────────────────────────────────────
 
     private User findUserById(Long userId) {
         return userRepository.findById(userId)
