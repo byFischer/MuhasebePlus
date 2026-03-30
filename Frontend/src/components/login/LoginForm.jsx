@@ -8,17 +8,17 @@ export default function LoginForm() {
 
       <Box className="intro-copy">
         <Heading as="h1" className="welcome-title">
-          Welcome
+          Hoş Geldiniz
         </Heading>
         <Text as="p" className="welcome-text">
-          Bring your own entertain at one place
+          Tüm muhasebe işlemlerinizi tek bir yerde yönetin
         </Text>
       </Box>
 
       <form className="login-form" onSubmit={(event) => event.preventDefault()}>
         <Box className="field-group">
           <Text as="label" htmlFor="email-field" className="field-label">
-            Your Email
+            E-posta Adresiniz
           </Text>
           <TextField.Root
             id="email-field"
@@ -26,7 +26,7 @@ export default function LoginForm() {
             type="email"
             size="3"
             variant="classic"
-            placeholder="you@example.com"
+            placeholder="ornek@email.com"
             required
             className="login-field"
           >
@@ -38,7 +38,7 @@ export default function LoginForm() {
 
         <Box className="field-group">
           <Text as="label" htmlFor="password-field" className="field-label">
-            Password
+            Şifre
           </Text>
           <TextField.Root
             id="password-field"
@@ -58,17 +58,17 @@ export default function LoginForm() {
 
         <Flex className="actions-row">
           <Button type="submit" size="3" className="login-button">
-            Login
+            Giriş Yap
           </Button>
           <Link href="#" size="2" className="forgot-link">
-            Forgot Password?
+            Şifremi Unuttum?
           </Link>
         </Flex>
 
         <Text as="p" size="2" className="signup-text">
-          Don&apos;t have an account?{" "}
+          Hesabınız yok mu?{" "}
           <Link href="#" className="signup-link">
-            Sign Up
+            Kayıt Ol
           </Link>
         </Text>
       </form>
