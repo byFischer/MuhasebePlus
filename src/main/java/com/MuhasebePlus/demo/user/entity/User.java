@@ -44,6 +44,15 @@ public class User extends BaseEntity implements UserDetails {
 
     private LocalDate birthDate;
 
+    @Column(name = "is_locked", nullable = false)
+    private boolean isLocked = false;
+
+    @Column(name = "is_active", nullable = false)
+    private boolean isActive = true;
+
+    @Column(name = "failed_login_attempts", nullable = false)
+    private int failedLoginAttempts = 0;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
@@ -52,5 +61,15 @@ public class User extends BaseEntity implements UserDetails {
     @Override
     public String getUsername() {
         return email;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return !isLocked;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return isActive;
     }
 }
