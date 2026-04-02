@@ -34,3 +34,7 @@ build/
 
 ### Claude Code ###
 .claude/
+
+### Sensitive Configuration ###
+**/application.properties
+**/application-*.properties
