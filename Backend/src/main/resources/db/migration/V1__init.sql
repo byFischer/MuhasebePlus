@@ -28,9 +28,12 @@ CREATE TABLE "user" (
     last_name   VARCHAR(100),
     phone       VARCHAR(20),
     birth_date  DATE,
-    created_at  TIMESTAMP,
-    updated_at  TIMESTAMP,
-    user_role   user_role DEFAULT 'user'
+    created_at             TIMESTAMP,
+    updated_at             TIMESTAMP,
+    user_role              user_role DEFAULT 'user',
+    is_locked              BOOLEAN NOT NULL DEFAULT FALSE,
+    is_active              BOOLEAN NOT NULL DEFAULT TRUE,
+    failed_login_attempts  INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE customer (
