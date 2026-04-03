@@ -22,9 +22,6 @@ public record UserRequestDto(
         @Size(min = 8, message = "Password must be at least 8 characters")
         String password,
 
-        @NotBlank(message = "Role cannot be blank")
-        String role,
-
         @NotBlank(message = "Phone number cannot be blank")
         String phoneNumber,
 
