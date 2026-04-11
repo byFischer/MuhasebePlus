@@ -1,5 +1,5 @@
 import { Theme } from "@radix-ui/themes";
-import LoginPage from "../pages/LoginPage";
+import DashboardPage from "../pages/DashboardPage";
 
 export default function App() {
   return (
@@ -11,7 +11,7 @@ export default function App() {
       panelBackground="solid"
       hasBackground={false}
     >
-      <LoginPage />
+      <DashboardPage />
     </Theme>
   );
 }
