@@ -1,3 +1,6 @@
 target/
 HELP.md
 .claude/skills/
+
+### GitHub Actions (henüz bitmedi) ###
+.github/
