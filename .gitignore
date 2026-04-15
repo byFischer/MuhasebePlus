@@ -4,3 +4,6 @@ HELP.md
 
 ### GitHub Actions (henüz bitmedi) ###
 .github/
+
+### Test klasörü ###
+Backend/src/test/
