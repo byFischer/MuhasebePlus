@@ -1,3 +1,4 @@
+ALTER TABLE "user" ALTER COLUMN user_role DROP DEFAULT;
 ALTER TABLE "user" ALTER COLUMN user_role TYPE VARCHAR(50);
 DROP TYPE user_role;
 CREATE TYPE user_role AS ENUM ('USER', 'ADMIN');
