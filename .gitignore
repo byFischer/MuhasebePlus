@@ -2,8 +2,11 @@ target/
 HELP.md
 .claude/skills/
 
-### GitHub Actions (henüz bitmedi) ###
-.github/
+### Node ###
+node_modules/
+frontend/dist/
 
-### Test klasörü ###
-Backend/src/test/
+### IDE ###
+.idea/
+.vscode/
+*.iml

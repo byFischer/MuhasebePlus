@@ -1,0 +1,42 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'Backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'Backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Java 21 Kur
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Compile
+        working-directory: ./Backend
+        run: mvn -B clean compile
+
+      - name: Test
+        working-directory: ./Backend
+        run: mvn -B test
+
+      - name: Surefire raporu
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: Backend/target/surefire-reports/
