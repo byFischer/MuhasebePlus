@@ -249,9 +249,11 @@ export default function DashboardPage() {
   const [hoverIndex, setHoverIndex] = useState(null);
 
   const section = dashboardBySection[activeNav];
-  const chartValues = section.rangeSeries[activeRange] ?? [];
 
-  const chart = useMemo(() => buildChartGeometry(chartValues), [chartValues]);
+  const chart = useMemo(
+    () => buildChartGeometry(section.rangeSeries[activeRange] ?? []),
+    [section, activeRange]
+  );
 
   const activePointIndex = hoverIndex === null ? Math.max(chart.points.length - 1, 0) : hoverIndex;
   const activePoint = chart.points[activePointIndex] ?? { x: chartRight, y: chartBottom, value: 0, label: "-" };
