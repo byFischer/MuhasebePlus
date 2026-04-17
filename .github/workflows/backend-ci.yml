@@ -32,7 +32,13 @@ jobs:
 
       - name: Test
         working-directory: ./Backend
-        run: mvn -B test
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+        run: mvn -B -e test
+
+      - name: Print surefire failure details
+        if: failure()
+        run: find Backend/target/surefire-reports -name "*.txt" -exec echo "=== {} ===" \; -exec cat {} \;
 
       - name: Surefire raporu
         if: always()
