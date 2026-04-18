@@ -46,3 +46,10 @@ jobs:
         with:
           name: surefire-reports
           path: Backend/target/surefire-reports/
+
+      - name: JaCoCo coverage raporu
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: Backend/target/site/jacoco/
