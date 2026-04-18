@@ -6,6 +6,7 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+
 @Entity
 @Table(name = "invoice")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
@@ -20,16 +21,16 @@ public class Invoice {
     private String invoiceNumber;
 
     @Column(name = "customer_id")
-    private Integer customerId;
+    private Long customerId;
 
-    @Column(name = "invoice_type")
-    private String invoiceType;
+    @Enumerated(EnumType.STRING) 
+    private InvoiceType invoiceType;
 
     @Column(name = "due_date")
     private LocalDate dueDate;
 
-    @Column(name = "payment_status")
-    private String paymentStatus;
+    @Enumerated(EnumType.STRING) 
+    private PaymentStatus paymentStatus;
 
     @Column(name = "subtotal", precision = 15, scale = 2)
     private BigDecimal subtotal;

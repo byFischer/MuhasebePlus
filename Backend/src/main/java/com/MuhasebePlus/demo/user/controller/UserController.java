@@ -23,7 +23,7 @@ public class UserController {
     @Autowired
     private userService userService;
 
-    // ─── Admin Endpoints ─────────────────────────────────────────────────────
+    //  Admin Endpoints 
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -73,14 +73,14 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
-    // ─── Registration ─────────────────────────────────────────────────────────
+    //  Registration 
 
     @PostMapping("/register")
     public ResponseEntity<UserResponseDto> registerUser(@Valid @RequestBody UserRequestDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(userService.registerUser(dto));
     }
 
-    // ─── Current User Endpoints ───────────────────────────────────────────────
+    //  Current User Endpoints 
 
     @GetMapping("/me")
     public ResponseEntity<UserResponseDto> getCurrentUserProfile(
