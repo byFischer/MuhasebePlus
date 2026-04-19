@@ -5,6 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -38,6 +40,18 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleNotReadable(HttpMessageNotReadableException ex, HttpServletRequest req) {
         log.warn("Malformed request body on {}: {}", req.getRequestURI(), ex.getMessage());
         return build(HttpStatus.BAD_REQUEST, "Malformed request body", req.getRequestURI(), null);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex, HttpServletRequest req) {
+        log.warn("Access denied on {}: {}", req.getRequestURI(), ex.getMessage());
+        return build(HttpStatus.FORBIDDEN, "Access denied", req.getRequestURI(), null);
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthentication(AuthenticationException ex, HttpServletRequest req) {
+        log.warn("Authentication failed on {}: {}", req.getRequestURI(), ex.getMessage());
+        return build(HttpStatus.UNAUTHORIZED, "Authentication failed", req.getRequestURI(), null);
     }
 
     @ExceptionHandler(RuntimeException.class)
