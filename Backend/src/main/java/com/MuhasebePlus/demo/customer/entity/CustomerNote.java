@@ -1,4 +1,29 @@
 package com.MuhasebePlus.demo.customer.entity;
 
-public class CustomerNote {
+import com.MuhasebePlus.demo.common.entity.BaseEntity;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Table(name = "customer_note")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@EqualsAndHashCode(callSuper = true)
+public class CustomerNote extends BaseEntity{
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "note_id")
+    private Long noteId;
+
+    @Column(name = "customer_id", nullable = false)
+    private Long customerId;
+
+    @Column(name = "content", columnDefinition = "TEXT")
+    private String content;
+
 }
