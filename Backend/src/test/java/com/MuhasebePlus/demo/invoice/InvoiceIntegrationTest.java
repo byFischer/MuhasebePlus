@@ -30,8 +30,12 @@ import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
@@ -39,25 +43,35 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 public class InvoiceIntegrationTest {
 
-    @Autowired WebApplicationContext context;
-    @Autowired ObjectMapper objectMapper;
-    @Autowired InvoiceRepository invoiceRepository;
-    @Autowired UserRepository userRepository;
-    @Autowired JwtUtil jwtUtil;
-    @Autowired PasswordEncoder passwordEncoder;
+    @Autowired
+    private WebApplicationContext context;
 
-    MockMvc mockMvc;
+    @Autowired
+    private InvoiceRepository invoiceRepository;
 
-    String userToken;
-    String adminToken;
+    @Autowired
+    private UserRepository userRepository;
 
-    InvoiceRequestDto validRequest;
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+
+    private MockMvc mockMvc;
+
+    private String userToken;
+    private String adminToken;
+
+    private InvoiceRequestDto validRequest;
 
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
-            .apply(springSecurity())
-            .build();
+                .apply(springSecurity())
+                .build();
 
         invoiceRepository.deleteAll();
         userRepository.deleteAll();
@@ -82,111 +96,121 @@ public class InvoiceIntegrationTest {
         adminToken = jwtUtil.generateToken(admin);
 
         validRequest = new InvoiceRequestDto(
-            "INV-001", 10L, InvoiceType.sale,
-            LocalDate.of(2026, 6, 1), PaymentStatus.pending,
-            new BigDecimal("100.00"), new BigDecimal("20.00"), new BigDecimal("120.00")
+                "INV-001",
+                10L,
+                InvoiceType.sale,
+                LocalDate.of(2026, 6, 1),
+                PaymentStatus.pending,
+                new BigDecimal("100.00"),
+                new BigDecimal("20.00"),
+                new BigDecimal("120.00")
         );
     }
 
     @Test
     void fullLifecycle_CreateGetUpdateStatusDelete() throws Exception {
-        // Create
         String createResponse = mockMvc.perform(post("/api/invoices")
-                .header("Authorization", "Bearer " + userToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(validRequest)))
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.invoiceNumber").value("INV-001"))
-            .andReturn().getResponse().getContentAsString();
+                        .header("Authorization", "Bearer " + userToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validRequest)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.invoiceNumber").value("INV-001"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
 
         Long invoiceId = objectMapper.readTree(createResponse).get("invoiceId").asLong();
 
-        // Get by ID
         mockMvc.perform(get("/api/invoices/" + invoiceId)
-                .header("Authorization", "Bearer " + userToken))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.invoiceNumber").value("INV-001"));
+                        .header("Authorization", "Bearer " + userToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.invoiceNumber").value("INV-001"));
 
-        // Update
         InvoiceRequestDto updateRequest = new InvoiceRequestDto(
-            "INV-001", 10L, InvoiceType.sale,
-            LocalDate.of(2026, 6, 1), PaymentStatus.paid,
-            new BigDecimal("100.00"), new BigDecimal("20.00"), new BigDecimal("120.00")
+                "INV-001",
+                10L,
+                InvoiceType.sale,
+                LocalDate.of(2026, 6, 1),
+                PaymentStatus.paid,
+                new BigDecimal("100.00"),
+                new BigDecimal("20.00"),
+                new BigDecimal("120.00")
         );
+
         mockMvc.perform(put("/api/invoices/" + invoiceId)
-                .header("Authorization", "Bearer " + userToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(updateRequest)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.paymentStatus").value("paid"));
+                        .header("Authorization", "Bearer " + userToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paymentStatus").value("paid"));
 
-        // Update status
         mockMvc.perform(put("/api/invoices/" + invoiceId + "/status")
-                .header("Authorization", "Bearer " + userToken)
-                .param("status", "overdue"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.paymentStatus").value("overdue"));
+                        .header("Authorization", "Bearer " + userToken)
+                        .param("status", "overdue"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paymentStatus").value("overdue"));
 
-        // Filter
         mockMvc.perform(get("/api/invoices?status=overdue&type=sale")
-                .header("Authorization", "Bearer " + userToken))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$").isArray());
+                        .header("Authorization", "Bearer " + userToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
 
-        // Delete (ADMIN)
         mockMvc.perform(delete("/api/invoices/" + invoiceId)
-                .header("Authorization", "Bearer " + adminToken))
-            .andExpect(status().isNoContent());
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isNoContent());
     }
 
     @Test
     void createInvoice_DuplicateNumber_ShouldFail() throws Exception {
         mockMvc.perform(post("/api/invoices")
-                .header("Authorization", "Bearer " + userToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(validRequest)))
-            .andExpect(status().isCreated());
+                        .header("Authorization", "Bearer " + userToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validRequest)))
+                .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/invoices")
-                .header("Authorization", "Bearer " + userToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(validRequest)))
-            .andExpect(status().is5xxServerError());
+                        .header("Authorization", "Bearer " + userToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validRequest)))
+                .andExpect(status().is5xxServerError());
     }
 
     @Test
     void deleteInvoice_UserRole_ShouldReturn403() throws Exception {
         String response = mockMvc.perform(post("/api/invoices")
-                .header("Authorization", "Bearer " + userToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(validRequest)))
-            .andExpect(status().isCreated())
-            .andReturn().getResponse().getContentAsString();
+                        .header("Authorization", "Bearer " + userToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
 
         Long invoiceId = objectMapper.readTree(response).get("invoiceId").asLong();
 
         mockMvc.perform(delete("/api/invoices/" + invoiceId)
-                .header("Authorization", "Bearer " + userToken))
-            .andExpect(status().isForbidden());
+                        .header("Authorization", "Bearer " + userToken))
+                .andExpect(status().isForbidden());
     }
 
     @Test
     void createInvoice_NoToken_ShouldReturn401() throws Exception {
         mockMvc.perform(post("/api/invoices")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(validRequest)))
-            .andExpect(status().isUnauthorized());
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validRequest)))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
     void enumRoundTrip_InvoiceTypeShouldBeLowerCaseInDb() throws Exception {
         mockMvc.perform(post("/api/invoices")
-                .header("Authorization", "Bearer " + userToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(validRequest)))
-            .andExpect(status().isCreated());
+                        .header("Authorization", "Bearer " + userToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validRequest)))
+                .andExpect(status().isCreated());
 
         Invoice saved = invoiceRepository.findByInvoiceNumber("INV-001").orElseThrow();
+
         assertThat(saved.getInvoiceType()).isEqualTo(InvoiceType.sale);
         assertThat(saved.getPaymentStatus()).isEqualTo(PaymentStatus.pending);
     }
@@ -194,33 +218,37 @@ public class InvoiceIntegrationTest {
     @Test
     void filterCombination_ShouldReturnCorrectSubset() throws Exception {
         mockMvc.perform(post("/api/invoices")
-                .header("Authorization", "Bearer " + userToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(validRequest)))
-            .andExpect(status().isCreated());
+                        .header("Authorization", "Bearer " + userToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validRequest)))
+                .andExpect(status().isCreated());
 
         InvoiceRequestDto purchaseRequest = new InvoiceRequestDto(
-            "INV-002", 10L, InvoiceType.purchase,
-            LocalDate.of(2026, 7, 1), PaymentStatus.paid,
-            new BigDecimal("200.00"), new BigDecimal("40.00"), new BigDecimal("240.00")
+                "INV-002",
+                10L,
+                InvoiceType.purchase,
+                LocalDate.of(2026, 7, 1),
+                PaymentStatus.paid,
+                new BigDecimal("200.00"),
+                new BigDecimal("40.00"),
+                new BigDecimal("240.00")
         );
+
         mockMvc.perform(post("/api/invoices")
-                .header("Authorization", "Bearer " + userToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(purchaseRequest)))
-            .andExpect(status().isCreated());
+                        .header("Authorization", "Bearer " + userToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(purchaseRequest)))
+                .andExpect(status().isCreated());
 
-        // sadece sale tipi → 1 sonuç
         mockMvc.perform(get("/api/invoices?type=sale")
-                .header("Authorization", "Bearer " + userToken))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.length()").value(1))
-            .andExpect(jsonPath("$[0].invoiceType").value("sale"));
+                        .header("Authorization", "Bearer " + userToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].invoiceType").value("sale"));
 
-        // tümü → 2 sonuç
         mockMvc.perform(get("/api/invoices")
-                .header("Authorization", "Bearer " + userToken))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.length()").value(2));
+                        .header("Authorization", "Bearer " + userToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
     }
 }
