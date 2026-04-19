@@ -1,5 +1,6 @@
 package com.MuhasebePlus.demo.invoice.controller;
 
+import com.MuhasebePlus.demo.common.exception.GlobalExceptionHandler;
 import com.MuhasebePlus.demo.invoice.dto.request.InvoiceRequestDto;
 import com.MuhasebePlus.demo.invoice.dto.response.InvoiceResponseDto;
 import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
@@ -13,14 +14,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -55,7 +52,7 @@ public class InvoiceControllerTest {
         validator.afterPropertiesSet();
         mockMvc = MockMvcBuilders.standaloneSetup(invoiceController)
             .setValidator(validator)
-            .setControllerAdvice(new TestExceptionHandler())
+            .setControllerAdvice(new GlobalExceptionHandler())
             .build();
 
         validRequest = new InvoiceRequestDto(
@@ -215,18 +212,4 @@ public class InvoiceControllerTest {
             .andExpect(status().isBadRequest());
     }
 
-    @RestControllerAdvice
-    static class TestExceptionHandler {
-        @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
-        @ResponseStatus(HttpStatus.BAD_REQUEST)
-        String handleTypeMismatch(Exception ex) {
-            return ex.getMessage();
-        }
-
-        @ExceptionHandler(RuntimeException.class)
-        @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-        String handleRuntimeException(RuntimeException ex) {
-            return ex.getMessage();
-        }
-    }
 }
