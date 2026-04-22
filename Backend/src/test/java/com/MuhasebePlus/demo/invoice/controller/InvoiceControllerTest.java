@@ -1,6 +1,7 @@
 package com.MuhasebePlus.demo.invoice.controller;
 
 import com.MuhasebePlus.demo.common.exception.GlobalExceptionHandler;
+import com.MuhasebePlus.demo.invoice.dto.request.InvoiceLineItemRequestDto;
 import com.MuhasebePlus.demo.invoice.dto.request.InvoiceRequestDto;
 import com.MuhasebePlus.demo.invoice.dto.response.InvoiceResponseDto;
 import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
@@ -21,6 +22,7 @@ import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -56,15 +58,27 @@ public class InvoiceControllerTest {
             .build();
 
         validRequest = new InvoiceRequestDto(
-            "INV-001", 10L, InvoiceType.sale,
-            LocalDate.of(2026, 6, 1), PaymentStatus.pending,
-            new BigDecimal("100.00"), new BigDecimal("20.00"), new BigDecimal("120.00")
+            "INV-001",
+            10L,
+            InvoiceType.sale,
+            LocalDate.of(2026, 6, 1),
+            List.of(new InvoiceLineItemRequestDto(1, 10))
         );
 
         sampleResponse = new InvoiceResponseDto(
-            1L, "INV-001", 10L, "sale",
-            LocalDate.of(2026, 6, 1), "pending",
-            new BigDecimal("100.00"), new BigDecimal("20.00"), new BigDecimal("120.00")
+            1L,
+            "INV-001",
+            10L,
+            "ACME Ltd.",
+            "sale",
+            LocalDate.of(2026, 6, 1),
+            "pending",
+            new BigDecimal("100.00"),
+            new BigDecimal("20.00"),
+            new BigDecimal("120.00"),
+            List.of(),
+            LocalDateTime.now(),
+            LocalDateTime.now()
         );
     }
 
@@ -85,9 +99,11 @@ public class InvoiceControllerTest {
     @Test
     void createInvoice_BlankInvoiceNumber_ShouldReturn400() throws Exception {
         InvoiceRequestDto invalid = new InvoiceRequestDto(
-            "", 10L, InvoiceType.sale,
-            LocalDate.of(2026, 6, 1), PaymentStatus.pending,
-            new BigDecimal("100.00"), new BigDecimal("20.00"), new BigDecimal("120.00")
+            "",
+            10L,
+            InvoiceType.sale,
+            LocalDate.of(2026, 6, 1),
+            List.of(new InvoiceLineItemRequestDto(1, 10))
         );
 
         mockMvc.perform(post("/api/invoices")
@@ -99,9 +115,11 @@ public class InvoiceControllerTest {
     @Test
     void createInvoice_NullCustomerId_ShouldReturn400() throws Exception {
         InvoiceRequestDto invalid = new InvoiceRequestDto(
-            "INV-001", null, InvoiceType.sale,
-            LocalDate.of(2026, 6, 1), PaymentStatus.pending,
-            new BigDecimal("100.00"), new BigDecimal("20.00"), new BigDecimal("120.00")
+            "INV-001",
+            null,
+            InvoiceType.sale,
+            LocalDate.of(2026, 6, 1),
+            List.of(new InvoiceLineItemRequestDto(1, 10))
         );
 
         mockMvc.perform(post("/api/invoices")
@@ -111,7 +129,23 @@ public class InvoiceControllerTest {
     }
 
     @Test
-    void getAllInvoices_ShouldReturn200() throws Exception {
+    void createInvoice_EmptyLineItems_ShouldReturn400() throws Exception {
+        InvoiceRequestDto invalid = new InvoiceRequestDto(
+            "INV-001",
+            10L,
+            InvoiceType.sale,
+            LocalDate.of(2026, 6, 1),
+            List.of()
+        );
+
+        mockMvc.perform(post("/api/invoices")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(invalid)))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getInvoices_ShouldReturn200() throws Exception {
         when(invoiceService.getInvoiceByFilters(any(), any())).thenReturn(List.of(sampleResponse));
 
         mockMvc.perform(get("/api/invoices"))
@@ -140,31 +174,30 @@ public class InvoiceControllerTest {
     @Test
     void updateInvoice_ValidBody_ShouldReturn200() throws Exception {
         InvoiceResponseDto updatedResponse = new InvoiceResponseDto(
-            1L, "INV-001", 10L, "sale",
-            LocalDate.of(2026, 6, 1), "paid",
-            new BigDecimal("100.00"), new BigDecimal("20.00"), new BigDecimal("120.00")
+            1L, "INV-001", 10L, "ACME Ltd.", "sale",
+            LocalDate.of(2026, 12, 1), "pending",
+            new BigDecimal("100.00"), new BigDecimal("20.00"), new BigDecimal("120.00"),
+            List.of(), LocalDateTime.now(), LocalDateTime.now()
         );
         when(invoiceService.updateInvoice(eq(1L), any())).thenReturn(updatedResponse);
 
         InvoiceRequestDto updateRequest = new InvoiceRequestDto(
-            "INV-001", 10L, InvoiceType.sale,
-            LocalDate.of(2026, 6, 1), PaymentStatus.paid,
-            new BigDecimal("100.00"), new BigDecimal("20.00"), new BigDecimal("120.00")
+            "INV-001", 10L, InvoiceType.sale, LocalDate.of(2026, 12, 1),
+            List.of(new InvoiceLineItemRequestDto(1, 10))
         );
 
         mockMvc.perform(put("/api/invoices/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updateRequest)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.paymentStatus").value("paid"));
+            .andExpect(jsonPath("$.dueDate").value("2026-12-01"));
     }
 
     @Test
     void updateInvoice_InvalidBody_ShouldReturn400() throws Exception {
         InvoiceRequestDto invalid = new InvoiceRequestDto(
-            "", null, InvoiceType.sale,
-            LocalDate.of(2026, 6, 1), PaymentStatus.pending,
-            new BigDecimal("100.00"), new BigDecimal("20.00"), new BigDecimal("120.00")
+            "", null, InvoiceType.sale, LocalDate.of(2026, 6, 1),
+            List.of(new InvoiceLineItemRequestDto(1, 10))
         );
 
         mockMvc.perform(put("/api/invoices/1")
@@ -178,7 +211,7 @@ public class InvoiceControllerTest {
         mockMvc.perform(delete("/api/invoices/1"))
             .andExpect(status().isNoContent());
 
-        verify(invoiceService).deleteInvoiceById(1L);
+        verify(invoiceService).deleteInvoice(1L);
     }
 
     @Test
@@ -191,15 +224,31 @@ public class InvoiceControllerTest {
     }
 
     @Test
+    void confirmInvoice_ShouldReturn200() throws Exception {
+        InvoiceResponseDto confirmed = new InvoiceResponseDto(
+            1L, "INV-001", 10L, "ACME Ltd.", "sale",
+            LocalDate.of(2026, 6, 1), "pending",
+            new BigDecimal("100.00"), new BigDecimal("20.00"), new BigDecimal("120.00"),
+            List.of(), LocalDateTime.now(), LocalDateTime.now()
+        );
+        when(invoiceService.confirmInvoice(1L)).thenReturn(confirmed);
+
+        mockMvc.perform(put("/api/invoices/1/confirm"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.paymentStatus").value("pending"));
+    }
+
+    @Test
     void updatePaymentStatus_ShouldReturn200() throws Exception {
         InvoiceResponseDto paidResponse = new InvoiceResponseDto(
-            1L, "INV-001", 10L, "sale",
+            1L, "INV-001", 10L, "ACME Ltd.", "sale",
             LocalDate.of(2026, 6, 1), "paid",
-            new BigDecimal("100.00"), new BigDecimal("20.00"), new BigDecimal("120.00")
+            new BigDecimal("100.00"), new BigDecimal("20.00"), new BigDecimal("120.00"),
+            List.of(), LocalDateTime.now(), LocalDateTime.now()
         );
         when(invoiceService.updatePaymentStatus(1L, PaymentStatus.paid)).thenReturn(paidResponse);
 
-        mockMvc.perform(put("/api/invoices/1/status")
+        mockMvc.perform(put("/api/invoices/1/payment-status")
                 .param("status", "paid"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.paymentStatus").value("paid"));
@@ -207,9 +256,8 @@ public class InvoiceControllerTest {
 
     @Test
     void updatePaymentStatus_InvalidEnum_ShouldReturn400() throws Exception {
-        mockMvc.perform(put("/api/invoices/1/status")
+        mockMvc.perform(put("/api/invoices/1/payment-status")
                 .param("status", "invalid"))
             .andExpect(status().isBadRequest());
     }
-
 }

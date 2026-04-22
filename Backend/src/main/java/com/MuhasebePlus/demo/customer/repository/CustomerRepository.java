@@ -14,6 +14,8 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     Optional<Customer> findByTaxNumber(String taxNumber);
 
+    Optional<Customer> findByCustomerIdAndIsDeletedFalse(Long customerId);
+
     boolean existsByTaxNumber(String taxNumber);
     boolean existsByTaxNumberAndIsDeletedFalse(String taxNumber);
 

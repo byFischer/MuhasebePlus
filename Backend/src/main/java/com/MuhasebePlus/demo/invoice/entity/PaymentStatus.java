@@ -1,5 +1,8 @@
 package com.MuhasebePlus.demo.invoice.entity;
 
-public enum PaymentStatus { pending, paid, overdue
-    
+public enum PaymentStatus {
+    draft,
+    pending,
+    paid,
+    overdue
 }

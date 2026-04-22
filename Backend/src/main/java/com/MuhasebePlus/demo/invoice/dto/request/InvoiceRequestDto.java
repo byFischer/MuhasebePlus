@@ -1,16 +1,15 @@
 package com.MuhasebePlus.demo.invoice.dto.request;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
-import com.MuhasebePlus.demo.invoice.entity.PaymentStatus;
 
-import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-
 
 public record InvoiceRequestDto(
     @NotBlank(message = "Invoice number cannot be blank")
@@ -26,20 +25,8 @@ public record InvoiceRequestDto(
     @NotNull(message = "Due date cannot be null")
     LocalDate dueDate,
 
-    @NotNull(message = "Payment status cannot be blank")
-    PaymentStatus paymentStatus,
-
-    @NotNull(message = "Subtotal cannot be null")
-    @DecimalMin(value = "0.0", inclusive = false, message = "Subtotal must be greater than zero")
-    BigDecimal subtotal,
-
-    @NotNull(message = "VAT amount cannot be null")
-    @DecimalMin(value = "0.0", inclusive = true, message = "VAT amount must be zero or greater")
-    BigDecimal vatAmount,
-
-    @NotNull(message = "Total amount cannot be null")
-    @DecimalMin(value = "0.0", inclusive = false, message = "Total amount must be greater than zero")
-    BigDecimal totalAmount
+    @NotEmpty(message = "At least one line item is required")
+    @Valid
+    List<InvoiceLineItemRequestDto> lineItems
 ) {
-    
 }

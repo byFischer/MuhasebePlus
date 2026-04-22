@@ -1,6 +1,8 @@
 // Invoice.java
 package com.MuhasebePlus.demo.invoice.entity;
 
+import com.MuhasebePlus.demo.common.entity.BaseEntity;
+
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -10,7 +12,7 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "invoice")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class Invoice {
+public class Invoice extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

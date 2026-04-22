@@ -14,6 +14,8 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 
+import com.MuhasebePlus.demo.common.entity.BaseEntity;
+
 @Entity
 @Table(name = "product")
 @Getter
@@ -21,7 +23,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Product {
+public class Product extends BaseEntity{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -48,4 +50,7 @@ public class Product {
 
     @Column(name = "cost_price", precision = 15, scale = 2)
     private BigDecimal costPrice;
+
+    @Column(name = "is_deleted")
+    private boolean isDeleted;
 }
