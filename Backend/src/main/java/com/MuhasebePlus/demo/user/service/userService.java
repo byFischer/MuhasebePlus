@@ -25,6 +25,9 @@ public class userService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private com.MuhasebePlus.demo.company.repository.CompanyRepository companyRepository;
+
 
     public List<UserResponseDto> getAllUsers() {
         return userRepository.findAll().stream()
@@ -52,7 +55,18 @@ public class userService {
             throw new RuntimeException("This email is already registered: " + dto.email());
         }
 
+        if (companyRepository.existsByTaxNumber(dto.companyTaxNumber())) {
+            throw new RuntimeException("This tax number is already registered: " + dto.companyTaxNumber());
+        }
+
+        com.MuhasebePlus.demo.company.entity.Company company = new com.MuhasebePlus.demo.company.entity.Company();
+        company.setCompanyName(dto.companyName());
+        company.setTaxNumber(dto.companyTaxNumber());
+        company.setActive(true);
+        company = companyRepository.save(company);
+
         User user = new User();
+        user.setCompany(company);
         user.setFirstName(dto.firstName());
         user.setLastName(dto.lastName());
         user.setEmail(dto.email());

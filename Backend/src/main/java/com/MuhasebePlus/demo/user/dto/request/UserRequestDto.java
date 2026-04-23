@@ -26,6 +26,12 @@ public record UserRequestDto(
         String phoneNumber,
 
         @NotNull(message = "Birth date cannot be null")
-        LocalDate birthDate
+        LocalDate birthDate,
+
+        @NotBlank(message = "Company name cannot be blank")
+        String companyName,
+
+        @NotBlank(message = "Company tax number cannot be blank")
+        String companyTaxNumber
 ) {
 }

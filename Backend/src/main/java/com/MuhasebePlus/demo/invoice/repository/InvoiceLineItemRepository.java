@@ -10,9 +10,9 @@ import com.MuhasebePlus.demo.invoice.entity.InvoiceLineItem;
 @Repository
 public interface InvoiceLineItemRepository extends JpaRepository<InvoiceLineItem, Integer> {
 
-    List<InvoiceLineItem> findByInvoiceIdAndIsDeletedFalse(Long invoiceId);
+    List<InvoiceLineItem> findByInvoiceIdAndCompanyCompanyIdAndIsDeletedFalse(Long invoiceId, Long companyId);
 
-    void deleteByInvoiceId(Long invoiceId);
+    void deleteByInvoiceIdAndCompanyCompanyId(Long invoiceId, Long companyId);
 
-    boolean existsByProductIdAndIsDeletedFalse(Integer productId);
+    boolean existsByProductIdAndCompanyCompanyIdAndIsDeletedFalse(Integer productId, Long companyId);
 }

@@ -7,6 +7,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
+import com.MuhasebePlus.demo.company.entity.Company;
+
 @Entity
 @Table(name = "customer_note")
 @Data
@@ -19,6 +21,10 @@ public class CustomerNote extends BaseEntity{
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "note_id")
     private Long noteId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id")
+    private Company company;
 
     @Column(name = "customer_id", nullable = false)
     private Long customerId;

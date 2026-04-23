@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.MuhasebePlus.demo.common.service.CompanyContext;
+import com.MuhasebePlus.demo.company.repository.CompanyRepository;
 import com.MuhasebePlus.demo.customer.dto.request.CustomerNoteRequestDto;
 import com.MuhasebePlus.demo.customer.dto.request.CustomerRequestDto;
 import com.MuhasebePlus.demo.customer.dto.response.CustomerNoteResponseDto;
@@ -27,17 +29,24 @@ public class CustomerService {
     @Autowired
     private CustomerNoteRepository customerNoteRepository;
 
-    //@Autowired private InvoiceRepository invoiceRepository; //Eğer müşteri silinirken faturaları da silinecekse
+    @Autowired
+    private CompanyContext companyContext;
+
+    @Autowired
+    private CompanyRepository companyRepository;
 
 
-
-    //PUBLIC METOTLAR 
+    // PUBLIC METOTLAR 
 
     public CustomerResponseDto createCustomer(CustomerRequestDto dto) {
-        if (customerRepository.existsByTaxNumberAndIsDeletedFalse(dto.taxNumber())) {
-            throw new RuntimeException("A customer with the same tax number already exists: " + dto.taxNumber());
+        Long companyId = companyContext.getCurrentCompanyId();
+
+        if (customerRepository.existsByTaxNumberAndCompanyCompanyIdAndIsDeletedFalse(dto.taxNumber(), companyId)) {
+            throw new RuntimeException("A customer with the same tax number already exists in your company: " + dto.taxNumber());
         }
+        
         Customer customer = new Customer();
+        customer.setCompany(companyRepository.getReferenceById(companyId)); // DB'ye hit atmadan proxy atar
         customer.setName(dto.name());
         customer.setTaxNumber(dto.taxNumber());
         customer.setAddress(dto.address());
@@ -53,7 +62,8 @@ public class CustomerService {
     }
 
     public List<CustomerResponseDto> getAllCustomers() {
-        List<Customer> customers = customerRepository.findByIsDeletedFalse();
+        Long companyId = companyContext.getCurrentCompanyId();
+        List<Customer> customers = customerRepository.findByCompanyCompanyIdAndIsDeletedFalse(companyId);
         return customers.stream().map(this::toResponseDto).toList();
     }
 
@@ -62,117 +72,139 @@ public class CustomerService {
         return toResponseDto(c);
     }
 
-        public CustomerResponseDto updateCustomer(Long id, CustomerRequestDto dto) {
-            Customer customer = findCustomerEntityById(id);
+    public CustomerResponseDto updateCustomer(Long id, CustomerRequestDto dto) {
+        Long companyId = companyContext.getCurrentCompanyId();
+        Customer customer = findCustomerEntityById(id);
 
-            if (!customer.getTaxNumber().equals(dto.taxNumber()) &&
-                    customerRepository.existsByTaxNumberAndIsDeletedFalse(dto.taxNumber())) {
-                throw new RuntimeException("A customer with the same tax number already exists: " + dto.taxNumber());
-            }
-
-            customer.setName(dto.name());
-            customer.setTaxNumber(dto.taxNumber());
-            customer.setAddress(dto.address());
-            customer.setCity(dto.city());
-            customer.setPhoneNumber(dto.phoneNumber());
-            customer.setType(dto.type());
-
-            Customer updated = customerRepository.save(customer);
-
-            return toResponseDto(updated);
-        }
-        public void softDeleteCustomer(Long id){
-            Customer customer = findCustomerEntityById(id);
-            customer.setDeleted(true);
-            customerRepository.save(customer);
-        }
-        public CustomerResponseDto restoreCustomer(Long id){
-            Customer customer = findCustomerEntityById(id);
-            customer.setDeleted(false);
-            Customer restored = customerRepository.save(customer);
-            return toResponseDto(restored);
-        }
-        public List<CustomerResponseDto> searchCustomers(String query) {
-            List<Customer> customers = customerRepository.searchActive(query);
-            return customers.stream().map(this::toResponseDto).toList();
+        if (!customer.getTaxNumber().equals(dto.taxNumber()) &&
+                customerRepository.existsByTaxNumberAndCompanyCompanyIdAndIsDeletedFalse(dto.taxNumber(), companyId)) {
+            throw new RuntimeException("A customer with the same tax number already exists in your company: " + dto.taxNumber());
         }
 
-        public List<CustomerResponseDto> getCustomersByType(String type) {
-            List<Customer> customers = customerRepository.findByTypeAndIsDeletedFalse(CustomerType.valueOf(type));
-            return customers.stream().map(this::toResponseDto).toList();
-        }
+        customer.setName(dto.name());
+        customer.setTaxNumber(dto.taxNumber());
+        customer.setAddress(dto.address());
+        customer.setCity(dto.city());
+        customer.setPhoneNumber(dto.phoneNumber());
+        customer.setType(dto.type());
 
-        public CustomerNoteResponseDto addNote(Long customerId, CustomerNoteRequestDto dto){
-            if(!customerRepository.existsById(customerId)){
-                throw new RuntimeException("Customer not found with id: " + customerId);
-            }
-            CustomerNote note = new CustomerNote();
-            note.setCustomerId(customerId);
-            note.setContent(dto.content());
-            CustomerNote saved = customerNoteRepository.save(note);
-            return toNoteResponseDto(saved);
-        }
+        Customer updated = customerRepository.save(customer);
 
-        public List<CustomerNoteResponseDto> getNotesByCustomerId(Long customerId){
-            if(!customerRepository.existsById(customerId)){
-                throw new RuntimeException("Customer not found with id: " + customerId);
-            }
-            List<CustomerNote> notes = customerNoteRepository.findByCustomerIdOrderByCreatedAtDesc(customerId);
-            return notes.stream().map(this::toNoteResponseDto).toList();
-        }
+        return toResponseDto(updated);
+    }
 
-        public CustomerNoteResponseDto updateNote(Long noteId, CustomerNoteRequestDto dto){
-            CustomerNote note = findCustomerNoteEntityById(noteId);
-            note.setContent(dto.content());
-            CustomerNote updated = customerNoteRepository.save(note);
-            return toNoteResponseDto(updated);
-        }
+    public void softDeleteCustomer(Long id){
+        Customer customer = findCustomerEntityById(id);
+        customer.setDeleted(true);
+        customerRepository.save(customer);
+    }
 
-        public void deleteNote(Long noteId){
-            if(!customerNoteRepository.existsById(noteId)){
-                throw new RuntimeException("Customer note not found with id: " + noteId);
-            }
-            customerNoteRepository.deleteById(noteId);
-        }
+    public CustomerResponseDto restoreCustomer(Long id){
+        Customer customer = findCustomerEntityById(id);
+        customer.setDeleted(false);
+        Customer restored = customerRepository.save(customer);
+        return toResponseDto(restored);
+    }
 
+    public List<CustomerResponseDto> searchCustomers(String query) {
+        Long companyId = companyContext.getCurrentCompanyId();
+        List<Customer> customers = customerRepository.searchActive(companyId, query);
+        return customers.stream().map(this::toResponseDto).toList();
+    }
 
-        //PRIVATE METOTLAR
+    public List<CustomerResponseDto> getCustomersByType(String type) {
+        Long companyId = companyContext.getCurrentCompanyId();
+        List<Customer> customers = customerRepository.findByTypeAndCompanyCompanyIdAndIsDeletedFalse(CustomerType.valueOf(type), companyId);
+        return customers.stream().map(this::toResponseDto).toList();
+    }
 
-        private Customer findCustomerEntityById(Long id){
-            return customerRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Customer not found with id: " + id));
-        }
-
-        private CustomerNote findCustomerNoteEntityById(Long id){
-            return customerNoteRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Customer note not found with id: " + id));
-        }
-
-        private CustomerResponseDto toResponseDto(Customer c){
-            return new CustomerResponseDto(
-                    c.getCustomerId(),
-                    c.getName(),
-                    c.getTaxNumber(),
-                    c.getAddress(),
-                    c.getCity(),
-                    c.getPhoneNumber(),
-                    c.getType().name(),
-                    c.getCurrentBalance(),
-                    c.isDeleted(),
-                    c.getCreatedAt(),
-                    c.getUpdatedAt()
-            );
-        }
-
-        private CustomerNoteResponseDto toNoteResponseDto(CustomerNote n){
-            return new CustomerNoteResponseDto(
-                    n.getNoteId(),
-                    n.getCustomerId(),
-                    n.getContent(),
-                    n.getCreatedAt(),
-                    n.getUpdatedAt()
-            );
-        }
-
+    public CustomerNoteResponseDto addNote(Long customerId, CustomerNoteRequestDto dto){
+        Long companyId = companyContext.getCurrentCompanyId();
         
+        if(!customerRepository.existsByCustomerIdAndCompanyCompanyId(customerId, companyId)){
+            throw new RuntimeException("Customer not found or access denied for id: " + customerId);
+        }
+        
+        CustomerNote note = new CustomerNote();
+        note.setCompany(companyRepository.getReferenceById(companyId));
+        note.setCustomerId(customerId);
+        note.setContent(dto.content());
+        
+        CustomerNote saved = customerNoteRepository.save(note);
+        return toNoteResponseDto(saved);
+    }
+
+    public List<CustomerNoteResponseDto> getNotesByCustomerId(Long customerId){
+        Long companyId = companyContext.getCurrentCompanyId();
+        
+        if(!customerRepository.existsByCustomerIdAndCompanyCompanyId(customerId, companyId)){
+            throw new RuntimeException("Customer not found or access denied for id: " + customerId);
+        }
+        
+        List<CustomerNote> notes = customerNoteRepository.findByCustomerIdAndCompanyCompanyIdOrderByCreatedAtDesc(customerId, companyId);
+        return notes.stream().map(this::toNoteResponseDto).toList();
+    }
+
+    public CustomerNoteResponseDto updateNote(Long noteId, CustomerNoteRequestDto dto){
+        CustomerNote note = findCustomerNoteEntityById(noteId);
+        note.setContent(dto.content());
+        CustomerNote updated = customerNoteRepository.save(note);
+        return toNoteResponseDto(updated);
+    }
+
+    public void deleteNote(Long noteId){
+        CustomerNote note = findCustomerNoteEntityById(noteId);
+        customerNoteRepository.delete(note);
+    }
+
+
+    // PRIVATE METOTLAR
+
+    private Customer findCustomerEntityById(Long id){
+        Long companyId = companyContext.getCurrentCompanyId();
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Customer not found with id: " + id));
+                
+        if (!customer.getCompany().getCompanyId().equals(companyId)) {
+            throw new RuntimeException("Bu kaydı görüntüleme yetkiniz yok");
+        }
+        return customer;
+    }
+
+    private CustomerNote findCustomerNoteEntityById(Long id){
+        Long companyId = companyContext.getCurrentCompanyId();
+        CustomerNote note = customerNoteRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Customer note not found with id: " + id));
+                
+        if (!note.getCompany().getCompanyId().equals(companyId)) {
+            throw new RuntimeException("Bu kaydı görüntüleme yetkiniz yok");
+        }
+        return note;
+    }
+
+    private CustomerResponseDto toResponseDto(Customer c){
+        return new CustomerResponseDto(
+                c.getCustomerId(),
+                c.getName(),
+                c.getTaxNumber(),
+                c.getAddress(),
+                c.getCity(),
+                c.getPhoneNumber(),
+                c.getType().name(),
+                c.getCurrentBalance(),
+                c.isDeleted(),
+                c.getCreatedAt(),
+                c.getUpdatedAt()
+        );
+    }
+
+    private CustomerNoteResponseDto toNoteResponseDto(CustomerNote n){
+        return new CustomerNoteResponseDto(
+                n.getNoteId(),
+                n.getCustomerId(),
+                n.getContent(),
+                n.getCreatedAt(),
+                n.getUpdatedAt()
+        );
+    }
 }

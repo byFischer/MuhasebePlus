@@ -15,6 +15,10 @@ import lombok.Setter;
 import java.math.BigDecimal;
 
 import com.MuhasebePlus.demo.common.entity.BaseEntity;
+import com.MuhasebePlus.demo.company.entity.Company;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 
 @Entity
 @Table(name = "product")
@@ -29,6 +33,10 @@ public class Product extends BaseEntity{
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "product_id")
     private Integer productId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id")
+    private Company company;
 
     @Column(name = "barcode", length = 100, unique = true)
     private String barcode;

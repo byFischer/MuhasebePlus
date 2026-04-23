@@ -10,6 +10,8 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.MuhasebePlus.demo.common.service.CompanyContext;
+import com.MuhasebePlus.demo.company.repository.CompanyRepository;
 import com.MuhasebePlus.demo.customer.entity.Customer;
 import com.MuhasebePlus.demo.customer.repository.CustomerRepository;
 import com.MuhasebePlus.demo.invoice.dto.request.InvoiceLineItemRequestDto;
@@ -40,14 +42,18 @@ public class InvoiceService {
     private final CustomerRepository customerRepository;
     private final ProductRepository productRepository;
     private final StockService stockService;
+    private final CompanyContext companyContext;
+    private final CompanyRepository companyRepository;
 
 
     //PUBLIC METODLAR - CRUD
 
     public InvoiceResponseDto createInvoice(InvoiceRequestDto dto) {
+        Long companyId = companyContext.getCurrentCompanyId();
+        
         // 1) Fatura numarası mükerrer mi?
-        if (invoiceRepository.existsByInvoiceNumber(dto.invoiceNumber())) {
-            throw new RuntimeException("This invoice number is already used: " + dto.invoiceNumber());
+        if (invoiceRepository.existsByInvoiceNumberAndCompanyCompanyId(dto.invoiceNumber(), companyId)) {
+            throw new RuntimeException("This invoice number is already used in your company: " + dto.invoiceNumber());
         }
 
         // 2) checkCustomerExists
@@ -65,6 +71,7 @@ public class InvoiceService {
 
         // 5) Invoice header kaydet
         Invoice invoice = new Invoice();
+        invoice.setCompany(companyRepository.getReferenceById(companyId));
         invoice.setInvoiceNumber(dto.invoiceNumber());
         invoice.setCustomerId(dto.customerId());
         invoice.setInvoiceType(dto.invoiceType());
@@ -88,13 +95,14 @@ public class InvoiceService {
 
     public InvoiceResponseDto confirmInvoice(Long invoiceId) {
         Invoice invoice = findInvoiceById(invoiceId);
+        Long companyId = companyContext.getCurrentCompanyId();
 
         if (invoice.getPaymentStatus() != PaymentStatus.draft) {
             throw new RuntimeException("Only draft invoices can be confirmed. Current status: "
                 + invoice.getPaymentStatus());
         }
 
-        List<InvoiceLineItem> lineItems = lineItemRepository.findByInvoiceIdAndIsDeletedFalse(invoiceId);
+        List<InvoiceLineItem> lineItems = lineItemRepository.findByInvoiceIdAndCompanyCompanyIdAndIsDeletedFalse(invoiceId, companyId);
         if (lineItems.isEmpty()) {
             throw new RuntimeException("Draft invoice has no line items: " + invoiceId);
         }
@@ -122,7 +130,8 @@ public class InvoiceService {
     }
 
     public List<InvoiceResponseDto> getAllInvoices() {
-        return invoiceRepository.findAll().stream()
+        Long companyId = companyContext.getCurrentCompanyId();
+        return invoiceRepository.findByCompanyCompanyId(companyId).stream()
             .map(this::toResponseDtoWithLines)
             .toList();
     }
@@ -134,6 +143,7 @@ public class InvoiceService {
 
     public InvoiceResponseDto updateInvoice(Long invoiceId, InvoiceRequestDto dto) {
         Invoice invoice = findInvoiceById(invoiceId);
+        Long companyId = companyContext.getCurrentCompanyId();
 
         if (invoice.getPaymentStatus() == PaymentStatus.paid) {
             throw new RuntimeException("Paid invoices cannot be updated: " + invoiceId);
@@ -141,14 +151,12 @@ public class InvoiceService {
 
         // Invoice number değişiyorsa mükerrerlik kontrolü
         if (!invoice.getInvoiceNumber().equals(dto.invoiceNumber())
-                && invoiceRepository.existsByInvoiceNumber(dto.invoiceNumber())) {
-            throw new RuntimeException("This invoice number is already used: " + dto.invoiceNumber());
+                && invoiceRepository.existsByInvoiceNumberAndCompanyCompanyId(dto.invoiceNumber(), companyId)) {
+            throw new RuntimeException("This invoice number is already used in your company: " + dto.invoiceNumber());
         }
 
         validateCustomer(dto.customerId());
 
-        // Not: Line item değişikliği bu plan kapsamında yok (stok farkı re-compute karmaşık).
-        // Sadece header alanlar güncellenir.
         invoice.setInvoiceNumber(dto.invoiceNumber());
         invoice.setCustomerId(dto.customerId());
         invoice.setInvoiceType(dto.invoiceType());
@@ -165,27 +173,29 @@ public class InvoiceService {
             throw new RuntimeException("Paid invoices cannot be deleted: " + invoiceId);
         }
 
-        // Hard-delete (CASCADE ile line items de silinir). Soft-delete + stok iade ayri bir is.
-        invoiceRepository.deleteById(invoiceId);
+        invoiceRepository.delete(invoice);
     }
 
     public List<InvoiceResponseDto> getInvoiceByCustomerId(Long customerId) {
-        return invoiceRepository.findByCustomerId(customerId).stream()
+        Long companyId = companyContext.getCurrentCompanyId();
+        return invoiceRepository.findByCustomerIdAndCompanyCompanyId(customerId, companyId).stream()
             .map(this::toResponseDtoWithLines)
             .toList();
     }
 
     public List<InvoiceResponseDto> getInvoiceByFilters(PaymentStatus paymentStatus, InvoiceType invoiceType) {
+        Long companyId = companyContext.getCurrentCompanyId();
+        
         if (paymentStatus != null && invoiceType != null) {
-            return invoiceRepository.findByPaymentStatusAndInvoiceType(paymentStatus, invoiceType).stream()
+            return invoiceRepository.findByPaymentStatusAndInvoiceTypeAndCompanyCompanyId(paymentStatus, invoiceType, companyId).stream()
                 .map(this::toResponseDtoWithLines)
                 .toList();
         } else if (paymentStatus != null) {
-            return invoiceRepository.findByPaymentStatus(paymentStatus).stream()
+            return invoiceRepository.findByPaymentStatusAndCompanyCompanyId(paymentStatus, companyId).stream()
                 .map(this::toResponseDtoWithLines)
                 .toList();
         } else if (invoiceType != null) {
-            return invoiceRepository.findByInvoiceType(invoiceType).stream()
+            return invoiceRepository.findByInvoiceTypeAndCompanyCompanyId(invoiceType, companyId).stream()
                 .map(this::toResponseDtoWithLines)
                 .toList();
         }
@@ -212,20 +222,22 @@ public class InvoiceService {
     //PRIVATE METODLAR - VALIDATION
 
     private void validateCustomer(Long customerId) {
-        customerRepository.findByCustomerIdAndIsDeletedFalse(customerId)
-            .orElseThrow(() -> new RuntimeException("Customer not found or inactive: " + customerId));
+        Long companyId = companyContext.getCurrentCompanyId();
+        customerRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(customerId, companyId)
+            .orElseThrow(() -> new RuntimeException("Customer not found or inactive for your company: " + customerId));
     }
 
     private Map<Integer, Product> fetchAndValidateProducts(List<InvoiceLineItemRequestDto> items) {
+        Long companyId = companyContext.getCurrentCompanyId();
         Map<Integer, Product> map = new HashMap<>();
+        
         for (InvoiceLineItemRequestDto item : items) {
             if (map.containsKey(item.productId())) {
-                // Aynı ürün birden fazla line'da gelirse zaten haritada var; miktarlar ayrı line olarak işlenir.
                 continue;
             }
-            Product product = productRepository.findByProductIdAndIsDeletedFalse(item.productId())
+            Product product = productRepository.findByProductIdAndCompanyCompanyIdAndIsDeletedFalse(item.productId(), companyId)
                 .orElseThrow(() -> new RuntimeException(
-                    "Product not found or inactive: " + item.productId()));
+                    "Product not found or inactive for your company: " + item.productId()));
             map.put(item.productId(), product);
         }
         return map;
@@ -245,7 +257,9 @@ public class InvoiceService {
             List<InvoiceLineItemRequestDto> items,
             Map<Integer, Product> productMap) {
 
+        Long companyId = companyContext.getCurrentCompanyId();
         List<InvoiceLineItem> saved = new ArrayList<>();
+        
         for (InvoiceLineItemRequestDto req : items) {
             Product product = productMap.get(req.productId());
 
@@ -258,6 +272,7 @@ public class InvoiceService {
             BigDecimal lineTotal = round2(lineNet.add(lineVat));
 
             InvoiceLineItem li = new InvoiceLineItem();
+            li.setCompany(companyRepository.getReferenceById(companyId));
             li.setInvoiceId(invoiceId);
             li.setProductId(req.productId());
             li.setQuantity(req.quantity());
@@ -297,17 +312,26 @@ public class InvoiceService {
     //PRIVATE METODLAR - LOOKUP & DTO MAPPING
 
     private Invoice findInvoiceById(Long invoiceId) {
-        return invoiceRepository.findById(invoiceId)
+        Long companyId = companyContext.getCurrentCompanyId();
+        Invoice invoice = invoiceRepository.findById(invoiceId)
             .orElseThrow(() -> new RuntimeException("Invoice not found with id: " + invoiceId));
+            
+        if (!invoice.getCompany().getCompanyId().equals(companyId)) {
+            throw new RuntimeException("Bu kaydı görüntüleme yetkiniz yok");
+        }
+        
+        return invoice;
     }
 
     private InvoiceResponseDto toResponseDtoWithLines(Invoice invoice) {
-        List<InvoiceLineItem> lineItems = lineItemRepository.findByInvoiceIdAndIsDeletedFalse(invoice.getInvoiceId());
+        Long companyId = companyContext.getCurrentCompanyId();
+        List<InvoiceLineItem> lineItems = lineItemRepository.findByInvoiceIdAndCompanyCompanyIdAndIsDeletedFalse(invoice.getInvoiceId(), companyId);
         return toResponseDto(invoice, lineItems);
     }
 
     private InvoiceResponseDto toResponseDto(Invoice invoice, List<InvoiceLineItem> lineItems) {
-        Customer customer = customerRepository.findById(invoice.getCustomerId()).orElse(null);
+        Long companyId = companyContext.getCurrentCompanyId();
+        Customer customer = customerRepository.findByCustomerIdAndCompanyCompanyId(invoice.getCustomerId(), companyId).orElse(null);
 
         List<InvoiceLineItemResponseDto> lineItemDtos = lineItems.stream()
             .map(this::toLineItemResponseDto)
@@ -331,7 +355,9 @@ public class InvoiceService {
     }
 
     private InvoiceLineItemResponseDto toLineItemResponseDto(InvoiceLineItem li) {
-        Product product = productRepository.findById(li.getProductId()).orElse(null);
+        Long companyId = companyContext.getCurrentCompanyId();
+        Product product = productRepository.findByProductIdAndCompanyCompanyId(li.getProductId(), companyId).orElse(null);
+        
         return new InvoiceLineItemResponseDto(
             li.getLineItemId(),
             li.getProductId(),

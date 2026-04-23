@@ -3,6 +3,10 @@ package com.MuhasebePlus.demo.invoice.entity;
 import java.math.BigDecimal;
 
 import com.MuhasebePlus.demo.common.entity.BaseEntity;
+import com.MuhasebePlus.demo.company.entity.Company;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -29,6 +33,10 @@ public class InvoiceLineItem extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "line_item_id")
     private Integer lineItemId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id")
+    private Company company;
 
     @Column(name = "invoice_id", nullable = false)
     private Long invoiceId;

@@ -11,13 +11,15 @@ import com.MuhasebePlus.demo.stock.entity.Product;
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Integer> {
 
-    Optional<Product> findByProductIdAndIsDeletedFalse(Integer productId);
+    Optional<Product> findByProductIdAndCompanyCompanyIdAndIsDeletedFalse(Integer productId, Long companyId);
 
-    Optional<Product> findByBarcodeAndIsDeletedFalse(String barcode);
+    Optional<Product> findByBarcodeAndCompanyCompanyIdAndIsDeletedFalse(String barcode, Long companyId);
 
-    boolean existsByBarcodeAndIsDeletedFalse(String barcode);
+    boolean existsByBarcodeAndCompanyCompanyIdAndIsDeletedFalse(String barcode, Long companyId);
 
-    boolean existsByBarcodeAndProductIdNotAndIsDeletedFalse(String barcode, Integer productId);
+    boolean existsByBarcodeAndProductIdNotAndCompanyCompanyIdAndIsDeletedFalse(String barcode, Integer productId, Long companyId);
 
-    List<Product> findAllByIsDeletedFalseOrderByProductIdDesc();
+    List<Product> findAllByCompanyCompanyIdAndIsDeletedFalseOrderByProductIdDesc(Long companyId);
+    
+    Optional<Product> findByProductIdAndCompanyCompanyId(Integer productId, Long companyId);
 }

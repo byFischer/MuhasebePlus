@@ -6,6 +6,8 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.MuhasebePlus.demo.common.service.CompanyContext;
+import com.MuhasebePlus.demo.company.repository.CompanyRepository;
 import com.MuhasebePlus.demo.stock.dto.request.StockAdjustmentRequestDto;
 import com.MuhasebePlus.demo.stock.dto.request.StockCheckItemDto;
 import com.MuhasebePlus.demo.stock.dto.request.StockRequestDto;
@@ -28,20 +30,25 @@ public class StockService {
     private final StockRepository stockRepository;
     private final ProductRepository productRepository;
     private final InvoiceLineItemRepository invoiceLineItemRepository;
+    private final CompanyContext companyContext;
+    private final CompanyRepository companyRepository;
 
 
     //PUBLIC METODLAR 
 
     public StockResponseDto createStock(StockRequestDto dto) {
-        if (productRepository.findByProductIdAndIsDeletedFalse(dto.productId()).isEmpty()) {
-            throw new RuntimeException("Product not found or inactive: " + dto.productId());
+        Long companyId = companyContext.getCurrentCompanyId();
+        
+        if (productRepository.findByProductIdAndCompanyCompanyIdAndIsDeletedFalse(dto.productId(), companyId).isEmpty()) {
+            throw new RuntimeException("Product not found or inactive for your company: " + dto.productId());
         }
 
-        if (stockRepository.existsByProductId(dto.productId())) {
+        if (stockRepository.existsByProductIdAndCompanyCompanyId(dto.productId(), companyId)) {
             throw new RuntimeException("Stock already exists for productId: " + dto.productId());
         }
 
         Stock stock = new Stock();
+        stock.setCompany(companyRepository.getReferenceById(companyId));
         stock.setProductId(dto.productId());
         stock.setQuantity(dto.quantity());
         stock.setMinQuantity(dto.minQuantity());
@@ -63,8 +70,9 @@ public class StockService {
 
     public void softDeleteStock(Integer productId) {
         Stock stock = findActiveStockByProductId(productId);
+        Long companyId = companyContext.getCurrentCompanyId();
 
-        if (invoiceLineItemRepository.existsByProductIdAndIsDeletedFalse(productId)) {
+        if (invoiceLineItemRepository.existsByProductIdAndCompanyCompanyIdAndIsDeletedFalse(productId, companyId)) {
             throw new RuntimeException(
                 "Stock is used in active invoice line items; cannot delete: productId=" + productId);
         }
@@ -74,10 +82,12 @@ public class StockService {
     }
 
     public StockResponseDto restoreStock(Integer productId) {
-        Stock stock = stockRepository.findByProductId(productId)
+        Long companyId = companyContext.getCurrentCompanyId();
+        
+        Stock stock = stockRepository.findByProductIdAndCompanyCompanyId(productId, companyId)
             .orElseThrow(() -> new RuntimeException("Stock not found for productId: " + productId));
 
-        if (productRepository.findByProductIdAndIsDeletedFalse(productId).isEmpty()) {
+        if (productRepository.findByProductIdAndCompanyCompanyIdAndIsDeletedFalse(productId, companyId).isEmpty()) {
             throw new RuntimeException(
                 "Cannot restore stock for deleted product — restore product first: " + productId);
         }
@@ -94,19 +104,21 @@ public class StockService {
     }
 
     public List<StockResponseDto> getAllActiveStocks() {
-        return stockRepository.findActiveStocks().stream()
+        Long companyId = companyContext.getCurrentCompanyId();
+        return stockRepository.findActiveStocks(companyId).stream()
             .map(this::toResponseDto)
             .toList();
     }
 
     public List<StockResponseDto> getLowStockItems() {
-        return stockRepository.findLowStockItems().stream()
+        Long companyId = companyContext.getCurrentCompanyId();
+        return stockRepository.findLowStockItems(companyId).stream()
             .map(this::toResponseDto)
             .toList();
     }
 
 
-    //PUBLIC METODLAR 
+    //PUBLIC METODLAR - MİKTAR İŞLEMLERİ 
 
     public StockResponseDto addStock(Integer productId, StockAdjustmentRequestDto dto) {
         Stock stock = findActiveStockByProductId(productId);
@@ -152,9 +164,10 @@ public class StockService {
 
     public List<StockCheckResultDto> checkStock(List<StockCheckItemDto> items) {
         List<StockCheckResultDto> results = new ArrayList<>();
+        Long companyId = companyContext.getCurrentCompanyId();
 
         for (StockCheckItemDto item : items) {
-            Stock stock = stockRepository.findByProductId(item.productId())
+            Stock stock = stockRepository.findByProductIdAndCompanyCompanyId(item.productId(), companyId)
                 .filter(s -> !s.isDeleted())
                 .orElse(null);
 
@@ -199,8 +212,6 @@ public class StockService {
     }
 
     public void scheduleCount(Integer productId, LocalDateTime plannedDate) {
-        // TODO: scheduler modülü hazır olduğunda ScheduleTask tablosuna yazılacak.
-        // Şimdilik sadece ürünün aktif bir stok satırı olduğunu doğruluyoruz.
         findActiveStockByProductId(productId);
     }
 
@@ -208,13 +219,24 @@ public class StockService {
     //PRIVATE METODLAR
 
     private Stock findActiveStockByProductId(Integer productId) {
-        return stockRepository.findByProductId(productId)
-            .filter(s -> !s.isDeleted())
+        Long companyId = companyContext.getCurrentCompanyId();
+        Stock stock = stockRepository.findByProductIdAndCompanyCompanyId(productId, companyId)
             .orElseThrow(() -> new RuntimeException("Stock not found for productId: " + productId));
+            
+        if (!stock.getCompany().getCompanyId().equals(companyId)) {
+            throw new RuntimeException("Bu kaydı görüntüleme yetkiniz yok");
+        }
+        
+        if (stock.isDeleted()) {
+            throw new RuntimeException("Stock not found for productId: " + productId);
+        }
+        
+        return stock;
     }
 
     private StockResponseDto toResponseDto(Stock stock) {
-        Product product = productRepository.findById(stock.getProductId()).orElse(null);
+        Long companyId = companyContext.getCurrentCompanyId();
+        Product product = productRepository.findByProductIdAndCompanyCompanyId(stock.getProductId(), companyId).orElse(null);
 
         boolean lowStock = stock.getMinQuantity() != null
             && stock.getQuantity() != null

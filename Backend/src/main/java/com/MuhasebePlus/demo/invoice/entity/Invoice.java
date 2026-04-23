@@ -2,6 +2,7 @@
 package com.MuhasebePlus.demo.invoice.entity;
 
 import com.MuhasebePlus.demo.common.entity.BaseEntity;
+import com.MuhasebePlus.demo.company.entity.Company;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -18,6 +19,10 @@ public class Invoice extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "invoice_id")
     private Long invoiceId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id")
+    private Company company;
 
     @Column(name = "invoice_number", length = 50, unique = true)
     private String invoiceNumber;

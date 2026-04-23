@@ -4,6 +4,8 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.MuhasebePlus.demo.common.service.CompanyContext;
+import com.MuhasebePlus.demo.company.repository.CompanyRepository;
 import com.MuhasebePlus.demo.stock.dto.request.ProductRequestDto;
 import com.MuhasebePlus.demo.stock.dto.response.ProductResponseDto;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceLineItemRepository;
@@ -21,21 +23,22 @@ import lombok.RequiredArgsConstructor;
 public class ProductService {
 
     private final ProductRepository productRepository;
-
     private final StockRepository stockRepository;
-
     private final InvoiceLineItemRepository invoiceLineItemRepository;
-
+    private final CompanyContext companyContext;
+    private final CompanyRepository companyRepository;
 
     //PUBLIC METOTLAR
 
     public ProductResponseDto createProduct(ProductRequestDto dto) {
+        Long companyId = companyContext.getCurrentCompanyId();
         
-        if(productRepository.existsByBarcodeAndIsDeletedFalse(dto.barcode())) {
-            throw new RuntimeException("A product with the same barcode already exists: " + dto.barcode());
+        if(productRepository.existsByBarcodeAndCompanyCompanyIdAndIsDeletedFalse(dto.barcode(), companyId)) {
+            throw new RuntimeException("A product with the same barcode already exists in your company: " + dto.barcode());
         }
 
         Product product = new Product();
+        product.setCompany(companyRepository.getReferenceById(companyId));
         product.setBarcode(dto.barcode());
         product.setName(dto.name());
         product.setDescription(dto.description());
@@ -48,11 +51,11 @@ public class ProductService {
         Product saved = productRepository.save(product);
 
         return toResponseDto(saved);
-
-}
+    }
 
     public List<ProductResponseDto> getAllProducts() {
-        List<Product> products = productRepository.findAllByIsDeletedFalseOrderByProductIdDesc();
+        Long companyId = companyContext.getCurrentCompanyId();
+        List<Product> products = productRepository.findAllByCompanyCompanyIdAndIsDeletedFalseOrderByProductIdDesc(companyId);
         return products.stream().map(this::toResponseDto).toList();
     }
 
@@ -62,17 +65,19 @@ public class ProductService {
     }
 
     public ProductResponseDto getProductByBarcode(String barcode) {
-        Product product = productRepository.findByBarcodeAndIsDeletedFalse(barcode)
+        Long companyId = companyContext.getCurrentCompanyId();
+        Product product = productRepository.findByBarcodeAndCompanyCompanyIdAndIsDeletedFalse(barcode, companyId)
             .orElseThrow(() -> new RuntimeException("Product not found with barcode: " + barcode));
         return toResponseDto(product);
     }
 
     public ProductResponseDto updateProduct(Integer id, ProductRequestDto dto) {
         Product product = findProductEntityById(id);
+        Long companyId = companyContext.getCurrentCompanyId();
 
         if (!product.getBarcode().equals(dto.barcode()) &&
-                productRepository.existsByBarcodeAndProductIdNotAndIsDeletedFalse(dto.barcode(), id)) {
-            throw new RuntimeException("A product with the same barcode already exists: " + dto.barcode());
+                productRepository.existsByBarcodeAndProductIdNotAndCompanyCompanyIdAndIsDeletedFalse(dto.barcode(), id, companyId)) {
+            throw new RuntimeException("A product with the same barcode already exists in your company: " + dto.barcode());
         }
 
         product.setBarcode(dto.barcode());
@@ -90,8 +95,9 @@ public class ProductService {
 
     public void softDeleteProduct(Integer id) {
         Product product = findProductEntityById(id);
+        Long companyId = companyContext.getCurrentCompanyId();
 
-        if (invoiceLineItemRepository.existsByProductIdAndIsDeletedFalse(id)) {
+        if (invoiceLineItemRepository.existsByProductIdAndCompanyCompanyIdAndIsDeletedFalse(id, companyId)) {
             throw new RuntimeException(
                 "Product is used in active invoice line items; cannot delete: " + id);
         }
@@ -100,19 +106,21 @@ public class ProductService {
         productRepository.save(product);
 
         // İlgili stok satırı varsa onu da soft-delete et (cascade)
-        stockRepository.findByProductId(id).ifPresent(stock -> {
+        stockRepository.findByProductIdAndCompanyCompanyId(id, companyId).ifPresent(stock -> {
             stock.setDeleted(true);
             stockRepository.save(stock);
         });
     }
 
     public ProductResponseDto restoreProduct(Integer id) {
-        // 1) Silinmiş olanı da bulabilmek için isDeleted filtresiz findById
-        Product product = productRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
+        Long companyId = companyContext.getCurrentCompanyId();
+        
+        // 1) Silinmiş olanı da bulabilmek için findByProductIdAndCompanyCompanyId kullanıyoruz (isDeleted filtresiz)
+        Product product = productRepository.findByProductIdAndCompanyCompanyId(id, companyId)
+            .orElseThrow(() -> new RuntimeException("Product not found or access denied for id: " + id));
 
         // 3) Aynı barkoda sahip başka aktif (silinmemiş) ürün varsa restore engellenir
-        if (productRepository.existsByBarcodeAndProductIdNotAndIsDeletedFalse(product.getBarcode(), id)) {
+        if (productRepository.existsByBarcodeAndProductIdNotAndCompanyCompanyIdAndIsDeletedFalse(product.getBarcode(), id, companyId)) {
             throw new RuntimeException(
                 "Cannot restore product; another active product already uses barcode: " + product.getBarcode()
             );
@@ -123,7 +131,7 @@ public class ProductService {
         Product restored = productRepository.save(product);
 
         // 4) İlgili stok satırı varsa onu da restore et (cascade)
-        stockRepository.findByProductId(id).ifPresent(stock -> {
+        stockRepository.findByProductIdAndCompanyCompanyId(id, companyId).ifPresent(stock -> {
             stock.setDeleted(false);
             stockRepository.save(stock);
         });
@@ -132,32 +140,44 @@ public class ProductService {
     }
 
 
-//PRIVATE METOTLAR
+    //PRIVATE METOTLAR
 
-private Product findProductEntityById(Integer productId) {
-    return productRepository.findById(productId)
-        .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
-}
+    private Product findProductEntityById(Integer productId) {
+        Long companyId = companyContext.getCurrentCompanyId();
+        Product product = productRepository.findById(productId)
+            .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+            
+        if (!product.getCompany().getCompanyId().equals(companyId)) {
+            throw new RuntimeException("Bu kaydı görüntüleme yetkiniz yok");
+        }
+        
+        if (product.isDeleted()) {
+            throw new RuntimeException("Product not found with id: " + productId);
+        }
+        
+        return product;
+    }
 
-private ProductResponseDto toResponseDto(Product product) {
-    Stock stock = stockRepository.findByProductId(product.getProductId())
-        .orElse(null);
-    return new ProductResponseDto(
-        product.getProductId(),
-        product.getBarcode(),
-        product.getName(),
-        product.getDescription(),
-        product.getUnit(),
-        product.getSalePrice(),
-        product.getVatRate(),
-        product.getCostPrice(),
-        stock != null ? stock.getQuantity() : null,
-        stock != null ? stock.getMinQuantity() : null,
-        product.isDeleted(),
-        product.getCreatedAt(),
-        product.getUpdatedAt()
-    );
-}
-
+    private ProductResponseDto toResponseDto(Product product) {
+        Long companyId = companyContext.getCurrentCompanyId();
+        Stock stock = stockRepository.findByProductIdAndCompanyCompanyId(product.getProductId(), companyId)
+            .orElse(null);
+            
+        return new ProductResponseDto(
+            product.getProductId(),
+            product.getBarcode(),
+            product.getName(),
+            product.getDescription(),
+            product.getUnit(),
+            product.getSalePrice(),
+            product.getVatRate(),
+            product.getCostPrice(),
+            stock != null ? stock.getQuantity() : null,
+            stock != null ? stock.getMinQuantity() : null,
+            product.isDeleted(),
+            product.getCreatedAt(),
+            product.getUpdatedAt()
+        );
+    }
 
 }

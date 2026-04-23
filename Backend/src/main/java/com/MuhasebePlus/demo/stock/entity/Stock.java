@@ -1,6 +1,10 @@
 package com.MuhasebePlus.demo.stock.entity;
 
 import com.MuhasebePlus.demo.common.entity.BaseEntity;
+import com.MuhasebePlus.demo.company.entity.Company;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -29,6 +33,10 @@ public class Stock extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "stock_id")
     private Integer stockId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id")
+    private Company company;
 
     @Column(name = "product_id", nullable = false)
     private Integer productId;

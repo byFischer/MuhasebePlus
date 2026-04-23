@@ -12,22 +12,25 @@ import com.MuhasebePlus.demo.customer.entity.CustomerType;
 
 public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
-    Optional<Customer> findByTaxNumber(String taxNumber);
+    Optional<Customer> findByTaxNumberAndCompanyCompanyId(String taxNumber, Long companyId);
 
-    Optional<Customer> findByCustomerIdAndIsDeletedFalse(Long customerId);
+    Optional<Customer> findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(Long customerId, Long companyId);
 
-    boolean existsByTaxNumber(String taxNumber);
-    boolean existsByTaxNumberAndIsDeletedFalse(String taxNumber);
+    boolean existsByTaxNumberAndCompanyCompanyId(String taxNumber, Long companyId);
+    boolean existsByTaxNumberAndCompanyCompanyIdAndIsDeletedFalse(String taxNumber, Long companyId);
 
-    List<Customer> findByIsDeletedFalse();
-    List<Customer> findByIsDeletedTrue();
-    List<Customer> findByType(CustomerType type);
-    List<Customer> findByTypeAndIsDeletedFalse(CustomerType type);
+    List<Customer> findByCompanyCompanyIdAndIsDeletedFalse(Long companyId);
+    List<Customer> findByCompanyCompanyIdAndIsDeletedTrue(Long companyId);
+    
+    List<Customer> findByTypeAndCompanyCompanyId(CustomerType type, Long companyId);
+    List<Customer> findByTypeAndCompanyCompanyIdAndIsDeletedFalse(CustomerType type, Long companyId);
 
-    // Arama (CARI.1 Müşteri Arama use case)
-    @Query("SELECT c FROM Customer c WHERE c.isDeleted = false AND " +
+    Optional<Customer> findByCustomerIdAndCompanyCompanyId(Long customerId, Long companyId);
+    boolean existsByCustomerIdAndCompanyCompanyId(Long customerId, Long companyId);
+
+    @Query("SELECT c FROM Customer c WHERE c.company.companyId = :companyId AND c.isDeleted = false AND " +
         "(LOWER(c.name) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
         " LOWER(c.taxNumber) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
         " LOWER(c.city) LIKE LOWER(CONCAT('%', :q, '%')))")
-    List<Customer> searchActive(@Param("q") String query);
+    List<Customer> searchActive(@Param("companyId") Long companyId, @Param("q") String query);
 }
