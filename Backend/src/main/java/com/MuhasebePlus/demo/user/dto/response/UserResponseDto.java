@@ -12,6 +12,8 @@ public record UserResponseDto(
         String role,
         String phoneNumber,
         LocalDate birthDate,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        Long companyId,
+        String companyName
 ) {
 }

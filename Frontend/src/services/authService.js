@@ -28,6 +28,11 @@ class AuthService {
     }
   }
 
+  async getMe() {
+    const response = await api.get("/api/users/me");
+    return response.data;
+  }
+
   async logout() {
     localStorage.removeItem("token");
   }

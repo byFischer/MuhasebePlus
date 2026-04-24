@@ -14,6 +14,7 @@
   PieChartIcon,
 } from "@radix-ui/react-icons";
 import { useMemo, useState } from "react";
+import { useAuth } from "../context/AuthContext";
 
 const navItems = ["Genel Bakış", "Faturalar", "Nakit Akışı", "Masraflar", "Stok", "Raporlar"];
 const chartRangeOptions = ["1A", "3A", "6A", "YTD", "1Y"];
@@ -240,6 +241,7 @@ function buildChartGeometry(values) {
 }
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [activeNav, setActiveNav] = useState(navItems[0]);
   const [activeRange, setActiveRange] = useState(chartRangeOptions[4]);
   const [activeTool, setActiveTool] = useState("search");
@@ -330,6 +332,9 @@ export default function DashboardPage() {
               <span className="dash-user-avatar" aria-hidden>
                 <AvatarIcon />
               </span>
+              {user?.companyName && (
+                <span className="dash-company-name">{user.companyName}</span>
+              )}
               <ChevronDownIcon />
             </button>
           </div>

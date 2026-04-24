@@ -3,6 +3,7 @@
   LockClosedIcon,
   MobileIcon,
   PersonIcon,
+  HomeIcon,
 } from "@radix-ui/react-icons";
 import { useState } from "react";
 import { Box, Button, Flex, Heading, Link, Text, TextField } from "@radix-ui/themes";
@@ -23,7 +24,9 @@ export default function LoginForm() {
     email: "",
     password: "",
     passwordRepeat: "",
-    birthDate:""
+    birthDate: "",
+    companyName: "",
+    companyTaxNumber: "",
   });
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -82,6 +85,8 @@ export default function LoginForm() {
       password: registerData.password,
       phoneNumber: registerData.phoneNumber,
       birthDate: registerData.birthDate,
+      companyName: registerData.companyName,
+      companyTaxNumber: registerData.companyTaxNumber,
     });
 
     navigate("/dashboard");
@@ -223,6 +228,54 @@ export default function LoginForm() {
                 setRegisterData({ ...registerData, birthDate: e.target.value })
               }
             />
+          </Box>
+
+          <Box className="field-group">
+            <Text as="label" htmlFor="company-name-field" className="field-label">
+              Şirket Adı
+            </Text>
+            <TextField.Root
+              id="company-name-field"
+              name="companyName"
+              type="text"
+              size="3"
+              variant="classic"
+              placeholder="Şirket A.Ş."
+              required
+              className="login-field"
+              value={registerData.companyName}
+              onChange={(e) =>
+                setRegisterData({ ...registerData, companyName: e.target.value })
+              }
+            >
+              <TextField.Slot>
+                <HomeIcon className="field-icon" />
+              </TextField.Slot>
+            </TextField.Root>
+          </Box>
+
+          <Box className="field-group">
+            <Text as="label" htmlFor="company-tax-field" className="field-label">
+              Vergi Numarası
+            </Text>
+            <TextField.Root
+              id="company-tax-field"
+              name="companyTaxNumber"
+              type="text"
+              size="3"
+              variant="classic"
+              placeholder="1234567890"
+              required
+              className="login-field"
+              value={registerData.companyTaxNumber}
+              onChange={(e) =>
+                setRegisterData({ ...registerData, companyTaxNumber: e.target.value })
+              }
+            >
+              <TextField.Slot>
+                <HomeIcon className="field-icon" />
+              </TextField.Slot>
+            </TextField.Root>
           </Box>
 
           <Box className="field-group">

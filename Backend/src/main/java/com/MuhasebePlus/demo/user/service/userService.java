@@ -203,7 +203,9 @@ public class userService {
                 user.getRole().name(),
                 user.getPhoneNumber(),
                 user.getBirthDate(),
-                user.getCreatedAt()
+                user.getCreatedAt(),
+                user.getCompany() != null ? user.getCompany().getCompanyId() : null,
+                user.getCompany() != null ? user.getCompany().getCompanyName() : null
         );
     }
 }
