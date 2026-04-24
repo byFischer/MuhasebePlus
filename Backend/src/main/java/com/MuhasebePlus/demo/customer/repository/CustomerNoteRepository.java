@@ -16,4 +16,6 @@ public interface CustomerNoteRepository extends JpaRepository<CustomerNote, Long
     boolean existsByNoteIdAndCompanyCompanyId(Long noteId, Long companyId);
     
     void deleteByCustomerIdAndCompanyCompanyId(Long customerId, Long companyId);
+
+    void deleteByCustomerId(Long customerId);
 }

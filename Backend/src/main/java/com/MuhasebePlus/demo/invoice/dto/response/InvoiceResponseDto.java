@@ -18,6 +18,7 @@ public record InvoiceResponseDto(
     BigDecimal totalAmount,
     List<InvoiceLineItemResponseDto> lineItems,
     LocalDateTime createdAt,
-    LocalDateTime updatedAt
+    LocalDateTime updatedAt,
+    boolean isDeleted
 ) {
 }

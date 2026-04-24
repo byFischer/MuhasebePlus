@@ -1,5 +1,6 @@
 package com.MuhasebePlus.demo.stock.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,4 +23,8 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
     List<Product> findAllByCompanyCompanyIdAndIsDeletedFalseOrderByProductIdDesc(Long companyId);
     
     Optional<Product> findByProductIdAndCompanyCompanyId(Integer productId, Long companyId);
+
+    List<Product> findByIsDeletedTrueAndDeletedAtBefore(LocalDateTime cutoff);
+
+    List<Product> findByProductIdInAndCompanyCompanyId(List<Integer> productIds, Long companyId);
 }

@@ -1,6 +1,7 @@
 package com.MuhasebePlus.demo.customer.entity;
 
-import com.MuhasebePlus.demo.common.entity.BaseEntity;
+import com.MuhasebePlus.demo.common.entity.SoftDeletableEntity;
+import com.MuhasebePlus.demo.company.entity.Company;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -9,15 +10,13 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
-import com.MuhasebePlus.demo.company.entity.Company;
-
 @Entity
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "customer")
-@EqualsAndHashCode(callSuper = true)
-public class Customer extends BaseEntity {
+@EqualsAndHashCode(callSuper = false)
+public class Customer extends SoftDeletableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -41,5 +40,4 @@ public class Customer extends BaseEntity {
     private CustomerType type;
 
     private BigDecimal currentBalance;
-    private boolean isDeleted;
 }

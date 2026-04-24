@@ -1,12 +1,14 @@
 package com.MuhasebePlus.demo.customer.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.MuhasebePlus.demo.common.scheduler.HardDeletable;
 import com.MuhasebePlus.demo.common.service.CompanyContext;
 import com.MuhasebePlus.demo.company.repository.CompanyRepository;
 import com.MuhasebePlus.demo.customer.dto.request.CustomerNoteRequestDto;
@@ -21,7 +23,7 @@ import com.MuhasebePlus.demo.customer.repository.CustomerRepository;
 
 @Service
 @Transactional
-public class CustomerService {
+public class CustomerService implements HardDeletable {
 
     @Autowired
     private CustomerRepository customerRepository;
@@ -96,14 +98,26 @@ public class CustomerService {
     public void softDeleteCustomer(Long id){
         Customer customer = findCustomerEntityById(id);
         customer.setDeleted(true);
+        customer.setDeletedAt(LocalDateTime.now());
         customerRepository.save(customer);
     }
 
     public CustomerResponseDto restoreCustomer(Long id){
         Customer customer = findCustomerEntityById(id);
         customer.setDeleted(false);
+        customer.setDeletedAt(null);
         Customer restored = customerRepository.save(customer);
         return toResponseDto(restored);
+    }
+
+    @Override
+    public int hardDeleteExpired(LocalDateTime cutoff) {
+        List<Customer> expired = customerRepository.findByIsDeletedTrueAndDeletedAtBefore(cutoff);
+        for (Customer customer : expired) {
+            customerNoteRepository.deleteByCustomerId(customer.getCustomerId());
+            customerRepository.delete(customer);
+        }
+        return expired.size();
     }
 
     public List<CustomerResponseDto> searchCustomers(String query) {

@@ -1,8 +1,9 @@
 // Invoice.java
 package com.MuhasebePlus.demo.invoice.entity;
 
-import com.MuhasebePlus.demo.common.entity.BaseEntity;
+import com.MuhasebePlus.demo.common.entity.SoftDeletableEntity;
 import com.MuhasebePlus.demo.company.entity.Company;
+import com.MuhasebePlus.demo.customer.entity.Customer;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -13,7 +14,7 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "invoice")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class Invoice extends BaseEntity {
+public class Invoice extends SoftDeletableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,6 +30,10 @@ public class Invoice extends BaseEntity {
 
     @Column(name = "customer_id")
     private Long customerId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", insertable = false, updatable = false)
+    private Customer customer;
 
     @Enumerated(EnumType.STRING) 
     private InvoiceType invoiceType;
@@ -47,4 +52,5 @@ public class Invoice extends BaseEntity {
 
     @Column(name = "total_amount", precision = 15, scale = 2)
     private BigDecimal totalAmount;
+
 }

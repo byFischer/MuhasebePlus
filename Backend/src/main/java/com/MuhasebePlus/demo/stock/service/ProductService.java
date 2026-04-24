@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.MuhasebePlus.demo.common.scheduler.HardDeletable;
 import com.MuhasebePlus.demo.common.service.CompanyContext;
 import com.MuhasebePlus.demo.company.repository.CompanyRepository;
 import com.MuhasebePlus.demo.stock.dto.request.ProductRequestDto;
@@ -17,10 +18,12 @@ import com.MuhasebePlus.demo.stock.repository.StockRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Service
 @Transactional
 @RequiredArgsConstructor
-public class ProductService {
+public class ProductService implements HardDeletable {
 
     private final ProductRepository productRepository;
     private final StockRepository stockRepository;
@@ -103,6 +106,7 @@ public class ProductService {
         }
 
         product.setDeleted(true);
+        product.setDeletedAt(LocalDateTime.now());
         productRepository.save(product);
 
         // İlgili stok satırı varsa onu da soft-delete et (cascade)
@@ -114,29 +118,36 @@ public class ProductService {
 
     public ProductResponseDto restoreProduct(Integer id) {
         Long companyId = companyContext.getCurrentCompanyId();
-        
-        // 1) Silinmiş olanı da bulabilmek için findByProductIdAndCompanyCompanyId kullanıyoruz (isDeleted filtresiz)
+
         Product product = productRepository.findByProductIdAndCompanyCompanyId(id, companyId)
             .orElseThrow(() -> new RuntimeException("Product not found or access denied for id: " + id));
 
-        // 3) Aynı barkoda sahip başka aktif (silinmemiş) ürün varsa restore engellenir
         if (productRepository.existsByBarcodeAndProductIdNotAndCompanyCompanyIdAndIsDeletedFalse(product.getBarcode(), id, companyId)) {
             throw new RuntimeException(
                 "Cannot restore product; another active product already uses barcode: " + product.getBarcode()
             );
         }
 
-        // 2) Ürünü geri yükle
         product.setDeleted(false);
+        product.setDeletedAt(null);
         Product restored = productRepository.save(product);
 
-        // 4) İlgili stok satırı varsa onu da restore et (cascade)
         stockRepository.findByProductIdAndCompanyCompanyId(id, companyId).ifPresent(stock -> {
             stock.setDeleted(false);
             stockRepository.save(stock);
         });
 
         return toResponseDto(restored);
+    }
+
+    @Override
+    public int hardDeleteExpired(LocalDateTime cutoff) {
+        List<Product> expired = productRepository.findByIsDeletedTrueAndDeletedAtBefore(cutoff);
+        for (Product product : expired) {
+            stockRepository.deleteByProductId(product.getProductId());
+            productRepository.delete(product);
+        }
+        return expired.size();
     }
 
 

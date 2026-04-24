@@ -85,4 +85,10 @@ public class InvoiceController {
         invoiceService.deleteInvoice(invoiceId);
         return ResponseEntity.noContent().build();
     }
+
+    @PutMapping("/{invoiceId}/restore")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<InvoiceResponseDto> restoreInvoice(@PathVariable Long invoiceId) {
+        return ResponseEntity.ok(invoiceService.restoreInvoice(invoiceId));
+    }
 }

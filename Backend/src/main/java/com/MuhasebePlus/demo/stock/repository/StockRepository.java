@@ -17,6 +17,8 @@ public interface StockRepository extends JpaRepository<Stock, Integer> {
 
     boolean existsByProductIdAndCompanyCompanyId(Integer productId, Long companyId);
 
+    void deleteByProductId(Integer productId);
+
     @Query("""
         select s
         from Stock s

@@ -1,5 +1,6 @@
 package com.MuhasebePlus.demo.customer.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,6 +28,8 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     Optional<Customer> findByCustomerIdAndCompanyCompanyId(Long customerId, Long companyId);
     boolean existsByCustomerIdAndCompanyCompanyId(Long customerId, Long companyId);
+
+    List<Customer> findByIsDeletedTrueAndDeletedAtBefore(LocalDateTime cutoff);
 
     @Query("SELECT c FROM Customer c WHERE c.company.companyId = :companyId AND c.isDeleted = false AND " +
         "(LOWER(c.name) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
