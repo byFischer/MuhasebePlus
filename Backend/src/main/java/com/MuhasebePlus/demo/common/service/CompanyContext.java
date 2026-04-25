@@ -21,21 +21,29 @@ public class CompanyContext {
      * @throws RuntimeException Kullanıcı yetkisizse veya şirkete bağlı değilse
      */
     public Long getCurrentCompanyId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        
-        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
-            throw new RuntimeException("No authenticated user found in SecurityContext");
-        }
-        
-        String email = authentication.getName(); // JWT token'ından çıkarılan kullanıcı adı (email)
-        
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
-                
+        User user = getCurrentUser();
+
         if (user.getCompany() == null) {
             throw new RuntimeException("User is not associated with any company");
         }
-        
+
         return user.getCompany().getCompanyId();
+    }
+
+    public Long getCurrentUserId() {
+        return getCurrentUser().getUserId();
+    }
+
+    private User getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new RuntimeException("No authenticated user found in SecurityContext");
+        }
+
+        String email = authentication.getName();
+
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
     }
 }
