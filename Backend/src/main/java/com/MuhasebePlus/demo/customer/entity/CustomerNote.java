@@ -29,6 +29,10 @@ public class CustomerNote extends BaseEntity{
     @Column(name = "customer_id", nullable = false)
     private Long customerId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", insertable = false, updatable = false)
+    private Customer customer;
+
     @Column(name = "content", columnDefinition = "TEXT")
     private String content;
 

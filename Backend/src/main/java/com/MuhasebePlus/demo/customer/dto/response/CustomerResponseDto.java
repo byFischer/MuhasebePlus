@@ -5,15 +5,15 @@ import java.time.LocalDateTime;
 public record CustomerResponseDto(
     Long customerId,
     String name,
+    String email,
     String taxNumber,
     String address,
     String city,
     String phoneNumber,
-    String type, // enum.name()
+    String type,
     java.math.BigDecimal currentBalance,
     boolean isDeleted,
     LocalDateTime createdAt,
     LocalDateTime updatedAt
-) 
-{    
+) {
 }

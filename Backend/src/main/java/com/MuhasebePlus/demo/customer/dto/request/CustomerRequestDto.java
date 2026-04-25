@@ -26,6 +26,10 @@ public record CustomerRequestDto(
         String phoneNumber,
 
         @NotNull(message = "Type is required")
-        CustomerType type
+        CustomerType type,
+
+        @jakarta.validation.constraints.Email(message = "Email must be valid")
+        @Size(max = 255)
+        String email
 ) {
 }

@@ -29,6 +29,9 @@ public class Customer extends SoftDeletableEntity {
     @Column(name = "name")
     private String name;
 
+    @Column(name = "email")
+    private String email;
+
     private String taxNumber;
     private String address;
     private String city;
@@ -39,5 +42,6 @@ public class Customer extends SoftDeletableEntity {
     @Enumerated(EnumType.STRING)
     private CustomerType type;
 
+    @Transient
     private BigDecimal currentBalance;
 }
