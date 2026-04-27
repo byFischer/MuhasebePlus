@@ -1,16 +1,20 @@
-import { Card, Flex } from "@radix-ui/themes";
-import LoginBrandPanel from "../components/login/LoginBrandPanel";
+import { Box, Center } from "@chakra-ui/react";
 import LoginForm from "../components/login/LoginForm";
 
 export default function LoginPage() {
   return (
-    <main className="page-shell">
-      <Card className="login-frame" size="1">
-        <Flex className="login-layout">
+    <Box as="main" minH="100vh" bg="#07080b" color="white">
+      <Center
+        minH="100vh"
+        px={{ base: "5", md: "8" }}
+        pt={{ base: "12", md: "20" }}
+        pb="12"
+        alignItems="flex-start"
+      >
+        <Box w="full" maxW="384px">
           <LoginForm />
-          <LoginBrandPanel />
-        </Flex>
-      </Card>
-    </main>
+        </Box>
+      </Center>
+    </Box>
   );
 }

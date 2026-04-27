@@ -1,4 +1,4 @@
-import { Theme } from "@radix-ui/themes";
+import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import DashboardPage from "../pages/DashboardPage";
 import LoginPage from "../pages/LoginPage";
@@ -7,14 +7,7 @@ import ProtectedRoute from "../components/ProtectedRoute";
 
 export default function App() {
   return (
-    <Theme
-      appearance="dark"
-      accentColor="crimson"
-      grayColor="gray"
-      radius="large"
-      panelBackground="solid"
-      hasBackground={false}
-    >
+    <ChakraProvider value={defaultSystem}>
       <BrowserRouter>
         <AuthProvider>
           <Routes>
@@ -31,6 +24,6 @@ export default function App() {
           </Routes>
         </AuthProvider>
       </BrowserRouter>
-    </Theme>
+    </ChakraProvider>
   );
 }

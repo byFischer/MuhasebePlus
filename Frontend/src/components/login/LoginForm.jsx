@@ -1,18 +1,90 @@
-﻿import {
-  EnvelopeClosedIcon,
-  LockClosedIcon,
-  MobileIcon,
-  PersonIcon,
-  HomeIcon,
-} from "@radix-ui/react-icons";
+import { CheckIcon, EyeOpenIcon } from "@radix-ui/react-icons";
 import { useState } from "react";
-import { Box, Button, Flex, Heading, Link, Text, TextField } from "@radix-ui/themes";
-import { useAuth } from "../../context/AuthContext";
+import {
+  Box,
+  Button,
+  Checkbox,
+  Field,
+  Heading,
+  HStack,
+  IconButton,
+  Input,
+  InputGroup,
+  Link,
+  SimpleGrid,
+  Span,
+  Text,
+  VStack,
+} from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
+const inputStyles = {
+  h: "40px",
+  borderRadius: "3px",
+  borderColor: "#26282d",
+  bg: "transparent",
+  color: "#f5f7fb",
+  fontSize: "14px",
+  _hover: { borderColor: "#303540" },
+  _focus: {
+    borderColor: "#2f6df6",
+    boxShadow: "0 0 0 1px #2f6df6",
+  },
+  _placeholder: { color: "#6f7785" },
+};
+
+function Logo() {
+  return (
+    <HStack gap="2" justify="center">
+      <Box
+        aria-hidden
+        boxSize="26px"
+        borderRadius="full"
+        bg="#2563eb"
+        position="relative"
+        overflow="hidden"
+      >
+        <Box
+          position="absolute"
+          w="20px"
+          h="8px"
+          bg="#050608"
+          top="4px"
+          left="-2px"
+          transform="rotate(42deg)"
+          transformOrigin="center"
+        />
+      </Box>
+      <Text color="#f1f5f9" fontWeight="700" fontSize="16px">
+        Logo
+      </Text>
+    </HStack>
+  );
+}
+
+function GoogleMark() {
+  return (
+    <Span color="#8ab4f8" fontSize="22px" fontWeight="700" lineHeight="1">
+      G
+    </Span>
+  );
+}
+
+function FormField({ id, label, children }) {
+  return (
+    <Field.Root gap="2">
+      <Field.Label htmlFor={id} color="#f5f7fb" fontSize="13px" fontWeight="700">
+        {label}
+      </Field.Label>
+      {children}
+    </Field.Root>
+  );
+}
 
 export default function LoginForm() {
   const [isRegisterView, setIsRegisterView] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [loginData, setLoginData] = useState({
     email: "",
     password: "",
@@ -32,7 +104,7 @@ export default function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const navigate = useNavigate();
-  const { loginUser, registerUser} = useAuth();
+  const { loginUser, registerUser } = useAuth();
 
   const openRegisterView = (event) => {
     event.preventDefault();
@@ -47,390 +119,359 @@ export default function LoginForm() {
   };
 
   const handleLoginSubmit = async (event) => {
-  event.preventDefault();
+    event.preventDefault();
 
-  setErrorMessage("");
-  setIsSubmitting(true);
+    setErrorMessage("");
+    setIsSubmitting(true);
 
-  try {
-    await loginUser({
-      email: loginData.email,
-      password: loginData.password,
-    });
+    try {
+      await loginUser({
+        email: loginData.email,
+        password: loginData.password,
+      });
 
-    navigate("/dashboard");
-  } catch (error) {
-    setErrorMessage(error.message || "Giriş başarısız");
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+      navigate("/dashboard");
+    } catch (error) {
+      setErrorMessage(error.message || "Giriş başarısız");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleRegisterSubmit = async (event) => {
-  event.preventDefault();
+    event.preventDefault();
 
-  if (registerData.password !== registerData.passwordRepeat) {
-    setErrorMessage("Şifreler eşleşmiyor");
-    return;
-  }
+    if (registerData.password !== registerData.passwordRepeat) {
+      setErrorMessage("Şifreler eşleşmiyor");
+      return;
+    }
 
-  setErrorMessage("");
-  setIsSubmitting(true);
+    setErrorMessage("");
+    setIsSubmitting(true);
 
-  try {
-    await registerUser({
-      firstName: registerData.firstName,
-      lastName: registerData.lastName,
-      email: registerData.email,
-      password: registerData.password,
-      phoneNumber: registerData.phoneNumber,
-      birthDate: registerData.birthDate,
-      companyName: registerData.companyName,
-      companyTaxNumber: registerData.companyTaxNumber,
-    });
+    try {
+      await registerUser({
+        firstName: registerData.firstName,
+        lastName: registerData.lastName,
+        email: registerData.email,
+        password: registerData.password,
+        phoneNumber: registerData.phoneNumber,
+        birthDate: registerData.birthDate,
+        companyName: registerData.companyName,
+        companyTaxNumber: registerData.companyTaxNumber,
+      });
 
-    navigate("/dashboard");
-  } catch (error) {
-    setErrorMessage(error.message || "Kayıt başarısız");
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+      navigate("/dashboard");
+    } catch (error) {
+      setErrorMessage(error.message || "Kayıt başarısız");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
+  if (isRegisterView) {
+    return (
+      <VStack as="form" gap="5" w="full" onSubmit={handleRegisterSubmit}>
+        <VStack gap="3" textAlign="center">
+          <Logo />
+          <Heading color="#f8fafc" fontSize="30px" lineHeight="1.1" fontWeight="700">
+            Create account
+          </Heading>
+          <Text color="#9ca3af" fontSize="16px">
+            Start using MuhasebePlus in your projects
+          </Text>
+        </VStack>
 
-  return (
-    <Box className="left-panel" key={isRegisterView ? "register" : "login"}>
-      <Box className="brand-chip" aria-hidden />
-
-      <Box className="intro-copy">
-        <Heading as="h1" className="welcome-title">
-          {isRegisterView ? "Kayıt Olun" : "Hoş Geldiniz"}
-        </Heading>
-        <Text as="p" className="welcome-text">
-          {isRegisterView
-            ? "Yeni hesabınızı oluşturun ve tüm muhasebe işlemlerinizi tek yerden yönetin"
-            : "Tüm muhasebe işlemlerinizi tek bir yerde yönetin"}
-        </Text>
-      </Box>
-
-      {isRegisterView ? (
-        <form className="login-form register-form" onSubmit={handleRegisterSubmit}>
-          <Box className="field-group">
-            <Text as="label" htmlFor="first-name-field" className="field-label">
-              İsim
-            </Text>
-            <TextField.Root
+        <SimpleGrid columns={{ base: 1, md: 2 }} gap="4" w="full">
+          <FormField id="first-name-field" label="First name">
+            <Input
               id="first-name-field"
               name="firstName"
-              type="text"
-              size="3"
-              variant="classic"
-              placeholder="Ahmet"
               required
-              className="login-field"
               value={registerData.firstName}
               onChange={(e) =>
                 setRegisterData({ ...registerData, firstName: e.target.value })
               }
-            >
-              <TextField.Slot>
-                <PersonIcon className="field-icon" />
-              </TextField.Slot>
-            </TextField.Root>
-          </Box>
+              {...inputStyles}
+            />
+          </FormField>
 
-          <Box className="field-group">
-            <Text as="label" htmlFor="last-name-field" className="field-label">
-              Soyisim
-            </Text>
-            <TextField.Root
+          <FormField id="last-name-field" label="Last name">
+            <Input
               id="last-name-field"
               name="lastName"
-              type="text"
-              size="3"
-              variant="classic"
-              placeholder="Yılmaz"
               required
-              className="login-field"
               value={registerData.lastName}
               onChange={(e) =>
                 setRegisterData({ ...registerData, lastName: e.target.value })
               }
-            >
-              <TextField.Slot>
-                <PersonIcon className="field-icon" />
-              </TextField.Slot>
-            </TextField.Root>
-          </Box>
+              {...inputStyles}
+            />
+          </FormField>
+        </SimpleGrid>
 
-          <Box className="field-group">
-            <Text as="label" htmlFor="phone-field" className="field-label">
-              Telefon Numarası
-            </Text>
-            <TextField.Root
+        <FormField id="register-email-field" label="Email">
+          <Input
+            id="register-email-field"
+            name="email"
+            type="email"
+            required
+            value={registerData.email}
+            onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
+            {...inputStyles}
+          />
+        </FormField>
+
+        <SimpleGrid columns={{ base: 1, md: 2 }} gap="4" w="full">
+          <FormField id="phone-field" label="Phone">
+            <Input
               id="phone-field"
               name="phoneNumber"
               type="tel"
-              size="3"
-              variant="classic"
-              placeholder="05XX XXX XX XX"
               required
-              className="login-field"
               value={registerData.phoneNumber}
               onChange={(e) =>
                 setRegisterData({ ...registerData, phoneNumber: e.target.value })
               }
-            >
-              <TextField.Slot>
-                <MobileIcon className="field-icon" />
-              </TextField.Slot>
-            </TextField.Root>
-          </Box>
+              {...inputStyles}
+            />
+          </FormField>
 
-          <Box className="field-group">
-            <Text as="label" htmlFor="register-email-field" className="field-label">
-              E-posta
-            </Text>
-            <TextField.Root
-              id="register-email-field"
-              name="email"
-              type="email"
-              size="3"
-              variant="classic"
-              placeholder="ornek@email.com"
-              required
-              className="login-field"
-              value={registerData.email}
-              onChange={(e) =>
-                setRegisterData({ ...registerData, email: e.target.value })
-              }
-            >
-              <TextField.Slot>
-                <EnvelopeClosedIcon className="field-icon" />
-              </TextField.Slot>
-            </TextField.Root>
-          </Box>
-
-          <Box className="field-group">
-            <Text as="label" htmlFor="birthdate-field" className="field-label">
-              Doğum Tarihi
-            </Text>
-            <TextField.Root
+          <FormField id="birthdate-field" label="Birth date">
+            <Input
               id="birthdate-field"
               name="birthDate"
               type="date"
-              size="3"
-              variant="classic"
               required
-              className="login-field"
               value={registerData.birthDate}
               onChange={(e) =>
                 setRegisterData({ ...registerData, birthDate: e.target.value })
               }
+              {...inputStyles}
             />
-          </Box>
+          </FormField>
+        </SimpleGrid>
 
-          <Box className="field-group">
-            <Text as="label" htmlFor="company-name-field" className="field-label">
-              Şirket Adı
-            </Text>
-            <TextField.Root
+        <SimpleGrid columns={{ base: 1, md: 2 }} gap="4" w="full">
+          <FormField id="company-name-field" label="Company">
+            <Input
               id="company-name-field"
               name="companyName"
-              type="text"
-              size="3"
-              variant="classic"
-              placeholder="Şirket A.Ş."
               required
-              className="login-field"
               value={registerData.companyName}
               onChange={(e) =>
                 setRegisterData({ ...registerData, companyName: e.target.value })
               }
-            >
-              <TextField.Slot>
-                <HomeIcon className="field-icon" />
-              </TextField.Slot>
-            </TextField.Root>
-          </Box>
+              {...inputStyles}
+            />
+          </FormField>
 
-          <Box className="field-group">
-            <Text as="label" htmlFor="company-tax-field" className="field-label">
-              Vergi Numarası
-            </Text>
-            <TextField.Root
+          <FormField id="company-tax-field" label="Tax number">
+            <Input
               id="company-tax-field"
               name="companyTaxNumber"
-              type="text"
-              size="3"
-              variant="classic"
-              placeholder="1234567890"
               required
-              className="login-field"
               value={registerData.companyTaxNumber}
               onChange={(e) =>
-                setRegisterData({ ...registerData, companyTaxNumber: e.target.value })
+                setRegisterData({
+                  ...registerData,
+                  companyTaxNumber: e.target.value,
+                })
               }
-            >
-              <TextField.Slot>
-                <HomeIcon className="field-icon" />
-              </TextField.Slot>
-            </TextField.Root>
-          </Box>
+              {...inputStyles}
+            />
+          </FormField>
+        </SimpleGrid>
 
-          <Box className="field-group">
-            <Text as="label" htmlFor="register-password-field" className="field-label">
-              Şifre
-            </Text>
-            <TextField.Root
+        <SimpleGrid columns={{ base: 1, md: 2 }} gap="4" w="full">
+          <FormField id="register-password-field" label="Password">
+            <Input
               id="register-password-field"
               name="password"
               type="password"
-              size="3"
-              variant="classic"
-              placeholder="********"
               required
-              className="login-field"
               value={registerData.password}
               onChange={(e) =>
                 setRegisterData({ ...registerData, password: e.target.value })
               }
-            >
-              <TextField.Slot>
-                <LockClosedIcon className="field-icon" />
-              </TextField.Slot>
-            </TextField.Root>
-          </Box>
+              {...inputStyles}
+            />
+          </FormField>
 
-          <Box className="field-group">
-            <Text as="label" htmlFor="password-repeat-field" className="field-label">
-              Şifre Tekrarı
-            </Text>
-            <TextField.Root
+          <FormField id="password-repeat-field" label="Repeat password">
+            <Input
               id="password-repeat-field"
               name="passwordRepeat"
               type="password"
-              size="3"
-              variant="classic"
-              placeholder="********"
               required
-              className="login-field"
               value={registerData.passwordRepeat}
               onChange={(e) =>
                 setRegisterData({ ...registerData, passwordRepeat: e.target.value })
               }
-            >
-              <TextField.Slot>
-                <LockClosedIcon className="field-icon" />
-              </TextField.Slot>
-            </TextField.Root>
-          </Box>
+              {...inputStyles}
+            />
+          </FormField>
+        </SimpleGrid>
 
-          {errorMessage && (
-            <Text as="p" size="2" color="red" className="form-error">
-              {errorMessage}
-            </Text>
-          )}
-
-          <Flex className="actions-row">
-            <Button
-              type="submit"
-              size="3"
-              className="login-button"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Gönderiliyor..." : "Kayıt Ol"}
-            </Button>
-            <Link href="#" size="2" className="forgot-link" onClick={openLoginView}>
-              Giriş Ekranına Dön
-            </Link>
-          </Flex>
-
-          <Text as="p" size="2" className="signup-text">
-            Zaten hesabınız var mı?{" "}
-            <Link href="#" className="signup-link" onClick={openLoginView}>
-              Giriş Yap
-            </Link>
+        {errorMessage && (
+          <Text color="#f87171" fontSize="13px" alignSelf="flex-start">
+            {errorMessage}
           </Text>
-        </form>
-      ) : (
-        <form className="login-form" onSubmit={handleLoginSubmit}>
-          <Box className="field-group">
-            <Text as="label" htmlFor="email-field" className="field-label">
-              E-posta Adresiniz
-            </Text>
-            <TextField.Root
-              id="email-field"
-              name="email"
-              type="email"
-              size="3"
-              variant="classic"
-              placeholder="ornek@email.com"
-              required
-              className="login-field"
-              value = {loginData.email}
-              onChange ={(e) =>
-                setLoginData({...loginData, email: e.target.value})
-              }
-            >
-              <TextField.Slot>
-                <EnvelopeClosedIcon className="field-icon" />
-              </TextField.Slot>
-            </TextField.Root>
-          </Box>
+        )}
 
-          <Box className="field-group">
-            <Text as="label" htmlFor="password-field" className="field-label">
-              Şifre
-            </Text>
-            <TextField.Root
+        <Button
+          type="submit"
+          w="full"
+          h="40px"
+          borderRadius="4px"
+          bg="#2f6df6"
+          color="white"
+          fontWeight="700"
+          loading={isSubmitting}
+          _hover={{ bg: "#2760dc" }}
+        >
+          Sign up
+        </Button>
+
+        <Text color="#9ca3af" fontSize="14px">
+          Already have an account?{" "}
+          <Link href="#" color="#7bb2ff" fontWeight="700" onClick={openLoginView}>
+            Sign in
+          </Link>
+        </Text>
+      </VStack>
+    );
+  }
+
+  return (
+    <VStack as="form" gap="6" w="full" onSubmit={handleLoginSubmit}>
+      <VStack gap="4" textAlign="center">
+        <Logo />
+        <VStack gap="2">
+          <Heading color="#f8fafc" fontSize="30px" lineHeight="1.1" fontWeight="700">
+            Welcome back
+          </Heading>
+          <Text color="#9ca3af" fontSize="16px">
+            Start using Chakra in your projects
+          </Text>
+        </VStack>
+      </VStack>
+
+      <VStack gap="5" w="full">
+        <FormField id="email-field" label="Email">
+          <Input
+            id="email-field"
+            name="email"
+            type="email"
+            required
+            value={loginData.email}
+            onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+            {...inputStyles}
+          />
+        </FormField>
+
+        <FormField id="password-field" label="Password">
+          <InputGroup
+            endElement={
+              <IconButton
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                size="xs"
+                variant="ghost"
+                color="#88a0c5"
+                minW="auto"
+                h="24px"
+                onClick={() => setShowPassword((current) => !current)}
+                _hover={{ bg: "transparent", color: "#b5c9ef" }}
+              >
+                <EyeOpenIcon />
+              </IconButton>
+            }
+            endElementProps={{ pe: "3" }}
+          >
+            <Input
               id="password-field"
               name="password"
-              type="password"
-              size="3"
-              variant="classic"
-              placeholder="********"
+              type={showPassword ? "text" : "password"}
               required
-              className="login-field"
-              value = {loginData.password}
-              onChange ={(e) =>
-                setLoginData({...loginData, password: e.target.value})
+              value={loginData.password}
+              onChange={(e) =>
+                setLoginData({ ...loginData, password: e.target.value })
               }
-            >
-              <TextField.Slot>
-                <LockClosedIcon className="field-icon" />
-              </TextField.Slot>
-            </TextField.Root>
-          </Box>
+              {...inputStyles}
+            />
+          </InputGroup>
+        </FormField>
+      </VStack>
 
-          {errorMessage && (
-            <Text as="p" size="2" color="red" className="form-error">
-              {errorMessage}
-            </Text>
-          )}
+      <HStack justify="space-between" w="full">
+        <Checkbox.Root defaultChecked>
+          <Checkbox.HiddenInput />
+          <Checkbox.Control
+            boxSize="18px"
+            borderRadius="3px"
+            borderColor="#2f6df6"
+            bg="#2f6df6"
+          >
+            <Checkbox.Indicator color="white">
+              <CheckIcon />
+            </Checkbox.Indicator>
+          </Checkbox.Control>
+          <Checkbox.Label color="#f5f7fb" fontSize="14px" fontWeight="700">
+            Remember me
+          </Checkbox.Label>
+        </Checkbox.Root>
 
-          <Flex className="actions-row">
-            <Button
-              type="submit"
-              size="3"
-              className="login-button"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Gönderiliyor..." : "Giriş Yap"}
-            </Button>
-            <Link href="#" size="2" className="forgot-link">
-              Şifremi Unuttum?
-            </Link>
-          </Flex>
+        <Link href="#" color="#7bb2ff" fontSize="14px" fontWeight="700">
+          Forgot password
+        </Link>
+      </HStack>
 
-          <Text as="p" size="2" className="signup-text">
-            Hesabınız yok mu?{" "}
-            <Link href="#" className="signup-link" onClick={openRegisterView}>
-              Kayıt Ol
-            </Link>
-          </Text>
-        </form>
+      {errorMessage && (
+        <Text color="#f87171" fontSize="13px" alignSelf="flex-start">
+          {errorMessage}
+        </Text>
       )}
-    </Box>
+
+      <VStack gap="4" w="full">
+        <Button
+          type="submit"
+          w="full"
+          h="40px"
+          borderRadius="4px"
+          bg="#2f6df6"
+          color="white"
+          fontWeight="700"
+          loading={isSubmitting}
+          _hover={{ bg: "#2760dc" }}
+        >
+          Sign in
+        </Button>
+
+        <Button
+          type="button"
+          w="full"
+          h="40px"
+          borderRadius="3px"
+          border="1px solid"
+          borderColor="#1f4aa3"
+          bg="transparent"
+          color="#f5f7fb"
+          fontWeight="700"
+          _hover={{ bg: "rgba(47, 109, 246, 0.08)" }}
+        >
+          <HStack gap="2">
+            <GoogleMark />
+            <Span>Sign in with Google</Span>
+          </HStack>
+        </Button>
+      </VStack>
+
+      <Text color="#9ca3af" fontSize="14px" pt="3">
+        Don&apos;t have an account?{" "}
+        <Link href="#" color="#7bb2ff" fontWeight="700" onClick={openRegisterView}>
+          Sign up
+        </Link>
+      </Text>
+    </VStack>
   );
 }
