@@ -20,6 +20,8 @@ import com.MuhasebePlus.demo.financial.entity.TransactionType;
 import com.MuhasebePlus.demo.financial.repository.BankAccountRepository;
 import com.MuhasebePlus.demo.financial.repository.TransactionRepository;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceRepository;
+import com.MuhasebePlus.demo.log.entity.LogLevel;
+import com.MuhasebePlus.demo.log.service.SystemLogService;
 
 @Service
 @Transactional
@@ -33,6 +35,9 @@ public class TransactionService implements HardDeletable {
 
     @Autowired
     private InvoiceRepository invoiceRepository;
+
+    @Autowired
+    private SystemLogService systemLogService;
 
     @Autowired
     private CompanyContext companyContext;
@@ -66,6 +71,8 @@ public class TransactionService implements HardDeletable {
         tx.setDeleted(false);
 
         Transaction saved = transactionRepository.save(tx);
+        systemLogService.log(LogLevel.INFO,
+                "İşlem kaydedildi: " + saved.getTransactionType() + " " + saved.getAmount() + " TL (hesap=" + saved.getAccountId() + ")");
         return toResponseDto(saved);
     }
 

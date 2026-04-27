@@ -19,6 +19,8 @@ import com.MuhasebePlus.demo.financial.entity.BankAccount;
 import com.MuhasebePlus.demo.financial.entity.TransactionType;
 import com.MuhasebePlus.demo.financial.repository.BankAccountRepository;
 import com.MuhasebePlus.demo.financial.repository.TransactionRepository;
+import com.MuhasebePlus.demo.log.entity.LogLevel;
+import com.MuhasebePlus.demo.log.service.SystemLogService;
 
 @Service
 @Transactional
@@ -29,6 +31,9 @@ public class BankAccountService implements HardDeletable {
 
     @Autowired
     private TransactionRepository transactionRepository;
+
+    @Autowired
+    private SystemLogService systemLogService;
 
     @Autowired
     private CompanyContext companyContext;
@@ -56,6 +61,7 @@ public class BankAccountService implements HardDeletable {
         account.setDeleted(false);
 
         BankAccount saved = bankAccountRepository.save(account);
+        systemLogService.log(LogLevel.INFO, "Banka hesabı oluşturuldu: " + saved.getBankName() + " - " + saved.getIban());
         return toResponseDto(saved, BigDecimal.ZERO);
     }
 

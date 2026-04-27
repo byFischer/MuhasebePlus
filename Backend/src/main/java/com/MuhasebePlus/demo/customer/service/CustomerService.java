@@ -25,6 +25,8 @@ import com.MuhasebePlus.demo.customer.repository.CustomerRepository;
 import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
 import com.MuhasebePlus.demo.invoice.entity.PaymentStatus;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceRepository;
+import com.MuhasebePlus.demo.log.entity.LogLevel;
+import com.MuhasebePlus.demo.log.service.SystemLogService;
 
 @Service
 @Transactional
@@ -44,6 +46,9 @@ public class CustomerService implements HardDeletable {
 
     @Autowired
     private InvoiceRepository invoiceRepository;
+
+    @Autowired
+    private SystemLogService systemLogService;
 
 
     // PUBLIC METOTLAR
@@ -67,6 +72,7 @@ public class CustomerService implements HardDeletable {
         customer.setDeleted(false);
 
         Customer saved = customerRepository.save(customer);
+        systemLogService.log(LogLevel.INFO, "Müşteri oluşturuldu: " + saved.getName() + " (id=" + saved.getCustomerId() + ")");
         return toResponseDto(saved, BigDecimal.ZERO);
     }
 
