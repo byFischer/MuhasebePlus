@@ -59,10 +59,7 @@ public class SystemLogService {
 
     public List<SystemLogResponseDto> getLogs(LogLevel level, LocalDate startDate, LocalDate endDate, Long userId) {
         Long companyId = companyContext.getCurrentCompanyId();
-        LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
-        LocalDateTime end = endDate != null ? endDate.atTime(23, 59, 59) : null;
-
-        return systemLogRepository.searchLogs(companyId, level, userId, start, end)
+        return filterLogs(companyId, level, startDate, endDate, userId)
                 .stream()
                 .map(this::toResponseDto)
                 .toList();
@@ -70,10 +67,8 @@ public class SystemLogService {
 
     public String exportLogsAsCsv(LogLevel level, LocalDate startDate, LocalDate endDate, Long userId) {
         Long companyId = companyContext.getCurrentCompanyId();
-        LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
-        LocalDateTime end = endDate != null ? endDate.atTime(23, 59, 59) : null;
 
-        List<SystemLog> logs = systemLogRepository.searchLogs(companyId, level, userId, start, end);
+        List<SystemLog> logs = filterLogs(companyId, level, startDate, endDate, userId);
 
         StringBuilder csv = new StringBuilder();
         csv.append("LogID,Level,Timestamp,IPAddress,UserID,UserEmail,Details\n");
@@ -92,6 +87,19 @@ public class SystemLogService {
 
 
     // PRIVATE METOTLAR
+
+    private List<SystemLog> filterLogs(Long companyId, LogLevel level, LocalDate startDate, LocalDate endDate, Long userId) {
+        LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
+        LocalDateTime end = endDate != null ? endDate.atTime(23, 59, 59) : null;
+
+        return systemLogRepository.findByCompanyCompanyIdOrderByTimestampDesc(companyId)
+                .stream()
+                .filter(l -> level == null || l.getLogLevel() == level)
+                .filter(l -> userId == null || userId.equals(l.getUserId()))
+                .filter(l -> start == null || !l.getTimestamp().isBefore(start))
+                .filter(l -> end == null || !l.getTimestamp().isAfter(end))
+                .toList();
+    }
 
     private Long tryGetCompanyId() {
         try {
