@@ -5,6 +5,7 @@ HELP.md
 ### Proje Planları ###
 final test bolumu yok md.md
 Proje Onerisi vize md.md
+Frontend-Gelistirme-Plani.md
 
 ### Node ###
 node_modules/
@@ -14,3 +15,5 @@ frontend/dist/
 .idea/
 .vscode/
 *.iml
+
+reports/
