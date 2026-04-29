@@ -5,7 +5,6 @@ import com.MuhasebePlus.demo.dashboard.entity.DashboardWidget;
 import com.MuhasebePlus.demo.dashboard.repository.DashboardLayoutRepository;
 import com.MuhasebePlus.demo.dashboard.repository.DashboardWidgetRepository;
 import com.MuhasebePlus.demo.financial.entity.TransactionType;
-import com.MuhasebePlus.demo.financial.repository.BankAccountRepository;
 import com.MuhasebePlus.demo.financial.repository.TransactionRepository;
 import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
 import com.MuhasebePlus.demo.invoice.entity.PaymentStatus;
@@ -31,7 +30,7 @@ public class WidgetDataService {
     @Autowired private DashboardLayoutRepository layoutRepository;
     @Autowired private TransactionRepository transactionRepository;
     @Autowired private InvoiceRepository invoiceRepository;
-    @Autowired private BankAccountRepository bankAccountRepository;
+    
     @Autowired private CompanyContext companyContext;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
