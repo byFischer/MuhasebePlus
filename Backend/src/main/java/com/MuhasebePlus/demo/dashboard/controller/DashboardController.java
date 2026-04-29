@@ -1,4 +1,2 @@
 package com.MuhasebePlus.demo.dashboard.controller;
-
-public class DashboardController {
-}
+// Replaced by DashboardLayoutController, DashboardWidgetController, WidgetDataController, AiWidgetController

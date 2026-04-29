@@ -52,4 +52,14 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     List<Object[]> calculateBalancesByCompany(
             @Param("companyId") Long companyId,
             @Param("income") TransactionType income);
+
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t " +
+           "WHERE t.transactionType = :type " +
+           "AND t.transactionDate >= :startDate AND t.transactionDate <= :endDate " +
+           "AND t.company.companyId = :companyId AND t.isDeleted = false")
+    BigDecimal sumByTypeAndDateRange(
+            @Param("type") TransactionType type,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("companyId") Long companyId);
 }

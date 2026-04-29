@@ -1,4 +1,2 @@
 package com.MuhasebePlus.demo.dashboard.service;
-
-public class DashboardService {
-}
+// Replaced by DashboardLayoutService, DashboardWidgetService, WidgetDataService, AiWidgetGeneratorService

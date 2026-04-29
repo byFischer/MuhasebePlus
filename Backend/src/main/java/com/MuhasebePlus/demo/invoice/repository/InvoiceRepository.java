@@ -72,4 +72,20 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     List<Invoice> findByFiltersWithCustomer(@Param("companyId") Long companyId,
                                             @Param("status") PaymentStatus status,
                                             @Param("type") InvoiceType type);
+
+    @Query("SELECT COALESCE(SUM(i.totalAmount), 0) FROM Invoice i " +
+           "WHERE i.invoiceType = :type " +
+           "AND i.dueDate >= :startDate AND i.dueDate <= :endDate " +
+           "AND i.company.companyId = :companyId AND i.isDeleted = false")
+    BigDecimal sumByTypeAndDateRange(
+            @Param("type") InvoiceType type,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("companyId") Long companyId);
+
+    @Query("SELECT i.customerId, i.customer.name, COALESCE(SUM(i.totalAmount), 0) FROM Invoice i " +
+           "WHERE i.company.companyId = :companyId AND i.isDeleted = false " +
+           "AND i.invoiceType = com.MuhasebePlus.demo.invoice.entity.InvoiceType.sale " +
+           "GROUP BY i.customerId, i.customer.name ORDER BY SUM(i.totalAmount) DESC")
+    List<Object[]> findTopCustomersByRevenue(@Param("companyId") Long companyId);
 }

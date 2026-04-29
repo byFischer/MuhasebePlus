@@ -432,6 +432,72 @@ body {
   }
 }
 
+/* ================================================================
+   react-grid-layout overrides
+   ================================================================ */
+
+/* Placeholder (sürükleme sırasında hedef pozisyon) — varsayılan kırmızı yerine temiz */
+.react-grid-placeholder {
+  background: rgba(47, 109, 246, 0.13) !important;
+  border-radius: 10px !important;
+  border: none !important;
+  outline: none !important;
+  opacity: 1 !important;
+  box-shadow: none !important;
+  transition: none !important;
+}
+
+/* Sürüklenen kart — hafif transparan + yükseltilmiş gölge */
+.react-grid-item.react-draggable-dragging {
+  cursor: grabbing !important;
+  opacity: 0.88;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45) !important;
+  z-index: 100;
+  transition: none !important;
+}
+
+.react-grid-item.react-draggable-dragging * {
+  cursor: grabbing !important;
+  pointer-events: none;
+}
+
+/* Diğer kartların pozisyon animasyonu — gölge titremesi önleme */
+.react-grid-item {
+  transition: transform 200ms ease !important;
+}
+.react-grid-item.react-draggable-dragging {
+  transition: none !important;
+}
+
+/* Resize tutamacı — sağ alt köşe çapraz ok */
+.react-resizable-handle.react-resizable-handle-se {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  cursor: se-resize;
+  background: none !important;
+  padding: 0 !important;
+}
+
+.react-resizable-handle.react-resizable-handle-se::after {
+  content: '';
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 9px;
+  height: 9px;
+  border-right: 2.5px solid rgba(47, 109, 246, 0.75);
+  border-bottom: 2.5px solid rgba(47, 109, 246, 0.75);
+  border-radius: 1px;
+  transition: border-color 0.15s ease;
+}
+
+.react-resizable-handle.react-resizable-handle-se:hover::after {
+  border-color: rgba(47, 109, 246, 1);
+}
+
 /* Dashboard */
 .dash-page {
   min-height: 100vh;
