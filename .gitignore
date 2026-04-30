@@ -1,5 +1,6 @@
 target/
 HELP.md
+.claude/
 .claude/skills/
 
 ### Proje Planları ###
@@ -10,10 +11,47 @@ Frontend-Gelistirme-Plani.md
 ### Node ###
 node_modules/
 frontend/dist/
+Frontend/dist/
+package-lock.json
 
 ### IDE ###
 .idea/
 .vscode/
 *.iml
+*.iws
+*.ipr
 
+### OS ###
+.DS_Store
+Thumbs.db
+desktop.ini
+
+### Environment & Secrets ###
+.env
+.env.*
+!.env.example
+**/application.properties
+**/application-*.properties
+!**/application-test.properties
+
+### Build ###
+build/
+dist/
+*.jar
+*.war
+*.class
+
+### Logs ###
+*.log
+logs/
 reports/
+
+### Maven ###
+.mvn/wrapper/maven-wrapper.jar
+
+### Misc ###
+*.swp
+*.swo
+*~
+.cache/
+.vite/
