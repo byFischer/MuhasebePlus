@@ -48,7 +48,7 @@ dist/
 *.log
 logs/
 reports/
-icons/
+
 
 ### Maven ###
 .mvn/wrapper/maven-wrapper.jar
