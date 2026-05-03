@@ -57,7 +57,7 @@ function Logo() {
         />
       </Box>
       <Text color="#f1f5f9" fontWeight="700" fontSize="16px">
-        Logo
+        Muhasebe+
       </Text>
     </HStack>
   );
@@ -178,7 +178,7 @@ export default function LoginForm() {
             Create account
           </Heading>
           <Text color="#9ca3af" fontSize="16px">
-            Start using MuhasebePlus in your projects
+            Muhasebe+'ya üye olun ve finansal kontrolü elinize alın
           </Text>
         </VStack>
 
@@ -352,7 +352,7 @@ export default function LoginForm() {
             Welcome back
           </Heading>
           <Text color="#9ca3af" fontSize="16px">
-            Start using Chakra in your projects
+            Muhasebe+ ile finansal yönetiminizi kolaylaştırın
           </Text>
         </VStack>
       </VStack>

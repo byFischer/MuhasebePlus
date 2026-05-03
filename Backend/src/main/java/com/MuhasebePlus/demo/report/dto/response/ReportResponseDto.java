@@ -11,6 +11,7 @@ public record ReportResponseDto(
         LocalDate endDate,
         LocalDateTime generatedAt,
         Long fileSize,
+        String createdByUsername,
         boolean isDeleted,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

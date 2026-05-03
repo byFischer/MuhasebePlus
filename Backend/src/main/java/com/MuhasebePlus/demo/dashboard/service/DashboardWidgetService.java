@@ -69,13 +69,12 @@ public class DashboardWidgetService {
 
     public void reorderWidgets(Long layoutId, WidgetReorderRequestDto dto) {
         verifyLayoutOwnership(layoutId);
-        for (WidgetReorderRequestDto.WidgetPosition pos : dto.positions()) {
-            widgetRepository.findByWidgetIdAndLayoutLayoutId(pos.widgetId(), layoutId)
+        List<Long> ids = dto.orderedWidgetIds();
+        for (int i = 0; i < ids.size(); i++) {
+            final int index = i;
+            widgetRepository.findByWidgetIdAndLayoutLayoutId(ids.get(i), layoutId)
                     .ifPresent(w -> {
-                        w.setPositionX(pos.positionX());
-                        w.setPositionY(pos.positionY());
-                        w.setWidth(pos.width());
-                        w.setHeight(pos.height());
+                        w.setPositionY(index);
                         widgetRepository.save(w);
                     });
         }

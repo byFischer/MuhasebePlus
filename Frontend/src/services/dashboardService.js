@@ -1,30 +1,33 @@
-import api from "./api";
+import api from './api';
 
 export const dashboardService = {
-  getDefaultLayout: () => api.get("/api/dashboard/layouts/default").then((r) => r.data),
-  getLayouts: () => api.get("/api/dashboard/layouts").then((r) => r.data),
-  getLayout: (id) => api.get(`/api/dashboard/layouts/${id}`).then((r) => r.data),
-  createLayout: (dto) => api.post("/api/dashboard/layouts", dto).then((r) => r.data),
-  updateLayout: (id, dto) => api.put(`/api/dashboard/layouts/${id}`, dto).then((r) => r.data),
-  deleteLayout: (id) => api.delete(`/api/dashboard/layouts/${id}`),
-  cloneLayout: (id) => api.post(`/api/dashboard/layouts/${id}/clone`).then((r) => r.data),
+  getLayouts: async () => {
+    const response = await api.get('/api/dashboard/layouts');
+    return response.data;
+  },
 
-  getWidgets: (layoutId) =>
-    api.get(`/api/dashboard/layouts/${layoutId}/widgets`).then((r) => r.data),
-  addWidget: (layoutId, dto) =>
-    api.post(`/api/dashboard/layouts/${layoutId}/widgets`, dto).then((r) => r.data),
-  updateWidget: (layoutId, widgetId, dto) =>
-    api.put(`/api/dashboard/layouts/${layoutId}/widgets/${widgetId}`, dto).then((r) => r.data),
-  deleteWidget: (layoutId, widgetId) =>
-    api.delete(`/api/dashboard/layouts/${layoutId}/widgets/${widgetId}`),
-  reorderWidgets: (layoutId, positions) =>
-    api.put(`/api/dashboard/layouts/${layoutId}/widgets/reorder`, { positions }),
+  getDefaultLayout: async () => {
+    const response = await api.get('/api/dashboard/layouts/default');
+    return response.data;
+  },
 
-  getWidgetData: (layoutId, widgetId) =>
-    api.get(`/api/dashboard/layouts/${layoutId}/widgets/${widgetId}/data`).then((r) => r.data),
+  updateLayout: async (layoutId, dto) => {
+    const response = await api.put(`/api/dashboard/layouts/${layoutId}`, dto);
+    return response.data;
+  },
 
-  getWidgetCatalog: () => api.get("/api/dashboard/widget-catalog").then((r) => r.data),
+  addWidget: async (layoutId, dto) => {
+    const response = await api.post(`/api/dashboard/layouts/${layoutId}/widgets`, dto);
+    return response.data;
+  },
 
-  generateAiWidget: (prompt) =>
-    api.post("/api/ai/widgets/generate", { prompt }).then((r) => r.data),
+  deleteWidget: async (layoutId, widgetId) => {
+    await api.delete(`/api/dashboard/layouts/${layoutId}/widgets/${widgetId}`);
+  },
+
+  reorderWidgets: async (layoutId, orderedIds) => {
+    await api.put(`/api/dashboard/layouts/${layoutId}/widgets/reorder`, { orderedWidgetIds: orderedIds });
+  }
 };
+
+export default dashboardService;

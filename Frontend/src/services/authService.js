@@ -18,7 +18,7 @@ class AuthService {
       const data = response.data;
 
       if (data?.token) {
-        localStorage.setItem("token", data.token);
+        sessionStorage.setItem("token", data.token);
       }
       return data;
     } catch (error) {
@@ -34,7 +34,7 @@ class AuthService {
   }
 
   async logout() {
-    localStorage.removeItem("token");
+    sessionStorage.removeItem("token");
   }
 }
 

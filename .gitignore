@@ -3,10 +3,13 @@ HELP.md
 .claude/
 .claude/skills/
 
+Muhasebe dashboard yeni/
+
 ### Proje Planları ###
 final test bolumu yok md.md
 Proje Onerisi vize md.md
 Frontend-Gelistirme-Plani.md
+muhasebe-dashboard-yeni-diye-distributed-crown.md
 
 ### Node ###
 node_modules/
@@ -45,6 +48,7 @@ dist/
 *.log
 logs/
 reports/
+icons/
 
 ### Maven ###
 .mvn/wrapper/maven-wrapper.jar
@@ -55,3 +59,4 @@ reports/
 *~
 .cache/
 .vite/
+.hintrc

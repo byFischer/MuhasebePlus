@@ -53,6 +53,14 @@ public class ProductService implements HardDeletable {
 
         Product saved = productRepository.save(product);
 
+        Stock stock = new Stock();
+        stock.setCompany(companyRepository.getReferenceById(companyId));
+        stock.setProductId(saved.getProductId());
+        stock.setQuantity(dto.initialQuantity() != null ? dto.initialQuantity() : 0);
+        stock.setMinQuantity(dto.minQuantity() != null ? dto.minQuantity() : 0);
+        stock.setDeleted(false);
+        stockRepository.save(stock);
+
         return toResponseDto(saved);
     }
 

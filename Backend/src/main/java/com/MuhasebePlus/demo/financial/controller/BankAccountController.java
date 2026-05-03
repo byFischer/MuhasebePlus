@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.MuhasebePlus.demo.financial.dto.request.BankAccountRequestDto;
 import com.MuhasebePlus.demo.financial.dto.response.BankAccountResponseDto;
+import com.MuhasebePlus.demo.financial.entity.BankConstants;
 import com.MuhasebePlus.demo.financial.service.BankAccountService;
 
 import jakarta.validation.Valid;
@@ -32,6 +33,12 @@ public class BankAccountController {
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public ResponseEntity<BankAccountResponseDto> createBankAccount(@Valid @RequestBody BankAccountRequestDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(bankAccountService.createBankAccount(dto));
+    }
+
+    @GetMapping("/banks")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<List<String>> getBankList() {
+        return ResponseEntity.ok(BankConstants.BANK_NAMES);
     }
 
     @GetMapping

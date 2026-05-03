@@ -18,7 +18,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.MuhasebePlus.demo.report.dto.request.ReportPreviewRequestDto;
 import com.MuhasebePlus.demo.report.dto.request.ReportRequestDto;
+import com.MuhasebePlus.demo.report.dto.response.ReportPreviewResponseDto;
 import com.MuhasebePlus.demo.report.dto.response.ReportResponseDto;
 import com.MuhasebePlus.demo.report.service.ReportService;
 
@@ -35,6 +37,12 @@ public class ReportController {
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public ResponseEntity<ReportResponseDto> generateReport(@Valid @RequestBody ReportRequestDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(reportService.generateReport(dto));
+    }
+
+    @PostMapping("/preview")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<ReportPreviewResponseDto> previewReport(@Valid @RequestBody ReportPreviewRequestDto dto) {
+        return ResponseEntity.ok(reportService.previewReport(dto));
     }
 
     @GetMapping

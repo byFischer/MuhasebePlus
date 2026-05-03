@@ -175,6 +175,12 @@ public class InvoiceService implements HardDeletable {
             throw new RuntimeException("Paid invoices cannot be deleted: " + invoiceId);
         }
 
+        Long companyId = companyContext.getCurrentCompanyId();
+        List<InvoiceLineItem> lineItems = lineItemRepository
+                .findByInvoiceIdAndCompanyCompanyIdAndIsDeletedFalse(invoiceId, companyId);
+        lineItems.forEach(li -> li.setDeleted(true));
+        lineItemRepository.saveAll(lineItems);
+
         invoice.setDeleted(true);
         invoice.setDeletedAt(LocalDateTime.now());
         invoiceRepository.save(invoice);

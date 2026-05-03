@@ -1,11 +1,12 @@
 // Frontend/src/context/AuthContext.jsx
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import authService from '../services/authService';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  localStorage.removeItem('token');
+  const [token, setToken] = useState(sessionStorage.getItem('token'));
   const [user, setUser] = useState(null);
 
   const loginUser = async (credentials) => {
@@ -13,7 +14,7 @@ export const AuthProvider = ({ children }) => {
 
     if (data?.token) {
       setToken(data.token);
-      localStorage.setItem('token', data.token);
+      sessionStorage.setItem('token', data.token);
       const profile = await authService.getMe();
       setUser(profile);
     }
@@ -31,7 +32,7 @@ export const AuthProvider = ({ children }) => {
 
     if (loginData?.token) {
       setToken(loginData.token);
-      localStorage.setItem('token', loginData.token);
+      sessionStorage.setItem('token', loginData.token);
       const profile = await authService.getMe();
       setUser(profile);
     }
@@ -42,9 +43,20 @@ export const AuthProvider = ({ children }) => {
   const logoutUser = () => {
     setToken(null);
     setUser(null);
-    localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
     authService.logout();
   };
+
+  useEffect(() => {
+    if (token && !user) {
+      authService.getMe()
+        .then(profile => setUser(profile))
+        .catch(() => {
+          setToken(null);
+          sessionStorage.removeItem('token');
+        });
+    }
+  }, [token, user]);
 
   const isAuthenticated = Boolean(token);
 
