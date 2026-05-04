@@ -33,7 +33,6 @@ desktop.ini
 .env
 .env.*
 !.env.example
-**/application.properties
 **/application-*.properties
 !**/application-test.properties
 
