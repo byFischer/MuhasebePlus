@@ -7,6 +7,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AppShell from "@/components/layout/AppShell";
 
 import LoginPage from "@/pages/LoginPage";
+import PasswordResetPage from "@/pages/PasswordResetPage";
 import DashboardPage from "@/pages/DashboardPage";
 import CariPage from "@/pages/CariPage";
 import FaturaPage from "@/pages/FaturaPage";
@@ -31,6 +32,7 @@ export default function App() {
             <Toaster />
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/forgot-password" element={<PasswordResetPage />} />
               <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
                 <Route path="/dashboard"   element={<DashboardPage />} />
                 <Route path="/cari"        element={<CariPage />} />

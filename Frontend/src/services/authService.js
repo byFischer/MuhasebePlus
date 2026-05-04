@@ -28,6 +28,17 @@ class AuthService {
     }
   }
 
+  async sendPasswordResetTestMail(email) {
+    try {
+      const response = await api.post("/api/auth/password-reset/test-mail", { email });
+      return response.data;
+    } catch (error) {
+      const message =
+        error?.response?.data?.message || error.message || "Password reset email failed";
+      throw new Error(message);
+    }
+  }
+
   async getMe() {
     const response = await api.get("/api/users/me");
     return response.data;
