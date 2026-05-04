@@ -21,6 +21,11 @@ export const dashboardService = {
     return response.data;
   },
 
+  updateWidget: async (layoutId, widgetId, dto) => {
+    const response = await api.put(`/api/dashboard/layouts/${layoutId}/widgets/${widgetId}`, dto);
+    return response.data;
+  },
+
   deleteWidget: async (layoutId, widgetId) => {
     await api.delete(`/api/dashboard/layouts/${layoutId}/widgets/${widgetId}`);
   },

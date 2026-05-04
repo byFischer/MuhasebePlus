@@ -4,8 +4,9 @@ import Icon from '@/components/mp/Icon';
 import { NAV } from '@/lib/routes';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/lib/toast';
+import LiveCurrencyRates from '@/components/layout/LiveCurrencyRates';
 
-export default function Sidebar() {
+export default function Sidebar({ onOpenCmdk }) {
   const { user, logoutUser } = useAuth();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
@@ -22,6 +23,11 @@ export default function Sidebar() {
           <div className="brand-tag">{user?.companyName || 'Muhasebe+'}</div>
         </div>
       </div>
+      <div className="sb-search" onClick={onOpenCmdk} role="button" tabIndex={0}>
+        <Icon name="search" size={14} />
+        <input placeholder="Ara: müşteri, fatura..." readOnly />
+        <kbd>⌘K</kbd>
+      </div>
       <nav className="nav">
         {NAV.map((n, i) => n.section ? (
           <div key={i} className="nav-section">{n.section}</div>
@@ -32,6 +38,7 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
+      <LiveCurrencyRates />
       <div className="sb-foot" onClick={() => setUserMenuOpen(o => !o)} style={{ cursor: 'pointer', position: 'relative' }}>
         <div className="avatar">{initials}</div>
         <div className="flex-1">

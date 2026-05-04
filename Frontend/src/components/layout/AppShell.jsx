@@ -11,8 +11,8 @@ export default function AppShell() {
   useShortcuts({ navigate, setCmdkOpen });
   return (
     <div className="app">
-      <Sidebar />
-      <Topbar onOpenCmdk={() => setCmdkOpen(true)} />
+      <Sidebar onOpenCmdk={() => setCmdkOpen(true)} />
+      <Topbar />
       <main className="main"><Outlet /></main>
       {cmdkOpen && <CommandPalette onClose={() => setCmdkOpen(false)} />}
     </div>

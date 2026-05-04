@@ -1,0 +1,110 @@
+// MuhasebePlus — single source of truth for dashboard widget metadata.
+// Add new widget types here; WIDGET_COMPONENTS in DashboardPage wires the actual components.
+export const WIDGET_REGISTRY = [
+  {
+    id: 'kpis',
+    backendType: 'KPI',
+    name: 'KPI Kartları',
+    desc: 'Gelir, gider, net kar, açık alacak — tek bakışta',
+    size: 'full',
+    icon: 'chart',
+    queryKeys: [['transactions'], ['invoices']],
+    defaultConfig: {},
+  },
+  {
+    id: 'chart',
+    backendType: 'TIME_SERIES',
+    name: 'Gelir & Gider Trendi',
+    desc: '12 aylık karşılaştırmalı bar/çizgi grafik',
+    size: 'wide',
+    icon: 'chart',
+    sub: 'Son 12 ay · TRY',
+    queryKeys: [['transactions']],
+    defaultConfig: { months: 12 },
+    configFields: {
+      months: { type: 'select', label: 'Kaç ay göster?', options: [3, 6, 12, 24] },
+    },
+  },
+  {
+    id: 'cash',
+    backendType: 'PIE',
+    name: 'Nakit Pozisyonu',
+    desc: 'Tüm banka hesaplarının donut dağılımı',
+    size: 'narrow',
+    icon: 'bank',
+    queryKeys: [['bankAccounts']],
+    defaultConfig: { accounts: [] },
+    configFields: {
+      accounts: { type: 'multiselect', label: 'Hangi hesaplar?' },
+    },
+  },
+  {
+    id: 'aging',
+    backendType: 'TOP_N',
+    name: 'Cari Yaşlandırma',
+    desc: 'Açık alacakların 0-30, 31-60, 61-90, 90+ kırılımı',
+    size: 'third',
+    icon: 'users',
+    actionRoute: '/cari',
+    actionLabel: 'Tümü',
+    queryKeys: [['invoices']],
+    defaultConfig: { thresholds: [30, 60, 90] },
+    configFields: {
+      thresholds: { type: 'thresholds', label: 'Eşikler (gün)', buckets: 4 },
+    },
+  },
+  {
+    id: 'lowstock',
+    backendType: 'ANOMALY',
+    name: 'Düşük Stok Uyarıları',
+    desc: 'Min eşiğin altındaki ürünler ve sipariş aksiyonları',
+    size: 'third',
+    icon: 'box',
+    actionRoute: '/stok',
+    actionLabel: 'Stoklar',
+    queryKeys: [['stocks', 'low']],
+    defaultConfig: {},
+  },
+  {
+    id: 'quick',
+    backendType: 'QUICK_ACTIONS',
+    name: 'Hızlı İşlemler',
+    desc: 'Sık kullanılan işlemler için kısayollar',
+    size: 'third',
+    icon: 'flash',
+    queryKeys: [],
+    defaultConfig: {},
+  },
+  {
+    id: 'recent',
+    backendType: 'ACTIVITY_FEED',
+    name: 'Son Faturalar',
+    desc: 'En son kesilen faturalar listesi',
+    size: 'wide',
+    icon: 'invoice',
+    noPad: true,
+    actionRoute: '/fatura',
+    actionLabel: 'Tümü',
+    queryKeys: [['invoices']],
+    defaultConfig: { limit: 6 },
+    configFields: {
+      limit: { type: 'select', label: 'Kaç fatura?', options: [5, 10, 20] },
+    },
+  },
+  {
+    id: 'tasks',
+    backendType: 'DAILY_BRIEF',
+    name: 'Yaklaşan Görevler',
+    desc: 'Planlanmış işlemler ve hatırlatmalar',
+    size: 'narrow',
+    icon: 'clock',
+    queryKeys: [],
+    defaultConfig: {},
+  },
+];
+
+// Derived lookup maps — use these instead of manual WIDGET_MAP / REV_MAP
+export const BACKEND_TYPE = Object.fromEntries(WIDGET_REGISTRY.map(w => [w.id, w.backendType]));
+export const FRONTEND_ID = Object.fromEntries(WIDGET_REGISTRY.map(w => [w.backendType, w.id]));
+export const WIDGET_DEF = Object.fromEntries(WIDGET_REGISTRY.map(w => [w.id, w]));
+export const DEFAULT_ORDER = WIDGET_REGISTRY.map(w => w.id);

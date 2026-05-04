@@ -12,7 +12,7 @@ function formatNotifDate(value) {
   return d.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' });
 }
 
-export default function Topbar({ onOpenCmdk }) {
+export default function Topbar() {
   const location = useLocation();
   const meta = ROUTE_META[location.pathname] || ROUTE_META['/dashboard'];
   const crumbs = meta?.crumbs || ['Dashboard'];
@@ -55,12 +55,7 @@ export default function Topbar({ onOpenCmdk }) {
           </React.Fragment>
         ))}
       </div>
-      <div className="tb-search" onClick={onOpenCmdk}>
-        <Icon name="search" size={14} />
-        <input placeholder="Ara: müşteri, fatura no, ürün, işlem..." readOnly />
-        <kbd>⌘ K</kbd>
-      </div>
-      <button className="tb-icon-btn" title="Hızlı Ekle"><Icon name="plus" size={14} /></button>
+      <button className="tb-icon-btn" style={{ marginLeft: 'auto' }} title="Hızlı Ekle"><Icon name="plus" size={14} /></button>
 
       {/* Notification bell */}
       <div style={{ position: 'relative' }}>
