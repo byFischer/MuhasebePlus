@@ -20,17 +20,27 @@ import LowStockWidget, { getHeaderExtra as lowstockExtra } from '@/widgets/LowSt
 import QuickActionsWidget from '@/widgets/QuickActionsWidget';
 import RecentInvoicesWidget from '@/widgets/RecentInvoicesWidget';
 import TasksWidget, { getHeaderExtra as tasksExtra } from '@/widgets/TasksWidget';
+import DailyBriefWidget from '@/widgets/DailyBriefWidget';
+import PinnedNoteWidget from '@/widgets/PinnedNoteWidget';
+import ProgressGoalWidget from '@/widgets/ProgressGoalWidget';
+import ForecastWidget from '@/widgets/ForecastWidget';
+import HeatmapWidget from '@/widgets/HeatmapWidget';
 import WidgetConfigModal from '@/widgets/shell/WidgetConfigModal';
 
 const WIDGET_COMPONENTS = {
-  kpis:     KpisWidget,
-  chart:    RevenueChartWidget,
-  cash:     CashPositionWidget,
-  aging:    AgingWidget,
-  lowstock: LowStockWidget,
-  quick:    QuickActionsWidget,
-  recent:   RecentInvoicesWidget,
-  tasks:    TasksWidget,
+  kpis:       KpisWidget,
+  chart:      RevenueChartWidget,
+  cash:       CashPositionWidget,
+  aging:      AgingWidget,
+  lowstock:   LowStockWidget,
+  quick:      QuickActionsWidget,
+  recent:     RecentInvoicesWidget,
+  tasks:      TasksWidget,
+  dailybrief: DailyBriefWidget,
+  pinned:     PinnedNoteWidget,
+  goal:       ProgressGoalWidget,
+  forecast:   ForecastWidget,
+  heatmap:    HeatmapWidget,
 };
 
 export default function DashboardPage() {
@@ -161,6 +171,8 @@ export default function DashboardPage() {
         .filter(i => (i.paymentStatus === 'UNPAID' || i.paymentStatus === 'OVERDUE') && !i.isDeleted)
         .reduce((s, i) => s + Number(i.totalAmount || 0), 0),
       openInvoicesCount: invoices.filter(i => i.paymentStatus === 'OVERDUE' && !i.isDeleted).length,
+      _invoices: invoices,
+      _transactions: txns,
     };
   }, [txns, banks, lowItems, invoices, configs]);
 

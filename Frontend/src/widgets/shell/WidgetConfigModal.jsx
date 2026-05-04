@@ -30,11 +30,30 @@ export default function WidgetConfigModal({ def, config, onSave, onClose }) {
           {Object.entries(fields).map(([key, meta]) => (
             <div className="field" key={key}>
               <label>{meta.label}</label>
+              {meta.type === 'text' && (
+                <textarea
+                  className="input"
+                  rows={4}
+                  value={draft[key] ?? ''}
+                  onChange={e => set(key, e.target.value)}
+                />
+              )}
+              {meta.type === 'number' && (
+                <input
+                  type="number"
+                  className="input"
+                  value={draft[key] ?? 0}
+                  onChange={e => set(key, Number(e.target.value))}
+                />
+              )}
               {meta.type === 'select' && (
                 <select
                   className="select"
                   value={draft[key] ?? meta.options[0]}
-                  onChange={e => set(key, Number(e.target.value))}
+                  onChange={e => {
+                    const val = e.target.value;
+                    set(key, meta.options.includes(Number(val)) ? Number(val) : val);
+                  }}
                 >
                   {meta.options.map(opt => (
                     <option key={opt} value={opt}>{opt}</option>

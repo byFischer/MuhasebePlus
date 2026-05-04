@@ -1016,3 +1016,54 @@ button.filter:hover {
 .widget-picker { width: 600px; max-width: 92vw; }
 .widget-pick-item { padding: 10px 12px; align-items: flex-start; gap: 12px; }
 .widget-pick-item .widget-item-icon { width: 32px; height: 32px; flex: 0 0 32px; border-radius: 8px; }
+
+/* ============ DAILY BRIEF WIDGET ============ */
+.dbrief { display: flex; flex-direction: column; gap: 6px; }
+.dbrief-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--r-md);
+  background: var(--bg-2);
+  border: 1px solid transparent;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--ink);
+  transition: background 0.12s, border-color 0.12s;
+}
+.dbrief-row:hover { background: var(--accent-soft); border-color: var(--accent-line); }
+.dbrief-row.pos { border-left: 3px solid var(--pos); }
+.dbrief-row.neg { border-left: 3px solid var(--neg); }
+.dbrief-row.warn { border-left: 3px solid var(--warn); }
+
+/* ============ PINNED NOTE WIDGET ============ */
+.pinned-note {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+}
+.pinned-note p { margin: 0 0 6px; }
+.pinned-note p:last-child { margin: 0; }
+
+/* ============ HEATMAP WIDGET ============ */
+.heatmap { display: flex; flex-direction: column; gap: 8px; }
+.heatmap-grid { display: flex; flex-direction: column; gap: 3px; }
+.heatmap-row { display: flex; align-items: center; gap: 3px; }
+.heatmap-label { width: 28px; font-size: 9px; color: var(--ink-3); text-align: right; }
+.heatmap-cell {
+  width: 14px; height: 14px;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: opacity 0.15s;
+}
+.heatmap-cell:hover { opacity: 1 !important; transform: scale(1.15); }
+.heatmap-legend {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 4px;
+}
+.heatmap-legend-bar {
+  width: 80px; height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, var(--accent-soft), var(--accent));
+}
