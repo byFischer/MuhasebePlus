@@ -16,7 +16,7 @@ import {
   Text,
   VStack,
 } from "@chakra-ui/react";
-import { useNavigate } from "react-router-dom";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 const inputStyles = {
@@ -421,8 +421,8 @@ export default function LoginForm() {
           </Checkbox.Label>
         </Checkbox.Root>
 
-        <Link href="#" color="#7bb2ff" fontSize="14px" fontWeight="700">
-          Forgot password
+        <Link asChild color="#7bb2ff" fontSize="14px" fontWeight="700">
+          <RouterLink to="/forgot-password">Forgot password</RouterLink>
         </Link>
       </HStack>
 
