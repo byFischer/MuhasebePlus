@@ -59,8 +59,8 @@ export default function RevenueChartWidget({ D, mode, variant, config }) {
   return (
     <>
       <div className="row gap-8" style={{ marginBottom: 8 }}>
-        <span className="pill info"><span className="dot" />Gelir</span>
-        <span className="pill"><span className="dot" />Gider</span>
+        <span className="pill accent">Gelir</span>
+        <span className="pill" style={{ color: 'var(--ink-3)' }}>Gider</span>
       </div>
       <BarLineChart months={m} revenue={rev} expense={exp} />
     </>

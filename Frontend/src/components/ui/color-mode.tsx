@@ -14,9 +14,9 @@ export function ColorModeProvider(props: ColorModeProviderProps) {
     <ThemeProvider
       attribute={["class", "data-theme"]}
       disableTransitionOnChange
-      storageKey=""
-      enableSystem={false}
-      defaultTheme="light"
+      storageKey="theme"
+      enableSystem={true}
+      defaultTheme="system"
       {...props}
     />
   )

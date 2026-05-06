@@ -9,12 +9,10 @@ import { useProducts } from '@/hooks/useProducts';
 
 function InvoicePill({ status }) {
   const map = {
-    CONFIRMED: { cls: 'pos', l: 'Onaylı' },
-    PENDING:   { cls: 'info', l: 'Beklemede' },
-    DRAFT:     { cls: 'warn', l: 'Taslak' },
-    OVERDUE:   { cls: 'neg', l: 'Gecikmiş' },
-    PAID:      { cls: 'pos', l: 'Ödendi' },
-    UNPAID:    { cls: 'neg', l: 'Ödenmedi' },
+    draft:   { cls: 'warn', l: 'Taslak' },
+    pending: { cls: 'info', l: 'Beklemede' },
+    paid:    { cls: 'pos',  l: 'Ödendi' },
+    overdue: { cls: 'neg',  l: 'Gecikmiş' },
   };
   const s = map[status] || { cls: '', l: status };
   return <span className={`pill ${s.cls}`}><span className="dot" />{s.l}</span>;
@@ -32,7 +30,9 @@ export default function FaturaPage() {
   const PAGE_SIZE = 15;
 
   const filtered = useMemo(() => list.filter(i => {
-    if (tab !== 'hepsi' && i.paymentStatus !== tab) return false;
+    if (tab === 'paid' && i.paymentStatus !== 'paid') return false;
+    if (tab === 'unpaid' && i.paymentStatus === 'paid') return false;
+    if (tab === 'pending' && i.paymentStatus !== 'pending') return false;
     if (q && !(String(i.invoiceId) + (i.customerName || '')).toLowerCase().includes(q.toLowerCase())) return false;
     return true;
   }), [list, q, tab]);
@@ -62,7 +62,7 @@ export default function FaturaPage() {
             <input value={q} onChange={e => setQ(e.target.value)} placeholder="Fatura no, müşteri ara..." />
           </div>
           <div className="seg">
-            {[['hepsi', 'Hepsi'], ['PAID', 'Ödendi'], ['UNPAID', 'Ödenmedi'], ['PENDING', 'Beklemede']].map(([k, l]) =>
+            {[['hepsi', 'Hepsi'], ['paid', 'Ödendi'], ['unpaid', 'Ödenmedi'], ['pending', 'Beklemede']].map(([k, l]) =>
               <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>
             )}
           </div>

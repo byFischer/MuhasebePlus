@@ -36,11 +36,11 @@ export default function CariPage() {
   const cities = useMemo(() => ['hepsi', ...Array.from(new Set(list.map(c => c.city).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'tr'))], [list]);
 
   const filtered = useMemo(() => list.filter(c => {
-    if (filter === 'borclu' && (c.balance || 0) <= 0) return false;
-    if (filter === 'alacakli' && (c.balance || 0) >= 0) return false;
-    if (filter === 'risk' && c.status !== 'risk') return false;
+    if (filter === 'borclu' && (c.currentBalance || 0) <= 0) return false;
+    if (filter === 'alacakli' && (c.currentBalance || 0) >= 0) return false;
+    if (filter === 'risk' && !c.hasOverdueInvoices) return false;
     if (city !== 'hepsi' && c.city !== city) return false;
-    if (q && !(c.name + (c.customerId || '') + (c.vkn || '') + (c.tckn || '')).toLowerCase().includes(q.toLowerCase())) return false;
+    if (q && !(c.name + (c.customerId || '') + (c.taxNumber || '')).toLowerCase().includes(q.toLowerCase())) return false;
     return true;
   }), [list, q, filter, city]);
 
@@ -85,7 +85,7 @@ export default function CariPage() {
                   <td><b>{c.name}</b>{c.email && <div className="muted" style={{ fontSize: 11 }}>{c.email}</div>}</td>
                   <td><span className="pill">{c.type || 'kurumsal'}</span></td>
                   <td className="muted">{c.city}</td>
-                  <td><span className={`pill ${c.status === 'risk' ? 'neg' : 'pos'}`}><span className="dot" />{c.status === 'risk' ? 'Riskli' : 'Aktif'}</span></td>
+                  <td><span className={`pill ${c.hasOverdueInvoices ? 'neg' : 'pos'}`}><span className="dot" />{c.hasOverdueInvoices ? 'Riskli' : 'Aktif'}</span></td>
                   <td>
                     <div className="row gap-4">
                       <button className="tb-icon-btn" onClick={e => { e.stopPropagation(); setDrawer({ mode: 'edit', c }); }}><Icon name="edit" size={14} /></button>

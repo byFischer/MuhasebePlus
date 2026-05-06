@@ -85,7 +85,7 @@ function UserMenu({ onClose }) {
         </div>
       </div>
       <div className="um-section">
-        <div className="um-item" onClick={() => click('Profil & ayarlar yakında')}><Icon name="settings" size={14} /> <span>Hesap ayarları</span></div>
+        <div className="um-item" onClick={() => { navigate('/settings'); onClose(); }}><Icon name="settings" size={14} /> <span>Hesap ayarları</span></div>
         <div className="um-item" onClick={() => click('Dil ayarı yakında')}><Icon name="globe" size={14} /> <span>Dil</span></div>
         <div className="um-item" onClick={() => click('Bildirim tercihleri açılıyor')}><Icon name="bell" size={14} /> <span>Bildirimler</span></div>
       </div>

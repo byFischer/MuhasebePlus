@@ -480,21 +480,22 @@ input, select, textarea { font: inherit; color: inherit; }
 /* ============ PILLS ============ */
 .pill {
   display: inline-flex; align-items: center; gap: 5px;
-  padding: 2px 8px;
-  background: var(--bg-2);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  font-size: 10.5px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  font-size: 11px;
   font-weight: 500;
   color: var(--ink-2);
   text-transform: capitalize;
+  letter-spacing: 0.2px;
 }
-.pill .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-.pill.pos { background: var(--pos-soft); color: var(--pos); border-color: transparent; }
-.pill.neg { background: var(--neg-soft); color: var(--neg); border-color: transparent; }
-.pill.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
-.pill.info { background: var(--info-soft); color: var(--info); border-color: transparent; }
-.pill.accent { background: var(--accent-soft); color: var(--accent-ink); border-color: transparent; }
+.pill .dot { display: none; }
+.pill.pos { background: transparent; color: var(--pos); }
+.pill.neg { background: transparent; color: var(--neg); }
+.pill.warn { background: transparent; color: var(--warn); }
+.pill.info { background: transparent; color: var(--info); }
+.pill.accent { background: transparent; color: var(--accent-ink); }
 
 /* ============ TABLE ============ */
 .table-wrap { overflow-x: auto; }

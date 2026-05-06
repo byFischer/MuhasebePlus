@@ -117,7 +117,7 @@ export default function DashboardPage() {
 
     const agingCfg = configs.aging?.thresholds || [30, 60, 90];
     const aging = new Array(agingCfg.length + 1).fill(0);
-    invoices.filter(i => i.paymentStatus !== 'PAID' && !i.isDeleted).forEach(i => {
+    invoices.filter(i => i.paymentStatus !== 'paid' && !i.isDeleted).forEach(i => {
       const due = new Date(i.dueDate || i.createdAt);
       if (isNaN(due.getTime())) return;
       const days = Math.floor((now - due) / 86400000);
@@ -171,13 +171,13 @@ export default function DashboardPage() {
         date: i.dueDate
           ? new Date(i.dueDate).toLocaleDateString('tr-TR')
           : i.createdAt ? new Date(i.createdAt).toLocaleDateString('tr-TR') : '-',
-        status: i.paymentStatus === 'PAID' ? 'onaylı' : i.paymentStatus === 'OVERDUE' ? 'gecikmiş' : 'beklemede',
+        status: i.paymentStatus === 'paid' ? 'onaylı' : i.paymentStatus === 'overdue' ? 'gecikmiş' : i.paymentStatus === 'draft' ? 'taslak' : 'beklemede',
         total: Number(i.totalAmount || 0),
       })),
       openInvoicesTotal: invoices
-        .filter(i => (i.paymentStatus === 'UNPAID' || i.paymentStatus === 'OVERDUE') && !i.isDeleted)
+        .filter(i => (i.paymentStatus === 'pending' || i.paymentStatus === 'overdue') && !i.isDeleted)
         .reduce((s, i) => s + Number(i.totalAmount || 0), 0),
-      openInvoicesCount: invoices.filter(i => i.paymentStatus === 'OVERDUE' && !i.isDeleted).length,
+      openInvoicesCount: invoices.filter(i => i.paymentStatus === 'overdue' && !i.isDeleted).length,
       _invoices: invoices,
       _transactions: txns,
       _templates: templates,

@@ -89,4 +89,9 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpec
            "AND i.invoiceType = com.MuhasebePlus.demo.invoice.entity.InvoiceType.sale " +
            "GROUP BY i.customerId, i.customer.name ORDER BY SUM(i.totalAmount) DESC")
     List<Object[]> findTopCustomersByRevenue(@Param("companyId") Long companyId);
+
+    @Query("SELECT DISTINCT i.customerId FROM Invoice i " +
+           "WHERE i.company.companyId = :companyId AND i.isDeleted = false " +
+           "AND i.paymentStatus = com.MuhasebePlus.demo.invoice.entity.PaymentStatus.overdue")
+    List<Long> findCustomerIdsWithOverdueInvoices(@Param("companyId") Long companyId);
 }

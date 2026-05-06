@@ -7,6 +7,10 @@ function InvoicePill({ status }) {
     'beklemede': { cls: 'info', l: 'Beklemede' },
     'taslak':    { cls: 'warn', l: 'Taslak' },
     'gecikmiş':  { cls: 'neg',  l: 'Gecikmiş' },
+    paid:    { cls: 'pos',  l: 'Ödendi' },
+    pending: { cls: 'info', l: 'Beklemede' },
+    draft:   { cls: 'warn', l: 'Taslak' },
+    overdue: { cls: 'neg',  l: 'Gecikmiş' },
   };
   const s = map[status] || { cls: '', l: status };
   return <span className={`pill ${s.cls}`}><span className="dot" />{s.l}</span>;

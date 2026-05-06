@@ -138,12 +138,10 @@ export default function WidgetBuilderPage() {
   const editId = search.get('edit');
   const isEdit = !!editId;
 
-  const [tab, setTab] = useState('templates'); // 'templates' | 'custom'
   const [step, setStep] = useState(1);
 
   const [dataSources, setDataSources] = useState([]);
   const [fields, setFields] = useState([]);
-  const [definitions, setDefinitions] = useState([]);
 
   const [form, setForm] = useState(emptyForm);
   const [previewData, setPreviewData] = useState(null);
@@ -153,7 +151,6 @@ export default function WidgetBuilderPage() {
   // Düzenleme modunda direkt custom tab'a aç ve formu doldur
   useEffect(() => {
     if (isEdit) {
-      setTab('custom');
       dashboardService.getWidgetDefinition(editId)
         .then(def => setForm(definitionToForm(def)))
         .catch(e => {
@@ -166,7 +163,6 @@ export default function WidgetBuilderPage() {
 
   useEffect(() => {
     dashboardService.getDataSources().then(setDataSources).catch(console.error);
-    dashboardService.getWidgetDefinitions().then(setDefinitions).catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -256,32 +252,6 @@ export default function WidgetBuilderPage() {
     }
   };
 
-  // ─── Şablondan dashboard'a ekle ───────────────────────────────────────────
-  const addTemplateToDashboard = async (def) => {
-    setSaving(true);
-    try {
-      // Sistem şablonu ise önce kullanıcı kopyası oluştur
-      const target = def.isSystem
-        ? await dashboardService.cloneWidgetDefinition(def.definitionId)
-        : def;
-      const layout = await dashboardService.getDefaultLayout();
-      await dashboardService.addWidget(layout.layoutId, {
-        widgetType: target.widgetType,
-        definitionId: target.definitionId,
-        title: target.name,
-        positionX: 0, positionY: 0, width: 2, height: 1,
-        config: JSON.stringify({ variant: 'm' }),
-      });
-      toast.ok(`"${target.name}" dashboard'a eklendi`);
-      onNav('/dashboard');
-    } catch (e) {
-      console.error(e);
-      toast.err('Eklenemedi: ' + (e?.response?.data?.message || e.message));
-    } finally {
-      setSaving(false);
-    }
-  };
-
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -292,7 +262,6 @@ export default function WidgetBuilderPage() {
           <p className="page-sub">
             {isEdit
               ? 'Var olan widget\'ı güncelle'
-              : tab === 'templates' ? 'Hazır şablon seç veya sıfırdan oluştur'
               : `${STEPS[step - 1].label} — ${STEPS[step - 1].desc}`}
           </p>
         </div>
@@ -303,38 +272,7 @@ export default function WidgetBuilderPage() {
         </div>
       </div>
 
-      {/* Sekme barı (edit modunda gizli) */}
-      {!isEdit && (
-        <div className="row gap-8" style={{ marginBottom: 20, borderBottom: '1px solid var(--line)' }}>
-          <button
-            className={`btn ${tab === 'templates' ? 'primary' : 'ghost'}`}
-            style={{ borderRadius: '8px 8px 0 0', borderBottom: 'none' }}
-            onClick={() => setTab('templates')}
-          >
-            <Icon name="template" size={14} /> Hazır Şablonlar
-          </button>
-          <button
-            className={`btn ${tab === 'custom' ? 'primary' : 'ghost'}`}
-            style={{ borderRadius: '8px 8px 0 0', borderBottom: 'none' }}
-            onClick={() => setTab('custom')}
-          >
-            <Icon name="plus" size={14} /> Sıfırdan Oluştur
-          </button>
-        </div>
-      )}
-
-      {/* ŞABLONLAR SEKMESİ */}
-      {!isEdit && tab === 'templates' && (
-        <TemplateGallery
-          definitions={definitions}
-          saving={saving}
-          onAdd={addTemplateToDashboard}
-          onCustom={() => setTab('custom')}
-        />
-      )}
-
-      {/* CUSTOM SEKMESİ */}
-      {(isEdit || tab === 'custom') && (
+      {(isEdit || true) && (
         <div className="row gap-16" style={{ alignItems: 'flex-start' }}>
           {/* Sol: form */}
           <div className="panel" style={{ flex: 1, maxWidth: 640 }}>
@@ -592,79 +530,6 @@ export default function WidgetBuilderPage() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// ─── Şablon galerisi alt bileşeni ────────────────────────────────────────────
-
-function TemplateGallery({ definitions, saving, onAdd, onCustom }) {
-  const systemDefs = definitions.filter(d => d.isSystem);
-  const userDefs   = definitions.filter(d => !d.isSystem);
-
-  return (
-    <div className="col gap-24">
-      <section>
-        <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
-            <Icon name="sparkle" size={14} /> Hazır Şablonlar
-            <span className="muted" style={{ fontSize: 12, fontWeight: 400, marginLeft: 8 }}>({systemDefs.length})</span>
-          </h2>
-          <button className="btn ghost sm" onClick={onCustom}>
-            <Icon name="plus" size={12} /> Sıfırdan Oluştur
-          </button>
-        </div>
-        <p style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 12 }}>
-          Tek tıkla dashboard'a ekle. İhtiyaçlarına göre sonradan düzenleyebilirsin.
-        </p>
-        <div className="grid-3" style={{ gap: 12 }}>
-          {systemDefs.map(def => (
-            <TemplateCard key={def.definitionId} def={def} onAdd={onAdd} disabled={saving} />
-          ))}
-          {systemDefs.length === 0 && (
-            <div className="empty" style={{ padding: 32, gridColumn: '1 / -1' }}>Şablon bulunamadı.</div>
-          )}
-        </div>
-      </section>
-
-      {userDefs.length > 0 && (
-        <section>
-          <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
-            <Icon name="folder" size={14} /> Daha Önce Oluşturduklarım
-            <span className="muted" style={{ fontSize: 12, fontWeight: 400, marginLeft: 8 }}>({userDefs.length})</span>
-          </h2>
-          <div className="grid-3" style={{ gap: 12 }}>
-            {userDefs.map(def => (
-              <TemplateCard key={def.definitionId} def={def} onAdd={onAdd} disabled={saving} />
-            ))}
-          </div>
-        </section>
-      )}
-    </div>
-  );
-}
-
-function TemplateCard({ def, onAdd, disabled }) {
-  const chart = def.visualConfig?.chartType || 'TABLE';
-  const chartLabel = CHART_OPTIONS.find(c => c.key === chart)?.label || chart;
-  const sourceLabel = def.dataSource === 'INVOICE' ? 'Faturalar' : def.dataSource === 'TRANSACTION' ? 'İşlemler' : def.dataSource;
-
-  return (
-    <div className="panel" style={{ padding: 14, opacity: disabled ? 0.6 : 1 }}>
-      <div className="row gap-6" style={{ alignItems: 'center', marginBottom: 6 }}>
-        <Icon name={CHART_OPTIONS.find(c => c.key === chart)?.icon || 'chart'} size={14} style={{ color: 'var(--accent)' }} />
-        <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{def.name}</h3>
-      </div>
-      {def.description && (
-        <p style={{ fontSize: 11, color: 'var(--ink-3)', margin: '0 0 10px 0', lineHeight: 1.4, minHeight: 30 }}>{def.description}</p>
-      )}
-      <div className="row gap-6" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
-        <span className="pill" style={{ fontSize: 10 }}>{chartLabel}</span>
-        <span className="pill" style={{ fontSize: 10 }}>{sourceLabel}</span>
-      </div>
-      <button className="btn primary sm" onClick={() => onAdd(def)} disabled={disabled} style={{ width: '100%' }}>
-        <Icon name="plus" size={12} /> Dashboard'a Ekle
-      </button>
     </div>
   );
 }

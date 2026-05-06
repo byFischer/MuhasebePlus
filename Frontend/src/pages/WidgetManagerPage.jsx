@@ -104,7 +104,7 @@ export default function WidgetManagerPage() {
       <div className="page-head">
         <div>
           <h1 className="page-title">Widget'larım</h1>
-          <p className="page-sub">Hazır şablonlar ve oluşturduğun özel widget'lar</p>
+          <p className="page-sub">Oluşturduğun özel widget'ları yönet</p>
         </div>
         <div className="page-actions">
           <button className="btn ghost" onClick={() => onNav('/dashboard')}>
@@ -144,28 +144,6 @@ export default function WidgetManagerPage() {
                   onAdd={() => addToDashboard(def)}
                   onEdit={() => editDef(def)}
                   onDelete={() => removeDef(def)}
-                />
-              ))}
-            </div>
-          </section>
-
-          {/* Sistem şablonları */}
-          <section>
-            <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
-              Hazır Şablonlar
-              <span className="muted" style={{ fontSize: 12, fontWeight: 400, marginLeft: 8 }}>
-                ({systemDefs.length})
-              </span>
-            </h2>
-            <div className="grid-2" style={{ gap: 12 }}>
-              {systemDefs.map(def => (
-                <DefinitionCard
-                  key={def.definitionId}
-                  def={def}
-                  busy={busyId === def.definitionId}
-                  isSystem
-                  onAdd={() => addToDashboard(def)}
-                  onClone={() => cloneDef(def)}
                 />
               ))}
             </div>

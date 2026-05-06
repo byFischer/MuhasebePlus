@@ -20,6 +20,7 @@ import BudgetPage from "@/pages/BudgetPage";
 import LogPage from "@/pages/LogPage";
 import WidgetBuilderPage from "@/pages/WidgetBuilderPage";
 import WidgetManagerPage from "@/pages/WidgetManagerPage";
+import SettingsPage from "@/pages/settings/SettingsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false, staleTime: 30_000 } },
@@ -48,6 +49,7 @@ export default function App() {
                 <Route path="/log"         element={<LogPage />} />
                 <Route path="/widget-builder" element={<WidgetBuilderPage />} />
                 <Route path="/widgets" element={<WidgetManagerPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
                 <Route index element={<Navigate to="/dashboard" replace />} />
               </Route>
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

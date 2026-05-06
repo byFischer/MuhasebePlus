@@ -191,14 +191,6 @@ export default function RaporPage() {
     generateMut.mutate({ reportType, startDate, endDate, format: 'EXCEL' });
   };
 
-  const onResetForm = () => {
-    setReportType('PROFIT_LOSS');
-    setPeriod('Bu ay');
-    const r = computeRange('Bu ay');
-    setStartDate(r.startDate);
-    setEndDate(r.endDate);
-  };
-
   const onDelete = (id) => {
     if (window.confirm('Bu raporu silmek istediğinize emin misiniz?')) {
       deleteMut.mutate(id);
@@ -212,11 +204,7 @@ export default function RaporPage() {
           <h1 className="page-title">Raporlar</h1>
           <p className="page-sub">Kar-Zarar, nakit akış, KDV hazırlık ve cari yaşlandırma raporları</p>
         </div>
-        <div className="page-actions">
-          <button className="btn primary" onClick={onResetForm}>
-            <Icon name="plus" /> Yeni Rapor
-          </button>
-        </div>
+
       </div>
 
       <div className="grid-2" style={{ gap: 16 }}>

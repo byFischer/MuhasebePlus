@@ -2,8 +2,10 @@ package com.MuhasebePlus.demo.customer.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -73,22 +75,26 @@ public class CustomerService implements HardDeletable {
 
         Customer saved = customerRepository.save(customer);
         systemLogService.log(LogLevel.INFO, "Müşteri oluşturuldu: " + saved.getName() + " (id=" + saved.getCustomerId() + ")");
-        return toResponseDto(saved, BigDecimal.ZERO);
+        return toResponseDto(saved, BigDecimal.ZERO, false);
     }
 
     public List<CustomerResponseDto> getAllCustomers() {
         Long companyId = companyContext.getCurrentCompanyId();
         List<Customer> customers = customerRepository.findByCompanyCompanyIdAndIsDeletedFalse(companyId);
         Map<Long, BigDecimal> balances = buildBalanceMap(companyId);
+        Set<Long> overdueIds = buildOverdueCustomerIdSet(companyId);
         return customers.stream()
-            .map(c -> toResponseDto(c, balances.getOrDefault(c.getCustomerId(), BigDecimal.ZERO)))
+            .map(c -> toResponseDto(c, balances.getOrDefault(c.getCustomerId(), BigDecimal.ZERO),
+                   overdueIds.contains(c.getCustomerId())))
             .toList();
     }
 
     public CustomerResponseDto getCustomerById(Long id) {
         Long companyId = companyContext.getCurrentCompanyId();
         Customer c = findCustomerEntityById(id);
-        return toResponseDto(c, fetchBalance(id, companyId));
+        BigDecimal balance = fetchBalance(id, companyId);
+        boolean hasOverdue = buildOverdueCustomerIdSet(companyId).contains(id);
+        return toResponseDto(c, balance, hasOverdue);
     }
 
     public CustomerResponseDto updateCustomer(Long id, CustomerRequestDto dto) {
@@ -109,7 +115,9 @@ public class CustomerService implements HardDeletable {
         customer.setType(dto.type());
 
         Customer updated = customerRepository.save(customer);
-        return toResponseDto(updated, fetchBalance(updated.getCustomerId(), companyId));
+        BigDecimal balance = fetchBalance(updated.getCustomerId(), companyId);
+        boolean hasOverdue = buildOverdueCustomerIdSet(companyId).contains(updated.getCustomerId());
+        return toResponseDto(updated, balance, hasOverdue);
     }
 
     public void softDeleteCustomer(Long id) {
@@ -131,7 +139,9 @@ public class CustomerService implements HardDeletable {
         customer.setDeleted(false);
         customer.setDeletedAt(null);
         Customer restored = customerRepository.save(customer);
-        return toResponseDto(restored, fetchBalance(restored.getCustomerId(), companyId));
+        BigDecimal balance = fetchBalance(restored.getCustomerId(), companyId);
+        boolean hasOverdue = buildOverdueCustomerIdSet(companyId).contains(restored.getCustomerId());
+        return toResponseDto(restored, balance, hasOverdue);
     }
 
     @Override
@@ -148,8 +158,10 @@ public class CustomerService implements HardDeletable {
         Long companyId = companyContext.getCurrentCompanyId();
         List<Customer> customers = customerRepository.searchActive(companyId, query);
         Map<Long, BigDecimal> balances = buildBalanceMap(companyId);
+        Set<Long> overdueIds = buildOverdueCustomerIdSet(companyId);
         return customers.stream()
-            .map(c -> toResponseDto(c, balances.getOrDefault(c.getCustomerId(), BigDecimal.ZERO)))
+            .map(c -> toResponseDto(c, balances.getOrDefault(c.getCustomerId(), BigDecimal.ZERO),
+                   overdueIds.contains(c.getCustomerId())))
             .toList();
     }
 
@@ -157,8 +169,10 @@ public class CustomerService implements HardDeletable {
         Long companyId = companyContext.getCurrentCompanyId();
         List<Customer> customers = customerRepository.findByTypeAndCompanyCompanyIdAndIsDeletedFalse(CustomerType.valueOf(type), companyId);
         Map<Long, BigDecimal> balances = buildBalanceMap(companyId);
+        Set<Long> overdueIds = buildOverdueCustomerIdSet(companyId);
         return customers.stream()
-            .map(c -> toResponseDto(c, balances.getOrDefault(c.getCustomerId(), BigDecimal.ZERO)))
+            .map(c -> toResponseDto(c, balances.getOrDefault(c.getCustomerId(), BigDecimal.ZERO),
+                   overdueIds.contains(c.getCustomerId())))
             .toList();
     }
 
@@ -242,7 +256,7 @@ public class CustomerService implements HardDeletable {
         return note;
     }
 
-    private CustomerResponseDto toResponseDto(Customer c, BigDecimal balance) {
+    private CustomerResponseDto toResponseDto(Customer c, BigDecimal balance, boolean hasOverdueInvoices) {
         return new CustomerResponseDto(
                 c.getCustomerId(),
                 c.getName(),
@@ -253,10 +267,15 @@ public class CustomerService implements HardDeletable {
                 c.getPhoneNumber(),
                 c.getType().name(),
                 balance,
+                hasOverdueInvoices,
                 c.isDeleted(),
                 c.getCreatedAt(),
                 c.getUpdatedAt()
         );
+    }
+
+    private Set<Long> buildOverdueCustomerIdSet(Long companyId) {
+        return new HashSet<>(invoiceRepository.findCustomerIdsWithOverdueInvoices(companyId));
     }
 
     private CustomerNoteResponseDto toNoteResponseDto(CustomerNote n) {

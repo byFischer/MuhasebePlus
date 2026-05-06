@@ -34,32 +34,13 @@ const inputStyles = {
   _placeholder: { color: "#6f7785" },
 };
 
+import logoImage from "../../icons/image.png";
+
 function Logo() {
   return (
-    <HStack gap="2" justify="center">
-      <Box
-        aria-hidden
-        boxSize="26px"
-        borderRadius="full"
-        bg="#2563eb"
-        position="relative"
-        overflow="hidden"
-      >
-        <Box
-          position="absolute"
-          w="20px"
-          h="8px"
-          bg="#050608"
-          top="4px"
-          left="-2px"
-          transform="rotate(42deg)"
-          transformOrigin="center"
-        />
-      </Box>
-      <Text color="#f1f5f9" fontWeight="700" fontSize="16px">
-        Muhasebe+
-      </Text>
-    </HStack>
+    <Box w="180px" mx="auto">
+      <img src={logoImage} alt="Muhasebe Plus Logo" style={{ width: "100%", height: "auto" }} />
+    </Box>
   );
 }
 
@@ -349,7 +330,7 @@ export default function LoginForm() {
         <Logo />
         <VStack gap="2">
           <Heading color="#f8fafc" fontSize="30px" lineHeight="1.1" fontWeight="700">
-            Welcome back
+            Hoş geldiniz
           </Heading>
           <Text color="#9ca3af" fontSize="16px">
             Muhasebe+ ile finansal yönetiminizi kolaylaştırın

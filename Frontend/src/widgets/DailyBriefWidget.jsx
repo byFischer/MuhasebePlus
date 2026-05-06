@@ -13,10 +13,10 @@ export default function DailyBriefWidget({ D, onNav, mode, variant }) {
   const dueToday = D._invoices?.filter(i => {
     if (!i.dueDate) return false;
     const d = new Date(i.dueDate);
-    return d.toISOString().split('T')[0] === todayStr && i.paymentStatus !== 'PAID';
+    return d.toISOString().split('T')[0] === todayStr && i.paymentStatus !== 'paid';
   }) || [];
 
-  const overdue = D._invoices?.filter(i => i.paymentStatus === 'OVERDUE' && !i.isDeleted) || [];
+  const overdue = D._invoices?.filter(i => i.paymentStatus === 'overdue' && !i.isDeleted) || [];
 
   const yDayStr = yesterday.toISOString().split('T')[0];
   const yTxns = D._transactions?.filter(t => {

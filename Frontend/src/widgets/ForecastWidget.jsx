@@ -38,8 +38,8 @@ export default function ForecastWidget({ D, mode, variant }) {
     return (
       <div className="col gap-12">
         <div className="row gap-8" style={{ marginBottom: 8 }}>
-          <span className="pill info"><span className="dot" />Geçmiş</span>
-          <span className="pill warn"><span className="dot" />Tahmin</span>
+          <span className="pill info">Geçmiş</span>
+          <span className="pill warn">Tahmin</span>
         </div>
         <Spark data={all} color="var(--accent)" />
         <table className="table">
@@ -74,8 +74,8 @@ export default function ForecastWidget({ D, mode, variant }) {
   return (
     <div className="col gap-8">
       <div className="row gap-8" style={{ marginBottom: 4 }}>
-        <span className="pill info"><span className="dot" />Geçmiş</span>
-        <span className="pill warn"><span className="dot" />Tahmin</span>
+        <span className="pill info">Geçmiş</span>
+        <span className="pill warn">Tahmin</span>
       </div>
       <Spark data={all} color="var(--accent)" />
       <div className="row" style={{ justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>

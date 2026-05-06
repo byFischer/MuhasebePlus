@@ -80,7 +80,7 @@ export default function BarLineChart({ months = [], revenue = [], expense = [] }
               x={xFor(i)}
               y={h - 8}
               fontSize="10"
-              fill="var(--ink-3)"
+              fill="var(--ink-2)"
               textAnchor="middle"
             >
               {m}
