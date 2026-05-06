@@ -1,16 +1,18 @@
 import React from 'react';
 import BarLineChart from '@/components/mp/charts/BarLineChart';
+import Spark from '@/components/mp/charts/Spark';
 import { TRY } from '@/lib/format';
 import { Kpi } from './KpisWidget';
 
-export default function RevenueChartWidget({ D, mode, config }) {
+export default function RevenueChartWidget({ D, mode, variant, config }) {
+  const v = variant || (mode === 'detail' ? 'l' : 'm');
   const months = config?.months || 12;
   const sliceFrom = Math.max(0, D.months.length - months);
   const m = D.months.slice(sliceFrom);
   const rev = D.revenue.slice(sliceFrom);
   const exp = D.expense.slice(sliceFrom);
 
-  if (mode === 'detail') {
+  if (v === 'l') {
     const totalRev = rev.reduce((s, x) => s + x, 0);
     const totalExp = exp.reduce((s, x) => s + x, 0);
     return (
@@ -19,7 +21,7 @@ export default function RevenueChartWidget({ D, mode, config }) {
         <div className="grid-3">
           <Kpi label={`${months} Ay Gelir`} value={totalRev} pos data={rev} />
           <Kpi label={`${months} Ay Gider`} value={totalExp} data={exp} color="var(--neg)" />
-          <Kpi label={`${months} Ay Net`} value={totalRev - totalExp} pos data={rev.map((v, i) => v - exp[i])} />
+          <Kpi label={`${months} Ay Net`} value={totalRev - totalExp} pos data={rev.map((x, i) => x - exp[i])} />
         </div>
         <table className="table">
           <thead>
@@ -36,6 +38,20 @@ export default function RevenueChartWidget({ D, mode, config }) {
             ))}
           </tbody>
         </table>
+      </div>
+    );
+  }
+
+  if (v === 's') {
+    const net = rev.map((x, i) => x - exp[i]);
+    const totalNet = net.reduce((s, x) => s + x, 0);
+    return (
+      <div className="col gap-8">
+        <div className="row" style={{ justifyContent: 'space-between', fontSize: 12 }}>
+          <span className="muted">{months} Ay Net</span>
+          <span className="mono tnum" style={{ fontWeight: 600 }}>{TRY(totalNet)}</span>
+        </div>
+        <Spark data={net} color="var(--accent)" />
       </div>
     );
   }

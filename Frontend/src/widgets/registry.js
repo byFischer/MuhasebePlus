@@ -1,6 +1,19 @@
 // MuhasebePlus — single source of truth for dashboard widget metadata.
 // Add new widget types here; WIDGET_COMPONENTS in DashboardPage wires the actual components.
-export const WIDGET_REGISTRY = [
+
+// Standart varyant tanımları (her widget aynı boyut/etiket setini paylaşır)
+export const VARIANT_DEFS = {
+  s: { size: 'narrow', label: 'Kompakt',  desc: 'Tek bakışta özet',          width: 1 },
+  m: { size: 'wide',   label: 'Standart', desc: 'Detaylı kart görünümü',     width: 2 },
+  l: { size: 'full',   label: 'Detaylı',  desc: 'Geniş — tablo & grafik',    width: 3 },
+};
+
+export const VARIANT_KEYS = ['s', 'm', 'l'];
+
+// Eski size string'i → yeni varyant key
+const SIZE_TO_VARIANT = { narrow: 's', third: 's', wide: 'm', full: 'l' };
+
+const RAW_REGISTRY = [
   {
     id: 'kpis',
     backendType: 'KPI',
@@ -153,15 +166,48 @@ export const WIDGET_REGISTRY = [
     backendType: 'HEATMAP',
     name: 'İşlem Yoğunluğu',
     desc: 'Son 12 haftanın günlük işlem hacmi ızgarası',
-    size: 'wide',
+    size: 'narrow',
     icon: 'calendar',
     queryKeys: [['transactions']],
     defaultConfig: {},
   },
+  {
+    id: 'templates',
+    backendType: 'TEMPLATES',
+    name: 'Şablon Hızlı Uygulama',
+    desc: 'Tek tıkla şablon uygulayın — düzenli işlemler anında hazır',
+    size: 'wide',
+    icon: 'template',
+    queryKeys: [['templates']],
+    defaultConfig: {},
+  },
 ];
+
+// Custom (DATA_*) widget'lar registry'de yer almaz — runtime'da dashboard_widget kayıtlarından
+// dinamik üretilir. Her custom widget kendi widgetId'siyle bağımsız bir kart olarak render edilir.
+export const CUSTOM_WIDGET_TYPES = ['DATA_QUERY', 'DATA_CHART', 'DATA_KPI', 'DATA_TABLE'];
+export function isCustomWidgetType(backendType) {
+  return CUSTOM_WIDGET_TYPES.includes(backendType);
+}
+
+// Her entry'ye variants + defaultVariant alanlarını otomatik bağla
+export const WIDGET_REGISTRY = RAW_REGISTRY.map(w => ({
+  ...w,
+  variants: VARIANT_DEFS,
+  defaultVariant: SIZE_TO_VARIANT[w.size] || 'm',
+}));
 
 // Derived lookup maps — use these instead of manual WIDGET_MAP / REV_MAP
 export const BACKEND_TYPE = Object.fromEntries(WIDGET_REGISTRY.map(w => [w.id, w.backendType]));
 export const FRONTEND_ID = Object.fromEntries(WIDGET_REGISTRY.map(w => [w.backendType, w.id]));
 export const WIDGET_DEF = Object.fromEntries(WIDGET_REGISTRY.map(w => [w.id, w]));
 export const DEFAULT_ORDER = WIDGET_REGISTRY.map(w => w.id);
+
+// variant → grid size string + backend width
+export function variantToSize(variant) {
+  return (VARIANT_DEFS[variant] || VARIANT_DEFS.m).size;
+}
+
+export function variantToWidth(variant) {
+  return (VARIANT_DEFS[variant] || VARIANT_DEFS.m).width;
+}

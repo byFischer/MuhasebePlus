@@ -6,13 +6,16 @@ import com.MuhasebePlus.demo.dashboard.dto.request.WidgetReorderRequestDto;
 import com.MuhasebePlus.demo.dashboard.dto.response.DashboardWidgetResponseDto;
 import com.MuhasebePlus.demo.dashboard.entity.DashboardLayout;
 import com.MuhasebePlus.demo.dashboard.entity.DashboardWidget;
+import com.MuhasebePlus.demo.dashboard.entity.WidgetDefinition;
 import com.MuhasebePlus.demo.dashboard.repository.DashboardLayoutRepository;
 import com.MuhasebePlus.demo.dashboard.repository.DashboardWidgetRepository;
+import com.MuhasebePlus.demo.dashboard.repository.WidgetDefinitionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Transactional
@@ -20,6 +23,7 @@ public class DashboardWidgetService {
 
     @Autowired private DashboardWidgetRepository widgetRepository;
     @Autowired private DashboardLayoutRepository layoutRepository;
+    @Autowired private WidgetDefinitionRepository definitionRepository;
     @Autowired private CompanyContext companyContext;
 
     public List<DashboardWidgetResponseDto> getWidgets(Long layoutId) {
@@ -41,6 +45,12 @@ public class DashboardWidgetService {
         widget.setHeight(dto.height() > 0 ? dto.height() : 3);
         widget.setConfig(dto.config());
 
+        if (dto.definitionId() != null) {
+            WidgetDefinition def = definitionRepository.findById(dto.definitionId())
+                    .orElseThrow(() -> new RuntimeException("Widget definition not found: " + dto.definitionId()));
+            widget.setDefinition(def);
+        }
+
         return toDto(widgetRepository.save(widget));
     }
 
@@ -56,6 +66,12 @@ public class DashboardWidgetService {
         widget.setWidth(dto.width() > 0 ? dto.width() : widget.getWidth());
         widget.setHeight(dto.height() > 0 ? dto.height() : widget.getHeight());
         if (dto.config() != null) widget.setConfig(dto.config());
+
+        if (dto.definitionId() != null) {
+            WidgetDefinition def = definitionRepository.findById(dto.definitionId())
+                    .orElseThrow(() -> new RuntimeException("Widget definition not found: " + dto.definitionId()));
+            widget.setDefinition(def);
+        }
 
         return toDto(widgetRepository.save(widget));
     }
@@ -86,16 +102,26 @@ public class DashboardWidgetService {
                 .orElseThrow(() -> new RuntimeException("Layout not found or access denied: " + layoutId));
     }
 
-    private DashboardWidgetResponseDto toDto(DashboardWidget w) {
+    DashboardWidgetResponseDto toDto(DashboardWidget w) {
+        WidgetDefinition def = w.getDefinition();
+        Long definitionId = def != null ? def.getDefinitionId() : null;
+        String dataSource = def != null ? def.getDataSource() : null;
+        Map<String, Object> queryConfig = def != null ? def.getQueryConfig() : null;
+        Map<String, Object> visualConfig = def != null ? def.getVisualConfig() : null;
+
         return new DashboardWidgetResponseDto(
                 w.getWidgetId(),
                 w.getWidgetType(),
+                definitionId,
                 w.getTitle(),
                 w.getPositionX(),
                 w.getPositionY(),
                 w.getWidth(),
                 w.getHeight(),
                 w.getConfig(),
+                dataSource,
+                queryConfig,
+                visualConfig,
                 w.getCreatedAt()
         );
     }

@@ -25,6 +25,10 @@ public class DashboardWidget extends BaseEntity {
     @JoinColumn(name = "layout_id", nullable = false)
     private DashboardLayout layout;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "definition_id")
+    private WidgetDefinition definition;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "widget_type", nullable = false)
     private WidgetType widgetType;

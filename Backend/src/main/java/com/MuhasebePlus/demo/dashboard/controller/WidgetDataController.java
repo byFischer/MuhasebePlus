@@ -41,7 +41,11 @@ public class WidgetDataController {
             widgetEntry(WidgetType.CONVERSATIONAL,"Sohbet Asistanı",    "Finansal verileriniz hakkında doğal dilde soru sor", "AI",                 6, 5),
             widgetEntry(WidgetType.QUICK_ACTIONS, "Hızlı Aksiyonlar",   "Sık kullanılan işlemlere tek tıkla eriş", "Mikro",                        4, 2),
             widgetEntry(WidgetType.PINNED_NOTE,   "Notlar",             "Dashboard'a yapıştırılabilir not alanı", "Mikro",                          4, 3),
-            widgetEntry(WidgetType.HEATMAP,       "Aktivite Haritası",  "GitHub tarzı günlük işlem yoğunluğunu takvim üzerinde göster", "Görsel",   12, 4)
+            widgetEntry(WidgetType.HEATMAP,       "Aktivite Haritası",  "GitHub tarzı günlük işlem yoğunluğunu takvim üzerinde göster", "Görsel",   12, 4),
+            widgetEntry(WidgetType.DATA_CHART,     "Özel Grafik",        "Kendi veri sorgunuzu oluşturun, bar/line/pie grafikte gösterin", "Özel",     8, 4),
+            widgetEntry(WidgetType.DATA_KPI,       "Özel KPI",           "Kendi metriğinizi tanımlayın, tek değer olarak gösterin", "Özel",        4, 2),
+            widgetEntry(WidgetType.DATA_TABLE,     "Özel Tablo",         "Kendi veri sorgunuzu tablo halinde listele", "Özel",              8, 5),
+            widgetEntry(WidgetType.DATA_QUERY,     "Özel Sorgu",         "Tam esnek veri sorgusu ve görselleştirme", "Özel",                8, 4)
         );
         return ResponseEntity.ok(catalog);
     }

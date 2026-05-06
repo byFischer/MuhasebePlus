@@ -153,17 +153,24 @@ public class DashboardLayoutService {
 
     DashboardLayoutResponseDto toDto(DashboardLayout layout) {
         List<DashboardWidgetResponseDto> widgets = layout.getWidgets().stream()
-                .map(w -> new DashboardWidgetResponseDto(
-                        w.getWidgetId(),
-                        w.getWidgetType(),
-                        w.getTitle(),
-                        w.getPositionX(),
-                        w.getPositionY(),
-                        w.getWidth(),
-                        w.getHeight(),
-                        w.getConfig(),
-                        w.getCreatedAt()
-                )).toList();
+                .map(w -> {
+                    var def = w.getDefinition();
+                    return new DashboardWidgetResponseDto(
+                            w.getWidgetId(),
+                            w.getWidgetType(),
+                            def != null ? def.getDefinitionId() : null,
+                            w.getTitle(),
+                            w.getPositionX(),
+                            w.getPositionY(),
+                            w.getWidth(),
+                            w.getHeight(),
+                            w.getConfig(),
+                            def != null ? def.getDataSource() : null,
+                            def != null ? def.getQueryConfig() : null,
+                            def != null ? def.getVisualConfig() : null,
+                            w.getCreatedAt()
+                    );
+                }).toList();
 
         return new DashboardLayoutResponseDto(
                 layout.getLayoutId(),

@@ -54,6 +54,12 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.UNAUTHORIZED, "Authentication failed", req.getRequestURI(), null);
     }
 
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ErrorResponse> handleBusiness(BusinessException ex, HttpServletRequest req) {
+        log.warn("Business rule violation on {}: {}", req.getRequestURI(), ex.getMessage());
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), req.getRequestURI(), null);
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntime(RuntimeException ex, HttpServletRequest req) {
         log.error("Runtime exception on {}: {}", req.getRequestURI(), ex.getMessage(), ex);

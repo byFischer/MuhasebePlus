@@ -67,13 +67,13 @@ function BankLogo({ bankName }) {
       <img
         src={logo}
         alt={bankName}
-        style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'contain', background: '#fff', padding: 2 }}
+        style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'contain', background: '#fff' }}
       />
     );
   }
   return (
-    <div style={{ width: 32, height: 32, borderRadius: 6, background: 'var(--accent-soft)', color: 'var(--accent-ink)', display: 'grid', placeItems: 'center' }}>
-      <Icon name="bank" size={14} />
+    <div style={{ width: 48, height: 48, borderRadius: 8, background: 'var(--accent-soft)', color: 'var(--accent-ink)', display: 'grid', placeItems: 'center' }}>
+      <Icon name="bank" size={20} />
     </div>
   );
 }

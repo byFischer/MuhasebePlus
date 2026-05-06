@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -14,7 +15,7 @@ import com.MuhasebePlus.demo.invoice.entity.Invoice;
 import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
 import com.MuhasebePlus.demo.invoice.entity.PaymentStatus;
 
-public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
+public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpecificationExecutor<Invoice> {
     Optional<Invoice> findByInvoiceNumberAndCompanyCompanyId(String invoiceNumber, Long companyId);
     
     Optional<Invoice> findByInvoiceIdAndCompanyCompanyId(Long invoiceId, Long companyId);

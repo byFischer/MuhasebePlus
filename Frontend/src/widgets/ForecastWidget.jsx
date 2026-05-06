@@ -17,8 +17,9 @@ function linearRegression(y) {
   return { slope, intercept };
 }
 
-export default function ForecastWidget({ D, mode }) {
-  const net = D.revenue.map((v, i) => v - D.expense[i]);
+export default function ForecastWidget({ D, mode, variant }) {
+  const v = variant || (mode === 'detail' ? 'l' : 'm');
+  const net = D.revenue.map((x, i) => x - D.expense[i]);
   const reg = linearRegression(net);
 
   if (!reg) {
@@ -33,7 +34,7 @@ export default function ForecastWidget({ D, mode }) {
   const all = [...net, ...future];
   const labels = [...D.months, ...future.map((_, i) => `T+${i + 1}`)];
 
-  if (mode === 'detail') {
+  if (v === 'l') {
     return (
       <div className="col gap-12">
         <div className="row gap-8" style={{ marginBottom: 8 }}>
@@ -54,6 +55,18 @@ export default function ForecastWidget({ D, mode }) {
             ))}
           </tbody>
         </table>
+      </div>
+    );
+  }
+
+  if (v === 's') {
+    return (
+      <div className="col gap-8" style={{ textAlign: 'center' }}>
+        <Spark data={all} color="var(--accent)" />
+        <div className={`mono tnum ${reg.slope >= 0 ? 'pos' : 'neg'}`} style={{ fontSize: 13, fontWeight: 600 }}>
+          {reg.slope >= 0 ? '+' : ''}{TRY(Math.round(reg.slope))}/ay
+        </div>
+        <div className="muted" style={{ fontSize: 11 }}>3 ay tahmini eğim</div>
       </div>
     );
   }

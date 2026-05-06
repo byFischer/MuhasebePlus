@@ -1,16 +1,18 @@
 import React, { useState, useMemo, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import Masonry from 'react-masonry-css';
 import Icon from '@/components/mp/Icon';
 import { toast } from '@/lib/toast';
 import { useInvoices } from '@/hooks/useInvoices';
 import { useBankAccounts } from '@/hooks/useBankAccounts';
 import { useLowStock } from '@/hooks/useStock';
 import { useTransactions } from '@/hooks/useTransactions';
+import { useTemplates } from '@/hooks/useTemplates';
 import dashboardService from '@/services/dashboardService';
 import { useAuth } from '@/context/AuthContext';
 
-import { WIDGET_REGISTRY, BACKEND_TYPE, FRONTEND_ID, WIDGET_DEF, DEFAULT_ORDER } from '@/widgets/registry';
+import { WIDGET_REGISTRY, BACKEND_TYPE, FRONTEND_ID, WIDGET_DEF, DEFAULT_ORDER, VARIANT_DEFS, VARIANT_KEYS, variantToSize, variantToWidth, isCustomWidgetType } from '@/widgets/registry';
 import DashboardCard from '@/widgets/shell/DashboardCard';
 import KpisWidget from '@/widgets/KpisWidget';
 import RevenueChartWidget from '@/widgets/RevenueChartWidget';
@@ -25,7 +27,10 @@ import PinnedNoteWidget from '@/widgets/PinnedNoteWidget';
 import ProgressGoalWidget from '@/widgets/ProgressGoalWidget';
 import ForecastWidget from '@/widgets/ForecastWidget';
 import HeatmapWidget from '@/widgets/HeatmapWidget';
+import TemplateQuickWidget from '@/widgets/TemplateQuickWidget';
+import DataWidget from '@/widgets/DataWidget';
 import WidgetConfigModal from '@/widgets/shell/WidgetConfigModal';
+import { useWidgetData } from '@/hooks/useWidgetData';
 
 const WIDGET_COMPONENTS = {
   kpis:       KpisWidget,
@@ -41,6 +46,7 @@ const WIDGET_COMPONENTS = {
   goal:       ProgressGoalWidget,
   forecast:   ForecastWidget,
   heatmap:    HeatmapWidget,
+  templates:  TemplateQuickWidget,
 };
 
 export default function DashboardPage() {
@@ -50,6 +56,7 @@ export default function DashboardPage() {
   const { data: banks = [] } = useBankAccounts();
   const { data: lowItems = [] } = useLowStock();
   const { data: txns = [] } = useTransactions();
+  const { data: templates = [] } = useTemplates();
   const { user } = useAuth();
 
   // ─── Widget configs (id -> object) ─────────────────────────────────────────
@@ -173,8 +180,9 @@ export default function DashboardPage() {
       openInvoicesCount: invoices.filter(i => i.paymentStatus === 'OVERDUE' && !i.isDeleted).length,
       _invoices: invoices,
       _transactions: txns,
+      _templates: templates,
     };
-  }, [txns, banks, lowItems, invoices, configs]);
+  }, [txns, banks, lowItems, invoices, templates, configs]);
 
   // ─── Layout state ──────────────────────────────────────────────────────────
   const [layoutId, setLayoutId] = useState(null);
@@ -192,6 +200,7 @@ export default function DashboardPage() {
   const [detail, setDetail] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
   const [preview, setPreview] = useState(null);
+  const [previewVariant, setPreviewVariant] = useState('m');
   const [dragging, setDragging] = useState(null);
   const [hoverId, setHoverId] = useState(null);
   const [editMode, setEditMode] = useState(() => {
@@ -286,16 +295,29 @@ export default function DashboardPage() {
     } catch (e) { console.error(e); }
   };
 
-  const addWidget = async (id) => {
+  const addWidget = async (id, variant) => {
     if (order.includes(id)) { toast.error('Bu widget zaten ekli'); return; }
+    const v = variant || WIDGET_DEF[id]?.defaultVariant || 'm';
     const newOrder = [id, ...order];
     setOrder(newOrder);
     setPreview(null);
     setAddOpen(false);
-    toast.ok(`${WIDGET_DEF[id]?.name} dashboarda eklendi`);
+
+    // variant'ı configs'e yaz (localStorage + sonradan backend config JSON)
+    const merged = { ...(configs[id] || WIDGET_DEF[id]?.defaultConfig || {}), variant: v };
+    saveConfigs({ ...configs, [id]: merged });
+
+    toast.ok(`${WIDGET_DEF[id]?.name} dashboarda eklendi (${VARIANT_DEFS[v].label})`);
     try {
       if (layoutId) {
-        const dto = { widgetType: BACKEND_TYPE[id], positionX: 0, positionY: 0, width: 1, height: 1 };
+        const dto = {
+          widgetType: BACKEND_TYPE[id],
+          positionX: 0,
+          positionY: 0,
+          width: variantToWidth(v),
+          height: 1,
+          config: JSON.stringify(merged),
+        };
         const w = await dashboardService.addWidget(layoutId, dto);
         setWidgetsData(prev => {
           const updated = [...prev, w];
@@ -360,9 +382,15 @@ export default function DashboardPage() {
           Object.entries(cardRefs.current).forEach(([cid, el]) => { if (el) snap[cid] = el.getBoundingClientRect(); });
           flipBefore.current = snap;
           setOrder(o => {
-            if (!o.includes(dragging.id) || !o.includes(targetId)) return o;
+            const fromIdx = o.indexOf(dragging.id);
+            const toIdx = o.indexOf(targetId);
+            if (fromIdx === -1 || toIdx === -1) return o;
             const next = o.filter(x => x !== dragging.id);
-            next.splice(next.indexOf(targetId), 0, dragging.id);
+            // Sağa hareket: hedefin ARKASINA, sola hareket: hedefin ÖNÜNE
+            const insertAt = fromIdx < toIdx
+              ? next.indexOf(targetId) + 1
+              : next.indexOf(targetId);
+            next.splice(insertAt, 0, dragging.id);
             return next;
           });
           swapThrottle.current = Date.now();
@@ -388,12 +416,40 @@ export default function DashboardPage() {
     };
   }, [dragging?.id, saveReorder]);
 
+  // ─── Custom (DATA_*) widget'lar ─────────────────────────────────────────────
+  // Built-in widget'lar order array'i üzerinden render olur.
+  // Custom widget'lar widgetsData'dan bağımsız olarak, her biri kendi widgetId'siyle render olur.
+  const customWidgets = useMemo(
+    () => widgetsData.filter(w => isCustomWidgetType(w.widgetType)),
+    [widgetsData]
+  );
+
+  const removeCustomWidget = useCallback(async (widget) => {
+    if (!layoutId) return;
+    try {
+      await dashboardService.deleteWidget(layoutId, widget.widgetId);
+      setWidgetsData(prev => prev.filter(w => w.widgetId !== widget.widgetId));
+      toast.ok(`"${widget.title || 'Widget'}" kaldırıldı`);
+    } catch (e) {
+      console.error(e);
+      toast.err('Silinemedi');
+    }
+  }, [layoutId]);
+
+  const refreshCustomWidget = useCallback((widget) => {
+    qc.invalidateQueries({ queryKey: ['widgetData', layoutId, widget.widgetId] });
+    toast.ok(`"${widget.title || 'Widget'}" yenileniyor`);
+  }, [qc, layoutId]);
+
   // ─── Card renderer ─────────────────────────────────────────────────────────
   const Card = ({ id }) => {
     const def = WIDGET_DEF[id];
     if (!def) return null;
     const WidgetComp = WIDGET_COMPONENTS[id];
     if (!WidgetComp) return null;
+
+    const variant = configs[id]?.variant || def.defaultVariant || 'm';
+    const size = variantToSize(variant);
 
     const headerExtra =
       id === 'lowstock' ? lowstockExtra(D) :
@@ -403,6 +459,7 @@ export default function DashboardPage() {
     return (
       <DashboardCard
         def={def}
+        size={size}
         isDragging={dragging?.id === id}
         dragging={dragging}
         isHover={hoverId === id}
@@ -416,10 +473,89 @@ export default function DashboardPage() {
         onConfig={() => setConfigOpen(id)}
         onNav={onNav}
       >
-        <WidgetComp D={D} onNav={onNav} mode="card" config={configs[id]} />
+        <WidgetComp D={D} onNav={onNav} mode="card" variant={variant} config={configs[id]} />
       </DashboardCard>
     );
   };
+
+  const CustomCard = ({ widget }) => {
+    const def = {
+      id: `custom-${widget.widgetId}`,
+      name: widget.title || 'Widget',
+      sub: null,
+      icon: 'chart',
+      backendType: widget.widgetType,
+      defaultVariant: 'm',
+    };
+    const variant = 'm';
+    const size = variantToSize(variant);
+
+    return (
+      <DashboardCard
+        def={def}
+        size={size}
+        isDragging={false}
+        dragging={null}
+        isHover={false}
+        editMode={editMode}
+        headerExtra={null}
+        cardRef={() => {}}
+        onPointerDown={() => {}}
+        onRemove={() => removeCustomWidget(widget)}
+        onDetail={() => {}}
+        onRefresh={() => refreshCustomWidget(widget)}
+        onConfig={() => {}}
+        onNav={onNav}
+      >
+        <DataWidgetWrapper
+          layoutId={layoutId}
+          widgetId={widget.widgetId}
+          visualConfig={widget.visualConfig}
+          mode="card"
+          variant={variant}
+        />
+      </DashboardCard>
+    );
+  };
+
+  function DataWidgetWrapper({ layoutId, widgetId, visualConfig, mode, variant }) {
+    const { data, isLoading } = useWidgetData(layoutId, widgetId, !!layoutId && !!widgetId);
+    if (isLoading) return <div className="empty">Yükleniyor...</div>;
+    if (!data) return <div className="empty">Veri yok</div>;
+    if (data.error) return <div className="empty">Hata: {data.message || 'Sorgu çalıştırılamadı'}</div>;
+    // Backend response.visualConfig daha güncel; yoksa widget.visualConfig fallback
+    const cfg = { visualConfig: data.visualConfig || visualConfig || {} };
+    return <DataWidget data={data} config={cfg} mode={mode} variant={variant} />;
+  }
+
+  // ─── Visual groups: full cards as hero strips, rest in masonry ────────────
+  const groups = useMemo(() => {
+    const result = [];
+    let currentMasonry = [];
+
+    order.forEach(id => {
+      const def = WIDGET_DEF[id];
+      if (!def) return;
+      const variant = configs[id]?.variant || def.defaultVariant || 'm';
+      const size = variantToSize(variant);
+
+      if (size === 'full') {
+        if (currentMasonry.length > 0) {
+          result.push({ type: 'masonry', ids: [...currentMasonry] });
+          currentMasonry = [];
+        }
+        result.push({ type: 'hero', id });
+      } else {
+        currentMasonry.push(id);
+      }
+    });
+
+    if (currentMasonry.length > 0) {
+      result.push({ type: 'masonry', ids: currentMasonry });
+    }
+
+    return result;
+  }, [order, configs]);
 
   // ─── Render ────────────────────────────────────────────────────────────────
   const detailDef = detail ? WIDGET_DEF[detail] : null;
@@ -446,15 +582,53 @@ export default function DashboardPage() {
           >
             <Icon name={editMode ? 'unlock' : 'lock'} size={16} />
           </button>
+          <button className="btn ghost" onClick={() => onNav('/widgets')}>
+            <Icon name="folder" size={14} /> Widget'larım
+          </button>
+          <button className="btn ghost" onClick={() => onNav('/widget-builder')}>
+            <Icon name="sparkle" size={14} /> Widget Oluştur
+          </button>
           <button className="btn primary" onClick={() => setAddOpen(true)}>
             <Icon name="plus" /> Widget Ekle
           </button>
         </div>
       </div>
 
-      {/* Flat CSS grid — size handled via data-size on each card */}
-      <div className="dash-grid" data-dragging={!!dragging} data-edit-mode={editMode}>
-        {order.map(id => <Card key={id} id={id} />)}
+      {/* Masonry + hero strips — full cards break out, rest flow naturally */}
+      <div className="dash-masonry-page" data-dragging={!!dragging} data-edit-mode={editMode}>
+        {groups.map((group, idx) => {
+          if (group.type === 'hero') {
+            return (
+              <div key={`hero-${group.id}-${idx}`} className="dash-hero-strip">
+                <Card id={group.id} />
+              </div>
+            );
+          }
+          return (
+            <Masonry
+              key={`masonry-${idx}`}
+              breakpointCols={{ default: 3, 1100: 2, 700: 1 }}
+              className="masonry-grid"
+              columnClassName="masonry-grid-col"
+            >
+              {group.ids.map(id => <Card key={id} id={id} />)}
+            </Masonry>
+          );
+        })}
+
+        {/* Özel (custom) widget'lar — her biri kendi widgetId'siyle bağımsız */}
+        {customWidgets.length > 0 && (
+          <Masonry
+            key="custom-widgets"
+            breakpointCols={{ default: 3, 1100: 2, 700: 1 }}
+            className="masonry-grid"
+            columnClassName="masonry-grid-col"
+          >
+            {customWidgets.map(w => (
+              <CustomCard key={`custom-${w.widgetId}`} widget={w} />
+            ))}
+          </Masonry>
+        )}
       </div>
 
       {/* Detail modal */}
@@ -487,7 +661,7 @@ export default function DashboardPage() {
             <div className="cmdk-list">
               <div className="cmdk-section">Eklenebilir Widget'lar</div>
               {WIDGET_REGISTRY.filter(w => !order.includes(w.id)).map(w => (
-                <button key={w.id} className="cmdk-item widget-pick-item" onClick={() => setPreview(w.id)}>
+                <button key={w.id} className="cmdk-item widget-pick-item" onClick={() => { setPreviewVariant(w.defaultVariant || 'm'); setPreview(w.id); }}>
                   <div className="widget-item-icon"><Icon name={w.icon} size={14} /></div>
                   <div style={{ flex: 1, textAlign: 'left' }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{w.name}</div>
@@ -516,10 +690,10 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Widget preview before adding */}
+      {/* Widget preview before adding — 3 varyantlı carousel */}
       {previewDef && PreviewComp && (
         <div className="dash-detail-scrim" onClick={() => setPreview(null)}>
-          <div className="dash-detail" onClick={e => e.stopPropagation()} style={{ maxWidth: 720 }}>
+          <div className="dash-detail" onClick={e => e.stopPropagation()} style={{ maxWidth: 880 }}>
             <div className="dash-detail-h">
               <div>
                 <div className="muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Önizleme</div>
@@ -529,24 +703,71 @@ export default function DashboardPage() {
               <button className="tb-icon-btn" onClick={() => setPreview(null)}><Icon name="x" /></button>
             </div>
             <div className="dash-detail-b" style={{ background: 'var(--bg)' }}>
-              <div className="dash-card preview-card">
-                {previewDef.name && (
-                  <div className="card-h">
-                    <div>
-                      <h3>{previewDef.name}</h3>
-                      {previewDef.sub && <div className="sub">{previewDef.sub}</div>}
-                    </div>
+              <div className="variant-carousel">
+                <button
+                  className="carousel-arrow left"
+                  onClick={() => {
+                    const i = VARIANT_KEYS.indexOf(previewVariant);
+                    if (i > 0) setPreviewVariant(VARIANT_KEYS[i - 1]);
+                  }}
+                  disabled={VARIANT_KEYS.indexOf(previewVariant) === 0}
+                  aria-label="Önceki varyant"
+                >
+                  <Icon name="chevLeft" size={18} />
+                </button>
+                <div className="carousel-viewport">
+                  <div className="carousel-track" data-variant={previewVariant}>
+                    {VARIANT_KEYS.map(v => (
+                      <div key={v} className="carousel-slide" data-active={v === previewVariant}>
+                        <div className="dash-card preview-card" data-size={VARIANT_DEFS[v].size}>
+                          {previewDef.name && (
+                            <div className="card-h">
+                              <div>
+                                <h3>{previewDef.name}</h3>
+                                {previewDef.sub && <div className="sub">{previewDef.sub}</div>}
+                              </div>
+                            </div>
+                          )}
+                          <div className={`card-b ${previewDef.noPad ? 'p0' : ''}`}>
+                            <PreviewComp D={D} onNav={onNav} mode="card" variant={v} config={configs[preview]} />
+                          </div>
+                        </div>
+                        <div className="variant-meta">
+                          <strong>{VARIANT_DEFS[v].label}</strong>
+                          <span>{VARIANT_DEFS[v].desc}</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                )}
-                <div className="card-b">
-                  <PreviewComp D={D} onNav={onNav} mode="card" config={configs[preview]} />
                 </div>
+                <button
+                  className="carousel-arrow right"
+                  onClick={() => {
+                    const i = VARIANT_KEYS.indexOf(previewVariant);
+                    if (i < VARIANT_KEYS.length - 1) setPreviewVariant(VARIANT_KEYS[i + 1]);
+                  }}
+                  disabled={VARIANT_KEYS.indexOf(previewVariant) === VARIANT_KEYS.length - 1}
+                  aria-label="Sonraki varyant"
+                >
+                  <Icon name="chevRight" size={18} />
+                </button>
+              </div>
+              <div className="variant-dots">
+                {VARIANT_KEYS.map(v => (
+                  <span
+                    key={v}
+                    data-active={v === previewVariant}
+                    onClick={() => setPreviewVariant(v)}
+                    role="button"
+                    aria-label={`${VARIANT_DEFS[v].label} varyantını seç`}
+                  />
+                ))}
               </div>
             </div>
             <div className="dash-detail-f">
               <button className="btn ghost" onClick={() => setPreview(null)}>Vazgeç</button>
-              <button className="btn primary" onClick={() => addWidget(preview)}>
-                <Icon name="plus" /> Dashboarda Ekle
+              <button className="btn primary" onClick={() => addWidget(preview, previewVariant)}>
+                <Icon name="plus" /> Dashboarda Ekle ({VARIANT_DEFS[previewVariant].label})
               </button>
             </div>
           </div>

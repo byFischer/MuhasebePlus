@@ -1,6 +1,6 @@
 package com.MuhasebePlus.demo.stock.entity;
 
-import com.MuhasebePlus.demo.common.entity.BaseEntity;
+import com.MuhasebePlus.demo.common.entity.SoftDeletableEntity;
 import com.MuhasebePlus.demo.company.entity.Company;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
@@ -27,7 +27,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Stock extends BaseEntity {
+public class Stock extends SoftDeletableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -41,14 +41,15 @@ public class Stock extends BaseEntity {
     @Column(name = "product_id", nullable = false)
     private Integer productId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", insertable = false, updatable = false)
+    private Product product;
+
     @Column(name = "quantity")
     private Integer quantity;
 
     @Column(name = "min_quantity")
     private Integer minQuantity;
-
-    @Column(name = "is_deleted")
-    private boolean isDeleted;
 
     @Column(name = "last_count_date")
     private LocalDateTime lastCountDate;

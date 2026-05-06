@@ -6,6 +6,13 @@ import com.MuhasebePlus.demo.financial.entity.BankAccount;
 import com.MuhasebePlus.demo.financial.entity.TransactionType;
 import com.MuhasebePlus.demo.financial.repository.BankAccountRepository;
 import com.MuhasebePlus.demo.financial.service.TransactionService;
+import com.MuhasebePlus.demo.invoice.dto.request.InvoiceLineItemRequestDto;
+import com.MuhasebePlus.demo.invoice.dto.request.InvoiceRequestDto;
+import com.MuhasebePlus.demo.invoice.dto.response.InvoiceResponseDto;
+import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
+import com.MuhasebePlus.demo.invoice.service.InvoiceService;
+import com.MuhasebePlus.demo.stock.dto.request.StockAdjustmentRequestDto;
+import com.MuhasebePlus.demo.stock.service.StockService;
 
 import java.time.LocalDate;
 import com.MuhasebePlus.demo.template.dto.request.TemplateApplyRequestDto;
@@ -21,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -42,6 +50,12 @@ public class TemplateApplicationService {
 
     @Autowired
     private BankAccountRepository bankAccountRepository;
+
+    @Autowired
+    private InvoiceService invoiceService;
+
+    @Autowired
+    private StockService stockService;
 
     public TemplateApplyResponseDto applyTemplate(Long templateId, TemplateApplyRequestDto dto) {
         Long companyId = companyContext.getCurrentCompanyId();
@@ -78,7 +92,7 @@ public class TemplateApplicationService {
                 message = "Stok işlemi oluşturuldu: " + template.getTemplateName();
             }
             case CUSTOMER_TRANSACTION -> {
-                targetEntityId = applyCustomerTemplate(template, payload);
+                targetEntityId = applyCustomerTemplate(template, payload, companyId);
                 targetEntityType = "CustomerTransaction";
                 message = "Cari işlem oluşturuldu: " + template.getTemplateName();
             }
@@ -156,24 +170,110 @@ public class TemplateApplicationService {
     }
 
     private Long applyInvoiceTemplate(Template template, Map<String, Object> payload) {
-        // Phase 2+ — InvoiceService entegrasyonu buraya eklenecek
-        // Şimdilik stub ID dönüyoruz
-        return -1L;
+        Long customerId = extractLong(payload, "customerId", null);
+        if (customerId == null) {
+            throw new RuntimeException("Fatura şablonu için customerId zorunludur");
+        }
+
+        String invoiceTypeStr = extractString(payload, "invoiceType", "sale");
+        InvoiceType invoiceType = "purchase".equalsIgnoreCase(invoiceTypeStr)
+                ? InvoiceType.purchase : InvoiceType.sale;
+
+        LocalDate dueDate = extractDate(payload, "dueDate", LocalDate.now().plusDays(30));
+
+        String invoiceNumber = "TPL-" + template.getTemplateCode() + "-" + System.currentTimeMillis() / 1000;
+
+        List<Map<String, Object>> rawItems = extractList(payload, "lineItems");
+        List<InvoiceLineItemRequestDto> lineItems = new ArrayList<>();
+        for (Map<String, Object> item : rawItems) {
+            Integer productId = extractIntFromMap(item, "productId");
+            Integer quantity = extractIntFromMap(item, "quantity");
+            if (productId != null && quantity != null && quantity > 0) {
+                lineItems.add(new InvoiceLineItemRequestDto(productId, quantity));
+            }
+        }
+
+        if (lineItems.isEmpty()) {
+            throw new RuntimeException("Fatura şablonu için en az bir kalem (lineItems) zorunludur");
+        }
+
+        InvoiceRequestDto dto = new InvoiceRequestDto(
+                invoiceNumber, customerId, invoiceType, dueDate, lineItems);
+
+        InvoiceResponseDto response = invoiceService.createInvoice(dto);
+        return response.invoiceId();
     }
 
     private Long applyStockTemplate(Template template, Map<String, Object> payload) {
-        // Phase 2+ — StockService entegrasyonu buraya eklenecek
-        return -2L;
+        Integer productId = extractInt(payload, "productId");
+        if (productId == null) {
+            throw new RuntimeException("Stok şablonu için productId zorunludur");
+        }
+
+        Integer quantity = extractInt(payload, "quantity");
+        if (quantity == null || quantity <= 0) {
+            throw new RuntimeException("Stok şablonu için quantity 0'dan büyük olmalıdır");
+        }
+
+        String direction = extractString(payload, "direction", "IN");
+        StockAdjustmentRequestDto adjDto = new StockAdjustmentRequestDto(quantity, "Şablon uygulaması: " + template.getTemplateName());
+
+        if ("OUT".equalsIgnoreCase(direction)) {
+            stockService.removeStock(productId, adjDto);
+        } else {
+            stockService.addStock(productId, adjDto);
+        }
+
+        return productId.longValue();
     }
 
-    private Long applyCustomerTemplate(Template template, Map<String, Object> payload) {
-        // Phase 2+ — CustomerService entegrasyonu buraya eklenecek
-        return -3L;
+    private Long applyCustomerTemplate(Template template, Map<String, Object> payload, Long companyId) {
+        Long accountId = resolveAccountId(payload, companyId);
+        BigDecimal amount = extractAmount(payload);
+        String category = extractString(payload, "category", "Cari İşlem");
+        String description = extractString(payload, "description", template.getTemplateName());
+
+        String direction = extractString(payload, "direction", "COLLECTION");
+        TransactionType txType = "PAYMENT".equalsIgnoreCase(direction)
+                ? TransactionType.EXPENSE : TransactionType.INCOME;
+
+        TransactionRequestDto txDto = new TransactionRequestDto(
+                accountId, null, txType, amount, LocalDate.now(),
+                description, category, false);
+
+        var response = transactionService.createTransaction(txDto);
+        return response.transactionId();
     }
 
     private Long applyBankTemplate(Template template, Map<String, Object> payload) {
-        // Phase 2+ — BankAccountService entegrasyonu buraya eklenecek
-        return -4L;
+        Long fromAccountId = extractLong(payload, "fromAccountId", null);
+        Long toAccountId = extractLong(payload, "toAccountId", null);
+
+        if (fromAccountId == null || toAccountId == null) {
+            throw new RuntimeException("Banka transferi için fromAccountId ve toAccountId zorunludur");
+        }
+        if (fromAccountId.equals(toAccountId)) {
+            throw new RuntimeException("Kaynak ve hedef hesap aynı olamaz");
+        }
+
+        BigDecimal amount = extractAmount(payload);
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Transfer tutarı sıfırdan büyük olmalıdır");
+        }
+
+        String description = extractString(payload, "description", "Banka transferi: " + template.getTemplateName());
+
+        TransactionRequestDto expenseDto = new TransactionRequestDto(
+                fromAccountId, null, TransactionType.EXPENSE, amount, LocalDate.now(),
+                description, "Banka Transferi", false);
+        transactionService.createTransaction(expenseDto);
+
+        TransactionRequestDto incomeDto = new TransactionRequestDto(
+                toAccountId, null, TransactionType.INCOME, amount, LocalDate.now(),
+                description, "Banka Transferi", false);
+        var response = transactionService.createTransaction(incomeDto);
+
+        return response.transactionId();
     }
 
     // ============================================================
@@ -210,5 +310,56 @@ public class TemplateApplicationService {
             } catch (NumberFormatException ignored) {}
         }
         return defaultValue;
+    }
+
+    private Integer extractInt(Map<String, Object> payload, String key) {
+        if (payload == null) return null;
+        Object val = payload.get(key);
+        if (val instanceof Number n) return n.intValue();
+        if (val instanceof String s) {
+            try {
+                return Integer.parseInt(s);
+            } catch (NumberFormatException ignored) {}
+        }
+        return null;
+    }
+
+    private Integer extractIntFromMap(Map<String, Object> map, String key) {
+        if (map == null) return null;
+        Object val = map.get(key);
+        if (val instanceof Number n) return n.intValue();
+        if (val instanceof String s) {
+            try {
+                return Integer.parseInt(s);
+            } catch (NumberFormatException ignored) {}
+        }
+        return null;
+    }
+
+    private LocalDate extractDate(Map<String, Object> payload, String key, LocalDate defaultValue) {
+        if (payload == null) return defaultValue;
+        Object val = payload.get(key);
+        if (val instanceof String s && !s.isBlank()) {
+            try {
+                return LocalDate.parse(s);
+            } catch (Exception ignored) {}
+        }
+        return defaultValue;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> extractList(Map<String, Object> payload, String key) {
+        if (payload == null) return List.of();
+        Object val = payload.get(key);
+        if (val instanceof List<?> list) {
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (Object item : list) {
+                if (item instanceof Map<?, ?> map) {
+                    result.add((Map<String, Object>) map);
+                }
+            }
+            return result;
+        }
+        return List.of();
     }
 }

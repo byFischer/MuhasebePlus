@@ -12,14 +12,17 @@ const ACTIONS = [
   { ic: 'log',      l: 'Sistem Logları',  s: '⌘ L', route: '/log' },
 ];
 
-export default function QuickActionsWidget({ onNav }) {
+export default function QuickActionsWidget({ onNav, mode, variant }) {
+  const v = variant || (mode === 'detail' ? 'l' : 'm');
+  const list = v === 's' ? ACTIONS.slice(0, 3) : ACTIONS;
+
   return (
     <div className="qa-grid">
-      {ACTIONS.map(q => (
+      {list.map(q => (
         <button key={q.l} className="qa" onClick={() => onNav(q.route)}>
           <div className="qa-icon"><Icon name={q.ic} size={14} /></div>
           <div className="qa-label">{q.l}</div>
-          <div className="qa-sub mono">{q.s}</div>
+          {v !== 's' && <div className="qa-sub mono">{q.s}</div>}
         </button>
       ))}
     </div>

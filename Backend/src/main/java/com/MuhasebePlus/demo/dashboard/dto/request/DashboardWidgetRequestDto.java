@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 
 public record DashboardWidgetRequestDto(
         @NotNull WidgetType widgetType,
+        Long definitionId,
         String title,
         int positionX,
         int positionY,

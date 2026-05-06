@@ -1,7 +1,8 @@
 import React from 'react';
 import { TRY } from '@/lib/format';
 
-export default function ProgressGoalWidget({ D, config }) {
+export default function ProgressGoalWidget({ D, config, mode, variant }) {
+  const v = variant || (mode === 'detail' ? 'l' : 'm');
   const target = Number(config?.targetAmount || 100000);
   const period = config?.period || 'MONTHLY';
 
@@ -24,6 +25,18 @@ export default function ProgressGoalWidget({ D, config }) {
   const remaining = Math.max(0, target - current);
   const daysLeft = Math.max(0, daysInPeriod - dayOfPeriod);
 
+  if (v === 's') {
+    return (
+      <div className="col gap-8" style={{ textAlign: 'center' }}>
+        <div className="mono tnum" style={{ fontSize: 22, fontWeight: 600 }}>{pct.toFixed(0)}%</div>
+        <div className="bar" style={{ height: 8 }}>
+          <span style={{ width: `${pct}%` }} />
+        </div>
+        <div className="muted" style={{ fontSize: 11 }}>{daysLeft} gün kaldı</div>
+      </div>
+    );
+  }
+
   return (
     <div className="col gap-12">
       <div className="row" style={{ justifyContent: 'space-between', fontSize: 12 }}>
@@ -41,6 +54,16 @@ export default function ProgressGoalWidget({ D, config }) {
         <div className="hint" style={{ fontSize: 11 }}>
           Hedefe ulaşmak için günlük ortalama {TRY(Math.ceil(remaining / Math.max(1, daysLeft)))} gerekiyor.
         </div>
+      )}
+      {v === 'l' && (
+        <table className="table">
+          <tbody>
+            <tr><td className="muted">Hedef</td><td className="num mono tnum"><b>{TRY(target)}</b></td></tr>
+            <tr><td className="muted">Bu döneme kadar</td><td className="num mono tnum">{TRY(current)}</td></tr>
+            <tr><td className="muted">Kalan</td><td className="num mono tnum">{TRY(remaining)}</td></tr>
+            <tr><td className="muted">Geçen gün / toplam</td><td className="num mono tnum">{dayOfPeriod} / {daysInPeriod}</td></tr>
+          </tbody>
+        </table>
       )}
     </div>
   );

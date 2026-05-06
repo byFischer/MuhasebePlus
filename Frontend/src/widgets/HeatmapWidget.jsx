@@ -2,12 +2,13 @@ import React, { useMemo } from 'react';
 
 const DAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
-export default function HeatmapWidget({ D }) {
+export default function HeatmapWidget({ D, mode, variant }) {
+  const v = variant || (mode === 'detail' ? 'l' : 'm');
   const txns = D._transactions || [];
+  const weeks = v === 's' ? 4 : v === 'l' ? 24 : 12;
 
   const cells = useMemo(() => {
     const now = new Date();
-    const weeks = 12;
     const days = weeks * 7;
     const start = new Date(now);
     start.setDate(start.getDate() - days + 1);
@@ -31,19 +32,24 @@ export default function HeatmapWidget({ D }) {
       const d = new Date(start);
       d.setDate(d.getDate() + i);
       const k = d.toISOString().split('T')[0];
-      const dayIndex = (d.getDay() + 6) % 7; // Pazartesi=0
+      const dayIndex = (d.getDay() + 6) % 7;
       const intensity = (counts[k] || 0) / max;
       rows[dayIndex].push({ date: k, intensity });
     }
 
     return rows;
-  }, [txns]);
+  }, [txns, weeks]);
 
   return (
     <div className="heatmap">
-      <div className="heatmap-grid">
+      <div
+        className="heatmap-grid"
+        style={{
+          gridTemplateColumns: `28px repeat(${weeks}, minmax(4px, 14px))`,
+        }}
+      >
         {cells.map((row, ri) => (
-          <div key={ri} className="heatmap-row">
+          <React.Fragment key={ri}>
             <span className="heatmap-label">{DAYS[ri]}</span>
             {row.map((cell, ci) => (
               <div
@@ -53,14 +59,16 @@ export default function HeatmapWidget({ D }) {
                 style={{ opacity: 0.1 + cell.intensity * 0.9 }}
               />
             ))}
-          </div>
+          </React.Fragment>
         ))}
       </div>
-      <div className="heatmap-legend">
-        <span className="muted" style={{ fontSize: 10 }}>Düşük</span>
-        <div className="heatmap-legend-bar" />
-        <span className="muted" style={{ fontSize: 10 }}>Yüksek</span>
-      </div>
+      {v !== 's' && (
+        <div className="heatmap-legend">
+          <span className="muted" style={{ fontSize: 10 }}>Düşük</span>
+          <div className="heatmap-legend-bar" />
+          <span className="muted" style={{ fontSize: 10 }}>Yüksek</span>
+        </div>
+      )}
     </div>
   );
 }

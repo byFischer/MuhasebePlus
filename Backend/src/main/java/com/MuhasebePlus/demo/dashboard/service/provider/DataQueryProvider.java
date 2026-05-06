@@ -1,0 +1,53 @@
+package com.MuhasebePlus.demo.dashboard.service.provider;
+
+import com.MuhasebePlus.demo.dashboard.entity.WidgetType;
+import com.MuhasebePlus.demo.dashboard.service.DynamicQueryService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import java.util.Map;
+
+@Component
+public class DataQueryProvider implements WidgetDataProvider {
+
+    @Autowired private DynamicQueryService dynamicQueryService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Override
+    public boolean supports(WidgetType type) {
+        return type == WidgetType.DATA_QUERY || type == WidgetType.DATA_CHART
+                || type == WidgetType.DATA_KPI || type == WidgetType.DATA_TABLE;
+    }
+
+    @Override
+    public Map<String, Object> fetchData(Long companyId, Map<String, Object> config) {
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> queryConfig = config.containsKey("queryConfig")
+                    ? (Map<String, Object>) config.get("queryConfig")
+                    : parseJson((String) config.get("queryConfigJson"));
+
+            DynamicQueryService.QueryResult result = dynamicQueryService.executeQuery(queryConfig, companyId);
+
+            return Map.of(
+                    "data", result.rows(),
+                    "columns", result.columns(),
+                    "aggregateMeta", result.aggregateMeta(),
+                    "totalCount", result.totalCount()
+            );
+        } catch (Exception e) {
+            return Map.of("error", true, "message", e.getMessage());
+        }
+    }
+
+    private Map<String, Object> parseJson(String json) {
+        if (json == null || json.isBlank()) return Map.of();
+        try {
+            return objectMapper.readValue(json, new TypeReference<>() {});
+        } catch (Exception e) {
+            return Map.of();
+        }
+    }
+}

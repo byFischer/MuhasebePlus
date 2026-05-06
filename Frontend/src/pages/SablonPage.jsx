@@ -8,6 +8,103 @@ import {
   useApplyTemplate,
 } from '@/hooks/useTemplates';
 
+const TYPE_CONFIG = {
+  INCOME: { label: 'Gelir', pill: 'pos' },
+  EXPENSE: { label: 'Gider', pill: 'neg' },
+  INVOICE: { label: 'Fatura', pill: 'info' },
+  STOCK_ADJUSTMENT: { label: 'Stok', pill: 'warn' },
+  CUSTOMER_TRANSACTION: { label: 'Cari', pill: 'accent' },
+  BANK_TRANSFER: { label: 'Banka', pill: 'info' },
+};
+
+function PayloadSummary({ type, payload }) {
+  if (!payload) return <span className="muted">—</span>;
+
+  if (type === 'INCOME' || type === 'EXPENSE') {
+    return (
+      <div className="grid-2 gap-8">
+        <div>
+          <div className="muted" style={{ fontSize: 11 }}>Tutar</div>
+          <div className="mono tnum" style={{ fontWeight: 600, fontSize: 15 }}>
+            {payload.amount ? TRY(payload.amount) : '—'}
+          </div>
+        </div>
+        <div>
+          <div className="muted" style={{ fontSize: 11 }}>Hesap</div>
+          <div style={{ fontSize: 13 }}>{payload.bankName || payload.accountName || payload.account || '—'}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (type === 'INVOICE') {
+    const items = payload.lineItems || [];
+    return (
+      <div>
+        <div className="muted" style={{ fontSize: 11 }}>
+          Müşteri ID: {payload.customerId || '—'} · Tip: {payload.invoiceType === 'purchase' ? 'Alış' : 'Satış'}
+        </div>
+        {items.length > 0 && (
+          <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
+            {items.length} kalem
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (type === 'STOCK_ADJUSTMENT') {
+    return (
+      <div className="grid-2 gap-8">
+        <div>
+          <div className="muted" style={{ fontSize: 11 }}>Ürün ID</div>
+          <div style={{ fontSize: 13 }}>{payload.productId || '—'}</div>
+        </div>
+        <div>
+          <div className="muted" style={{ fontSize: 11 }}>Yön / Miktar</div>
+          <div style={{ fontSize: 13 }}>{payload.direction === 'OUT' ? 'Çıkış' : 'Giriş'} · {payload.quantity || '—'}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (type === 'CUSTOMER_TRANSACTION') {
+    return (
+      <div className="grid-2 gap-8">
+        <div>
+          <div className="muted" style={{ fontSize: 11 }}>Tutar</div>
+          <div className="mono tnum" style={{ fontWeight: 600, fontSize: 15 }}>
+            {payload.amount ? TRY(payload.amount) : '—'}
+          </div>
+        </div>
+        <div>
+          <div className="muted" style={{ fontSize: 11 }}>Yön</div>
+          <div style={{ fontSize: 13 }}>{payload.direction === 'PAYMENT' ? 'Ödeme' : 'Tahsilat'}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (type === 'BANK_TRANSFER') {
+    return (
+      <div className="grid-2 gap-8">
+        <div>
+          <div className="muted" style={{ fontSize: 11 }}>Tutar</div>
+          <div className="mono tnum" style={{ fontWeight: 600, fontSize: 15 }}>
+            {payload.amount ? TRY(payload.amount) : '—'}
+          </div>
+        </div>
+        <div>
+          <div className="muted" style={{ fontSize: 11 }}>Açıklama</div>
+          <div style={{ fontSize: 13 }}>{payload.description || '—'}</div>
+        </div>
+      </div>
+    );
+  }
+
+  return <span className="muted">—</span>;
+}
+
 export default function SablonPage() {
   const { data: list = [], isLoading, isError, refetch } = useTemplates();
   const deleteMut = useDeleteTemplate();
@@ -15,25 +112,8 @@ export default function SablonPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState(null);
 
-  const typeLabel = (type) => {
-    switch (type) {
-      case 'INCOME': return 'Gelir';
-      case 'EXPENSE': return 'Gider';
-      case 'INVOICE': return 'Fatura';
-      case 'STOCK_ADJUSTMENT': return 'Stok';
-      case 'CUSTOMER_TRANSACTION': return 'Cari';
-      case 'BANK_TRANSFER': return 'Banka';
-      default: return type;
-    }
-  };
-
-  const typePillClass = (type) => {
-    switch (type) {
-      case 'INCOME': return 'pos';
-      case 'EXPENSE': return 'neg';
-      default: return 'info';
-    }
-  };
+  const typeLabel = (type) => TYPE_CONFIG[type]?.label || type;
+  const typePillClass = (type) => TYPE_CONFIG[type]?.pill || 'accent';
 
   const handleCloseDrawer = () => {
     setDrawerOpen(false);
@@ -57,7 +137,7 @@ export default function SablonPage() {
         <div className="page-head">
           <div>
             <h1 className="page-title">Şablonlar</h1>
-            <p className="page-sub">Tekrarlayan gelir/gider işlemleri için form şablonları — tek tıkla doldur</p>
+            <p className="page-sub">Tekrarlayan işlemler için form şablonları — tek tıkla doldur</p>
           </div>
         </div>
         <div className="grid-3">
@@ -84,33 +164,23 @@ export default function SablonPage() {
 
   return (
     <div className="page">
-      {/* PAGE HEADER */}
       <div className="page-head">
         <div>
           <h1 className="page-title">Şablonlar</h1>
           <p className="page-sub">
-            Tekrarlayan gelir/gider işlemleri için form şablonları — tek tıkla doldur
+            Tekrarlayan işlemler için form şablonları — tek tıkla doldur
           </p>
         </div>
         <div className="page-actions">
-          <button
-            className="btn primary"
-            style={{
-              background: '#1a7f5a',
-              borderColor: '#1a7f5a',
-            }}
-            onClick={() => setDrawerOpen(true)}
-          >
+          <button className="btn primary" onClick={() => setDrawerOpen(true)}>
             <Icon name="plus" /> Yeni Şablon
           </button>
         </div>
       </div>
 
-      {/* TEMPLATE GRID */}
       <div className="grid-3">
         {list.map((tp) => (
           <div key={tp.templateId} className="card">
-            {/* CARD HEADER */}
             <div className="card-h" style={{ alignItems: 'flex-start' }}>
               <div>
                 <h3>{tp.templateName}</h3>
@@ -124,26 +194,11 @@ export default function SablonPage() {
               </span>
             </div>
 
-            {/* CARD BODY */}
             <div className="card-b">
-              <div className="grid-2 gap-8">
-                <div>
-                  <div className="muted" style={{ fontSize: 11 }}>Tutar</div>
-                  <div className="mono tnum" style={{ fontWeight: 600, fontSize: 15 }}>
-                    {tp.payload?.amount ? TRY(tp.payload.amount) : (tp.payload?.defaultAmount ? TRY(tp.payload.defaultAmount) : '—')}
-                  </div>
-                </div>
-                <div>
-                  <div className="muted" style={{ fontSize: 11 }}>Hesap</div>
-                  <div style={{ fontSize: 13 }}>
-                    {tp.payload?.bankName || tp.payload?.accountName || tp.payload?.account || '—'}
-                  </div>
-                </div>
-              </div>
+              <PayloadSummary type={tp.templateType} payload={tp.payload} />
 
               <div className="divider" />
 
-              {/* CARD FOOTER */}
               <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
                 <div className="muted" style={{ fontSize: 11 }}>
                   Kullanım: <b>{tp.usageCount || 0}×</b>
@@ -151,10 +206,6 @@ export default function SablonPage() {
                 <div className="row gap-4">
                   <button
                     className="btn sm primary"
-                    style={{
-                      background: '#1a7f5a',
-                      borderColor: '#1a7f5a',
-                    }}
                     disabled={applyMut.isPending}
                     onClick={() => applyMut.mutate(tp.templateId)}
                   >
@@ -183,7 +234,6 @@ export default function SablonPage() {
         )}
       </div>
 
-      {/* DRAWER */}
       <TemplateDrawer
         open={drawerOpen}
         onClose={handleCloseDrawer}

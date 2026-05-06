@@ -3,6 +3,7 @@ import Icon from '@/components/mp/Icon';
 
 export default function DashboardCard({
   def,
+  size,
   isDragging,
   dragging,
   isHover,
@@ -17,8 +18,9 @@ export default function DashboardCard({
   onNav,
   children,
 }) {
-  const { name, sub, size, noPad, actionRoute, actionLabel, configFields } = def;
-  const isFull = size === 'full';
+  const { name, sub, noPad, actionRoute, actionLabel, configFields } = def;
+  const effectiveSize = size || def.size;
+  const isFull = effectiveSize === 'full';
   const hasConfig = !!configFields && Object.keys(configFields).length > 0;
 
   if (isDragging) {
@@ -27,7 +29,7 @@ export default function DashboardCard({
         <div
           ref={cardRef}
           className="dash-card drag-placeholder"
-          data-size={size}
+          data-size={effectiveSize}
           style={{ height: dragging.h }}
         >
           <div className="drag-placeholder-inner" />
@@ -74,16 +76,19 @@ export default function DashboardCard({
     <div
       ref={cardRef}
       className={`dash-card ${isHover ? 'hover-target' : ''}`}
-      data-size={size}
+      data-size={effectiveSize}
       data-edit-mode={editMode}
+      data-widget={def.id}
     >
-      <div
-        className="drag-handle"
-        onPointerDown={editMode ? onPointerDown : undefined}
-        style={{ cursor: editMode ? 'grab' : 'default' }}
-      >
-        <Icon name="drag" size={14} />
-      </div>
+      {editMode && (
+        <div
+          className="drag-handle"
+          onPointerDown={onPointerDown}
+          style={{ cursor: 'grab' }}
+        >
+          <Icon name="drag" size={14} />
+        </div>
+      )}
       <div className="mac-btns">
         {editMode && (
           <>

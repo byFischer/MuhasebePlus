@@ -5,18 +5,17 @@ import com.MuhasebePlus.demo.dashboard.entity.WidgetType;
 import java.time.LocalDateTime;
 import java.util.Map;
 
-public record DashboardWidgetResponseDto(
-        Long widgetId,
-        WidgetType widgetType,
+public record WidgetDefinitionResponseDto(
         Long definitionId,
-        String title,
-        int positionX,
-        int positionY,
-        int width,
-        int height,
-        String config,
+        String name,
+        String description,
+        WidgetType widgetType,
         String dataSource,
         Map<String, Object> queryConfig,
         Map<String, Object> visualConfig,
-        LocalDateTime createdAt
+        Map<String, Object> config,
+        boolean isSystem,
+        boolean isTemplate,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
 ) {}

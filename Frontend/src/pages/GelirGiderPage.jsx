@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Icon from '@/components/mp/Icon';
+import Pagination from '@/components/mp/Pagination';
 import Drawer from '@/components/mp/Drawer';
 import { TRY } from '@/lib/format';
 import { useTransactions, useCreateTransaction } from '@/hooks/useTransactions';
@@ -11,7 +12,9 @@ export default function GelirGiderPage() {
   const { data: list = [], isLoading, isError, refetch } = useTransactions();
   const { data: banks = [] } = useBankAccounts();
   const [tab, setTab] = useState('hepsi');
+  const [page, setPage] = useState(1);
   const [drawer, setDrawer] = useState(false);
+  const PAGE_SIZE = 15;
 
   const totals = useMemo(() => {
     const g = list.filter(x => x.transactionType === 'INCOME').reduce((s, x) => s + Number(x.amount || 0), 0);
@@ -24,6 +27,13 @@ export default function GelirGiderPage() {
     if (tab === 'gider') return x.transactionType === 'EXPENSE';
     return true;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [totalPages]);
+  useEffect(() => { setPage(1); }, [tab]);
+  const pageStart = (page - 1) * PAGE_SIZE;
+  const pageEnd = Math.min(pageStart + PAGE_SIZE, filtered.length);
+  const paged = filtered.slice(pageStart, pageEnd);
 
   if (isLoading) return <div className="page"><div className="card" style={{ height: 200 }} /></div>;
   if (isError) return <div className="page"><div className="card empty">Veri alınamadı <button className="btn sm" onClick={() => refetch()}>Tekrar Dene</button></div></div>;
@@ -53,7 +63,7 @@ export default function GelirGiderPage() {
               <tr><th>ID</th><th>Tarih</th><th>Tür</th><th>Kategori</th><th>Açıklama</th><th className="num">Tutar</th></tr>
             </thead>
             <tbody>
-              {filtered.map(x => (
+              {paged.map(x => (
                 <tr key={x.transactionId}>
                   <td className="mono">{x.transactionId}</td>
                   <td className="muted">{x.transactionDate}</td>
@@ -69,10 +79,11 @@ export default function GelirGiderPage() {
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan="6" className="empty">Kayıt bulunamadı</td></tr>}
+              {paged.length === 0 && <tr><td colSpan="6" className="empty">Kayıt bulunamadı</td></tr>}
             </tbody>
           </table>
         </div>
+        <Pagination page={page} totalPages={totalPages} setPage={setPage} pageStart={pageStart} pageEnd={pageEnd} total={filtered.length} />
       </div>
       <TransactionDrawer open={drawer} onClose={() => setDrawer(false)} banks={banks} />
     </div>

@@ -17,7 +17,7 @@ export default function Sidebar({ onOpenCmdk }) {
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="sidebar-brand-mark">M+</div>
+        <img src="/logo.svg" alt="Muhasebe+" className="sidebar-brand-mark" />
         <div>
           <div className="brand-name">Muhasebe<span style={{ color: 'var(--accent)' }}>+</span></div>
           <div className="brand-tag">{user?.companyName || 'Muhasebe+'}</div>

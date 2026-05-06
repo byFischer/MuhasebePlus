@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.MuhasebePlus.demo.common.exception.BusinessException;
 import com.MuhasebePlus.demo.common.scheduler.HardDeletable;
 import com.MuhasebePlus.demo.common.service.CompanyContext;
 import com.MuhasebePlus.demo.company.repository.CompanyRepository;
@@ -29,6 +30,8 @@ import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
 import com.MuhasebePlus.demo.invoice.entity.PaymentStatus;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceLineItemRepository;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceRepository;
+import com.MuhasebePlus.demo.log.entity.LogLevel;
+import com.MuhasebePlus.demo.log.service.SystemLogService;
 import com.MuhasebePlus.demo.stock.dto.request.StockCheckItemDto;
 import com.MuhasebePlus.demo.stock.dto.response.StockCheckResultDto;
 import com.MuhasebePlus.demo.stock.entity.Product;
@@ -49,6 +52,7 @@ public class InvoiceService implements HardDeletable {
     private final StockService stockService;
     private final CompanyContext companyContext;
     private final CompanyRepository companyRepository;
+    private final SystemLogService systemLogService;
 
 
     //PUBLIC METODLAR - CRUD
@@ -63,10 +67,23 @@ public class InvoiceService implements HardDeletable {
         Customer customer = validateCustomer(dto.customerId());
         Map<Integer, Product> productMap = fetchAndValidateProducts(dto.lineItems());
 
-        boolean stockSufficient = true;
         if (dto.invoiceType() == InvoiceType.sale) {
             List<StockCheckResultDto> checks = stockService.checkStock(toStockCheckList(dto.lineItems()));
-            stockSufficient = checks.stream().allMatch(StockCheckResultDto::isSufficient);
+            List<StockCheckResultDto> insufficient = checks.stream()
+                .filter(c -> !c.isSufficient())
+                .toList();
+
+            if (!insufficient.isEmpty()) {
+                StringBuilder sb = new StringBuilder("Yetersiz stok: ");
+                for (StockCheckResultDto c : insufficient) {
+                    Product p = productMap.get(c.productId());
+                    String name = p != null ? p.getName() : "Bilinmeyen";
+                    sb.append(name).append(" (İstenen: ").append(c.requestedQuantity())
+                      .append(", Mevcut: ").append(c.availableQuantity()).append("); ");
+                }
+                systemLogService.log(LogLevel.ERROR, "Fatura oluşturma başarısız - stok yetersiz: " + sb);
+                throw new BusinessException(sb.toString().trim());
+            }
         }
 
         Invoice invoice = new Invoice();
@@ -75,7 +92,7 @@ public class InvoiceService implements HardDeletable {
         invoice.setCustomerId(dto.customerId());
         invoice.setInvoiceType(dto.invoiceType());
         invoice.setDueDate(dto.dueDate());
-        invoice.setPaymentStatus(stockSufficient ? PaymentStatus.pending : PaymentStatus.draft);
+        invoice.setPaymentStatus(PaymentStatus.pending);
 
         Invoice savedInvoice = invoiceRepository.save(invoice);
 
@@ -83,10 +100,11 @@ public class InvoiceService implements HardDeletable {
         applyTotals(savedInvoice, savedLineItems);
         Invoice finalInvoice = invoiceRepository.save(savedInvoice);
 
-        if (stockSufficient && dto.invoiceType() == InvoiceType.sale) {
+        if (dto.invoiceType() == InvoiceType.sale) {
             stockService.decreaseStock(toStockCheckList(dto.lineItems()));
         }
 
+        systemLogService.log(LogLevel.INFO, "Fatura oluşturuldu: " + dto.invoiceNumber());
         return toResponseDto(finalInvoice, customer, savedLineItems, productMap);
     }
 
@@ -110,8 +128,21 @@ public class InvoiceService implements HardDeletable {
                 .toList();
 
             List<StockCheckResultDto> checks = stockService.checkStock(checkList);
-            if (!checks.stream().allMatch(StockCheckResultDto::isSufficient)) {
-                throw new RuntimeException("Stock is still insufficient for this draft invoice: " + invoiceId);
+            Map<Integer, Product> productMap = batchLoadProducts(List.of(lineItems), companyId);
+            List<StockCheckResultDto> insufficient = checks.stream()
+                .filter(c -> !c.isSufficient())
+                .toList();
+
+            if (!insufficient.isEmpty()) {
+                StringBuilder sb = new StringBuilder("Yetersiz stok: ");
+                for (StockCheckResultDto c : insufficient) {
+                    Product p = productMap.get(c.productId());
+                    String name = p != null ? p.getName() : "Bilinmeyen";
+                    sb.append(name).append(" (İstenen: ").append(c.requestedQuantity())
+                      .append(", Mevcut: ").append(c.availableQuantity()).append("); ");
+                }
+                systemLogService.log(LogLevel.ERROR, "Taslak fatura onaylama başarısız - stok yetersiz: " + sb);
+                throw new BusinessException(sb.toString().trim());
             }
 
             stockService.decreaseStock(checkList);
@@ -120,6 +151,7 @@ public class InvoiceService implements HardDeletable {
         invoice.setPaymentStatus(PaymentStatus.pending);
         Invoice confirmed = invoiceRepository.save(invoice);
 
+        systemLogService.log(LogLevel.INFO, "Taslak fatura onaylandı: " + invoice.getInvoiceNumber());
         Map<Integer, Product> productMap = batchLoadProducts(List.of(lineItems), companyId);
         Customer customer = customerRepository.findByCustomerIdAndCompanyCompanyId(invoice.getCustomerId(), companyId).orElse(null);
         return toResponseDto(confirmed, customer, lineItems, productMap);
@@ -184,6 +216,8 @@ public class InvoiceService implements HardDeletable {
         invoice.setDeleted(true);
         invoice.setDeletedAt(LocalDateTime.now());
         invoiceRepository.save(invoice);
+
+        systemLogService.log(LogLevel.WARNING, "Fatura silindi: " + invoice.getInvoiceNumber());
     }
 
     public InvoiceResponseDto restoreInvoice(Long invoiceId) {
