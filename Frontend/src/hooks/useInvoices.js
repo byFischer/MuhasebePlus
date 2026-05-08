@@ -5,6 +5,13 @@ import { toast } from '@/lib/toast';
 export function useInvoices(params) {
   return useQuery({ queryKey: ['invoices', params], queryFn: () => invoiceService.list(params) });
 }
+export function useInvoice(id) {
+  return useQuery({
+    queryKey: ['invoices', id],
+    queryFn: () => invoiceService.get(id),
+    enabled: id != null,
+  });
+}
 export function useCreateInvoice() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (dto) => invoiceService.create(dto),

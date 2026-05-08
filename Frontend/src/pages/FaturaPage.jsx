@@ -3,9 +3,12 @@ import Icon from '@/components/mp/Icon';
 import Pagination from '@/components/mp/Pagination';
 import Drawer from '@/components/mp/Drawer';
 import { TRY } from '@/lib/format';
-import { useInvoices, useCreateInvoice, useDeleteInvoice } from '@/hooks/useInvoices';
+import { useInvoices, useInvoice, useCreateInvoice, useDeleteInvoice, useConfirmInvoice } from '@/hooks/useInvoices';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useProducts } from '@/hooks/useProducts';
+import { useStockMovements } from '@/hooks/useStock';
+import { MOVEMENT_LABELS, MOVEMENT_TYPE_COLORS } from '@/lib/movementLabels';
+import { useSearchParams } from 'react-router-dom';
 
 function InvoicePill({ status }) {
   const map = {
@@ -24,11 +27,30 @@ export default function FaturaPage() {
   const { data: customers = [] } = useCustomers();
   const { data: products = [] } = useProducts();
   const deleteMut = useDeleteInvoice();
+  const confirmMut = useConfirmInvoice();
   const [q, setQ] = useState('');
   const [tab, setTab] = useState('hepsi');
   const [page, setPage] = useState(1);
   const [drawer, setDrawer] = useState(false);
+  const [detailInvoiceId, setDetailInvoiceId] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const PAGE_SIZE = 15;
+
+  useEffect(() => {
+    const invId = searchParams.get('invoiceId');
+    if (invId) {
+      setDetailInvoiceId(Number(invId));
+    }
+  }, [searchParams]);
+
+  const closeDetail = () => {
+    setDetailInvoiceId(null);
+    if (searchParams.get('invoiceId')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('invoiceId');
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   const filtered = useMemo(() => list.filter(i => {
     if (tab === 'paid' && i.paymentStatus !== 'paid') return false;
@@ -75,14 +97,26 @@ export default function FaturaPage() {
             </thead>
             <tbody>
               {paged.map(i => (
-                <tr key={i.invoiceId}>
+                <tr key={i.invoiceId} style={{ cursor: 'pointer' }} onClick={() => setDetailInvoiceId(i.invoiceId)}>
                   <td className="mono">{i.invoiceId}</td>
                   <td><b>{i.customerName}</b></td>
                   <td className="muted">{i.dueDate || i.invoiceDate}</td>
                   <td className="num mono tnum"><b>{TRY(i.totalAmount || 0)}</b></td>
                   <td><InvoicePill status={i.paymentStatus} /></td>
-                  <td>
+                  <td onClick={(e) => e.stopPropagation()}>
                     <div className="row gap-4">
+                      {i.paymentStatus === 'draft' && (
+                        <button
+                          className="tb-icon-btn"
+                          title="Onayla"
+                          onClick={() => confirmMut.mutate(i.invoiceId)}
+                        >
+                          <Icon name="check" size={14} />
+                        </button>
+                      )}
+                      <button className="tb-icon-btn" title="Detay" onClick={() => setDetailInvoiceId(i.invoiceId)}>
+                        <Icon name="eye" size={14} />
+                      </button>
                       <button className="tb-icon-btn" title="Sil" onClick={() => deleteMut.mutate(i.invoiceId)}><Icon name="trash" size={14} /></button>
                     </div>
                   </td>
@@ -95,6 +129,140 @@ export default function FaturaPage() {
         <Pagination page={page} totalPages={totalPages} setPage={setPage} pageStart={pageStart} pageEnd={pageEnd} total={filtered.length} />
       </div>
       <InvoiceDrawer open={drawer} onClose={() => setDrawer(false)} customers={customers} products={products} />
+      <InvoiceDetailDrawer open={detailInvoiceId != null} onClose={closeDetail} invoiceId={detailInvoiceId} />
+    </div>
+  );
+}
+
+function InvoiceDetailDrawer({ open, onClose, invoiceId }) {
+  const { data: invoice, isLoading } = useInvoice(invoiceId);
+  const lineItems = invoice?.lineItems || [];
+
+  return (
+    <Drawer open={open} onClose={onClose} title={`Fatura #${invoiceId || ''}`} width={680}>
+      {isLoading && <div className="muted">Yükleniyor...</div>}
+      {!isLoading && invoice && (
+        <div className="col gap-12">
+          <div className="card" style={{ padding: 12, background: 'var(--bg-2)' }}>
+            <div className="grid-2">
+              <div className="col gap-4">
+                <span className="muted" style={{ fontSize: 11 }}>Fatura No</span>
+                <b className="mono">{invoice.invoiceNumber || '—'}</b>
+              </div>
+              <div className="col gap-4">
+                <span className="muted" style={{ fontSize: 11 }}>Müşteri</span>
+                <b>{invoice.customerName || '—'}</b>
+              </div>
+              <div className="col gap-4">
+                <span className="muted" style={{ fontSize: 11 }}>Tür</span>
+                <b>{invoice.invoiceType === 'purchase' ? 'Alış' : invoice.invoiceType === 'sale' ? 'Satış' : invoice.invoiceType || '—'}</b>
+              </div>
+              <div className="col gap-4">
+                <span className="muted" style={{ fontSize: 11 }}>Vade</span>
+                <b className="mono">{invoice.dueDate || '—'}</b>
+              </div>
+              <div className="col gap-4">
+                <span className="muted" style={{ fontSize: 11 }}>Durum</span>
+                <div><InvoicePill status={invoice.paymentStatus} /></div>
+              </div>
+              <div className="col gap-4">
+                <span className="muted" style={{ fontSize: 11 }}>Toplam</span>
+                <b className="mono tnum" style={{ fontSize: 16 }}>{TRY(invoice.totalAmount || 0)}</b>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 style={{ marginBottom: 8 }}>Kalemler</h4>
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Ürün</th>
+                    <th className="num">Adet</th>
+                    <th className="num">Birim Fiyat</th>
+                    <th className="num">KDV %</th>
+                    <th className="num">Tutar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lineItems.map(li => (
+                    <tr key={li.lineItemId}>
+                      <td>
+                        <b>{li.productName || `#${li.productId}`}</b>
+                        {li.barcode && <span className="muted mono" style={{ fontSize: 11, display: 'block' }}>{li.barcode}</span>}
+                      </td>
+                      <td className="num mono tnum">{li.quantity}</td>
+                      <td className="num mono tnum">{TRY(li.unitPrice || 0)}</td>
+                      <td className="num mono tnum muted">%{li.vatRate ?? 0}</td>
+                      <td className="num mono tnum"><b>{TRY(li.lineTotal || 0)}</b></td>
+                    </tr>
+                  ))}
+                  {lineItems.length === 0 && <tr><td colSpan="5" className="empty">Kalem yok</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            <div className="row" style={{ justifyContent: 'flex-end', marginTop: 8, gap: 24, fontSize: 13 }}>
+              <span className="muted">Ara Toplam: <span className="mono tnum">{TRY(invoice.subtotal || 0)}</span></span>
+              <span className="muted">KDV: <span className="mono tnum">{TRY(invoice.vatAmount || 0)}</span></span>
+              <span><b>Toplam: <span className="mono tnum">{TRY(invoice.totalAmount || 0)}</span></b></span>
+            </div>
+          </div>
+
+          <RelatedStockMovements invoiceId={invoiceId} lineItems={lineItems} />
+        </div>
+      )}
+    </Drawer>
+  );
+}
+
+function RelatedStockMovements({ invoiceId, lineItems }) {
+  // Fatura kalem'lerinden ürün ID listesi - her birinin hareketlerini çekip filtreliyoruz.
+  // Pratikte bir fatura için stok hareketi az olduğundan ilk ürünün hareketlerini yüklemek yeterli;
+  // ama tüm kalemler için ayrı sorgu yapmak istemiyorsak basit bir özet gösterelim.
+  const productIds = (lineItems || []).map(li => li.productId).filter(Boolean);
+  const firstId = productIds[0] || null;
+  const { data: movements = [] } = useStockMovements(firstId);
+  const related = movements.filter(m => m.sourceType === 'INVOICE' && m.sourceId === invoiceId);
+
+  return (
+    <div>
+      <h4 style={{ marginBottom: 8 }}>İlgili Stok Hareketleri</h4>
+      {productIds.length > 1 && (
+        <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}>
+          Bu listede sadece ilk kalemle ilişkili hareketler gösterilir. Tüm hareketler için stok sayfasındaki ürün geçmişlerine bakın.
+        </div>
+      )}
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Tarih</th>
+              <th>Tür</th>
+              <th className="num">Miktar</th>
+              <th>Ürün</th>
+            </tr>
+          </thead>
+          <tbody>
+            {related.map(m => {
+              const label = MOVEMENT_LABELS[m.movementType] || m.movementType;
+              const color = MOVEMENT_TYPE_COLORS[m.movementType] || '';
+              const qty = m.quantity;
+              const qtyStr = qty > 0 ? `+${qty}` : `${qty}`;
+              const li = (lineItems || []).find(x => x.productId === m.productId);
+              return (
+                <tr key={m.movementId}>
+                  <td className="muted" style={{ fontSize: 12 }}>{m.createdAt ? m.createdAt.slice(0, 10) : '—'}</td>
+                  <td><span className={`pill ${color}`}><span className="dot" />{label}</span></td>
+                  <td className="num mono tnum" style={{ color: qty > 0 ? 'var(--pos)' : 'var(--neg)', fontWeight: 600 }}>{qtyStr}</td>
+                  <td className="muted" style={{ fontSize: 12 }}>{li?.productName || `#${m.productId}`}</td>
+                </tr>
+              );
+            })}
+            {related.length === 0 && <tr><td colSpan="4" className="empty">Bu fatura için stok hareketi bulunamadı</td></tr>}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

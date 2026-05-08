@@ -3,44 +3,33 @@ import Icon from '@/components/mp/Icon';
 import Pagination from '@/components/mp/Pagination';
 import Drawer from '@/components/mp/Drawer';
 import { TRY } from '@/lib/format';
-import { useProducts, useCreateProduct, useDeleteProduct } from '@/hooks/useProducts';
+import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from '@/hooks/useProducts';
 import { useStockMovements } from '@/hooks/useStock';
-
-const MOVEMENT_LABELS = {
-  PURCHASE: 'Alış',
-  SALE: 'Satış',
-  RETURN_IN: 'Müşteri İadesi',
-  RETURN_OUT: 'Tedarikçi İadesi',
-  ADJUSTMENT_IN: 'Manuel Giriş',
-  ADJUSTMENT_OUT: 'Manuel Çıkış',
-  PRODUCTION_IN: 'Üretim Giriş',
-  PRODUCTION_OUT: 'Üretim Çıkış',
-  OPENING_BALANCE: 'Açılış',
-};
-
-const MOVEMENT_TYPE_COLORS = {
-  PURCHASE: 'pos',
-  SALE: 'neg',
-  RETURN_IN: 'pos',
-  RETURN_OUT: 'neg',
-  ADJUSTMENT_IN: 'info',
-  ADJUSTMENT_OUT: 'warn',
-  PRODUCTION_IN: 'pos',
-  PRODUCTION_OUT: 'neg',
-  OPENING_BALANCE: 'info',
-};
+import { MOVEMENT_LABELS, MOVEMENT_TYPE_COLORS } from '@/lib/movementLabels';
+import StockMovementForm from '@/components/mp/StockMovementForm';
+import { useNavigate } from 'react-router-dom';
 
 export default function StokPage() {
   const { data: list = [], isLoading, isError, refetch } = useProducts();
   const deleteMut = useDeleteProduct();
+  const navigate = useNavigate();
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState('hepsi');
   const [page, setPage] = useState(1);
   const [drawer, setDrawer] = useState(false);
+  const [editProduct, setEditProduct] = useState(null);
   const [movementProductId, setMovementProductId] = useState(null);
+  const [movementMode, setMovementMode] = useState('list');
   const PAGE_SIZE = 15;
 
   const { data: movements = [] } = useStockMovements(movementProductId);
+  const movementProduct = useMemo(
+    () => list.find(p => p.productId === movementProductId) || null,
+    [list, movementProductId]
+  );
+  const movementCurrentStock = movementProduct
+    ? (movementProduct.stockQuantity ?? movementProduct.quantity ?? 0)
+    : 0;
 
   const filtered = useMemo(() => list.filter(p => {
     if (filter === 'dusuk' && !((p.stockQuantity || p.quantity || 0) > 0 && (p.stockQuantity || p.quantity || 0) < (p.minStockLevel || p.minQuantity || 0))) return false;
@@ -58,10 +47,12 @@ export default function StokPage() {
 
   const openMovements = (productId) => {
     setMovementProductId(productId);
+    setMovementMode('list');
   };
 
   const closeMovements = () => {
     setMovementProductId(null);
+    setMovementMode('list');
   };
 
   if (isLoading) return <div className="page"><div className="card" style={{ height: 200 }} /></div>;
@@ -113,6 +104,9 @@ export default function StokPage() {
                         <button className="tb-icon-btn" title="Hareket Geçmişi" onClick={() => openMovements(p.productId)}>
                           <Icon name="log" size={14} />
                         </button>
+                        <button className="tb-icon-btn" title="Düzenle" onClick={() => setEditProduct(p)}>
+                          <Icon name="edit" size={14} />
+                        </button>
                         <button className="tb-icon-btn" title="Sil" onClick={() => deleteMut.mutate(p.productId)}>
                           <Icon name="trash" size={14} />
                         </button>
@@ -129,42 +123,101 @@ export default function StokPage() {
       </div>
 
       <ProductDrawer open={drawer} onClose={() => setDrawer(false)} />
+      <ProductDrawer open={editProduct != null} onClose={() => setEditProduct(null)} editingProduct={editProduct} />
 
-      <Drawer open={movementProductId != null} onClose={closeMovements} closeOnBackdrop={false} title="Stok Hareket Geçmişi" width={640}>
+      <Drawer
+        open={movementProductId != null}
+        onClose={closeMovements}
+        closeOnBackdrop={false}
+        title={movementMode === 'form' ? 'Yeni Stok Hareketi' : 'Stok Hareket Geçmişi'}
+        width={640}
+      >
         {movementProductId != null && (
-          <div className="col gap-8">
-            <div className="muted" style={{ fontSize: 12 }}>{movements.length} hareket kaydı</div>
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Tarih</th>
-                    <th>Tür</th>
-                    <th className="num">Miktar</th>
-                    <th>Kaynak</th>
-                    <th>Sebep</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {movements.map(m => {
-                    const label = MOVEMENT_LABELS[m.movementType] || m.movementType;
-                    const color = MOVEMENT_TYPE_COLORS[m.movementType] || '';
-                    const qty = m.quantity;
-                    const qtyStr = qty > 0 ? `+${qty}` : `${qty}`;
-                    return (
-                      <tr key={m.movementId}>
-                        <td className="muted" style={{ fontSize: 12 }}>{m.createdAt ? m.createdAt.slice(0, 10) : '—'}</td>
-                        <td><span className={`pill ${color}`}><span className="dot" />{label}</span></td>
-                        <td className="num mono tnum" style={{ color: qty > 0 ? 'var(--pos)' : 'var(--neg)', fontWeight: 600 }}>{qtyStr}</td>
-                        <td className="muted" style={{ fontSize: 12 }}>{m.sourceType === 'INVOICE' ? `Fatura #${m.sourceId}` : m.sourceType || '—'}</td>
-                        <td className="muted" style={{ fontSize: 12, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.reason || '—'}</td>
-                      </tr>
-                    );
-                  })}
-                  {movements.length === 0 && <tr><td colSpan="5" className="empty">Henüz hareket kaydı yok</td></tr>}
-                </tbody>
-              </table>
+          <div className="col gap-12">
+            <div className="card" style={{ padding: 10, background: 'var(--bg-2)' }}>
+              <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="col gap-4">
+                  <b style={{ fontSize: 14 }}>{movementProduct?.name || '—'}</b>
+                  <span className="muted mono" style={{ fontSize: 11 }}>{movementProduct?.barcode || ''}</span>
+                </div>
+                <div className="col gap-4" style={{ alignItems: 'flex-end' }}>
+                  <span className="muted" style={{ fontSize: 11 }}>Mevcut Stok</span>
+                  <b className="mono tnum" style={{ fontSize: 16 }}>
+                    {movementCurrentStock} {movementProduct?.unit || ''}
+                  </b>
+                </div>
+              </div>
             </div>
+
+            {movementMode === 'list' ? (
+              <>
+                <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span className="muted" style={{ fontSize: 12 }}>{movements.length} hareket kaydı</span>
+                  <button className="btn primary sm" onClick={() => setMovementMode('form')}>
+                    <Icon name="plus" size={12} /> Yeni Hareket
+                  </button>
+                </div>
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Tarih</th>
+                        <th>Tür</th>
+                        <th className="num">Miktar</th>
+                        <th>Kaynak</th>
+                        <th>Sebep</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {movements.map(m => {
+                        const label = MOVEMENT_LABELS[m.movementType] || m.movementType;
+                        const color = MOVEMENT_TYPE_COLORS[m.movementType] || '';
+                        const qty = m.quantity;
+                        const qtyStr = qty > 0 ? `+${qty}` : `${qty}`;
+                        return (
+                          <tr key={m.movementId}>
+                            <td className="muted" style={{ fontSize: 12 }}>{m.createdAt ? m.createdAt.slice(0, 10) : '—'}</td>
+                            <td><span className={`pill ${color}`}><span className="dot" />{label}</span></td>
+                            <td className="num mono tnum" style={{ color: qty > 0 ? 'var(--pos)' : 'var(--neg)', fontWeight: 600 }}>{qtyStr}</td>
+                            <td className="muted" style={{ fontSize: 12 }}>
+                              {m.sourceType === 'INVOICE' && m.sourceId ? (
+                                <a
+                                  href="#"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    closeMovements();
+                                    navigate(`/fatura?invoiceId=${m.sourceId}`);
+                                  }}
+                                  style={{ color: 'var(--accent)', textDecoration: 'underline' }}
+                                >
+                                  Fatura #{m.sourceId}
+                                </a>
+                              ) : (
+                                m.sourceType || '—'
+                              )}
+                            </td>
+                            <td className="muted" style={{ fontSize: 12, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.reason || '—'}</td>
+                          </tr>
+                        );
+                      })}
+                      {movements.length === 0 && <tr><td colSpan="5" className="empty">Henüz hareket kaydı yok</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <>
+                <button className="btn ghost sm" style={{ alignSelf: 'flex-start' }} onClick={() => setMovementMode('list')}>
+                  <Icon name="chevLeft" size={12} /> Geçmişe Dön
+                </button>
+                <StockMovementForm
+                  productId={movementProductId}
+                  currentStock={movementCurrentStock}
+                  onSuccess={() => setMovementMode('list')}
+                  onCancel={() => setMovementMode('list')}
+                />
+              </>
+            )}
           </div>
         )}
       </Drawer>
@@ -172,19 +225,40 @@ export default function StokPage() {
   );
 }
 
-function ProductDrawer({ open, onClose }) {
+function ProductDrawer({ open, onClose, editingProduct = null }) {
   const createMut = useCreateProduct();
+  const updateMut = useUpdateProduct();
+  const isEdit = editingProduct != null;
   const EMPTY = { name: '', barcode: '', unit: 'adet', salePrice: '', costPrice: '', vatRate: '18', description: '', initialQuantity: '0', minQuantity: '0' };
   const [f, setF] = useState(EMPTY);
 
   const valid = f.name.trim() && f.barcode.trim() && f.unit.trim()
     && Number(f.salePrice) > 0 && Number(f.costPrice) > 0 && Number(f.vatRate) >= 0;
 
-  useEffect(() => { if (!open) setF(EMPTY); }, [open]);
+  useEffect(() => {
+    if (!open) {
+      setF(EMPTY);
+    } else if (isEdit) {
+      setF({
+        name: editingProduct.name || '',
+        barcode: editingProduct.barcode || '',
+        unit: editingProduct.unit || 'adet',
+        salePrice: editingProduct.salePrice != null ? String(editingProduct.salePrice) : '',
+        costPrice: editingProduct.costPrice != null ? String(editingProduct.costPrice) : '',
+        vatRate: editingProduct.vatRate != null ? String(editingProduct.vatRate) : '18',
+        description: editingProduct.description || '',
+        initialQuantity: '0',
+        minQuantity: editingProduct.minStockLevel != null ? String(editingProduct.minStockLevel)
+                    : editingProduct.minQuantity != null ? String(editingProduct.minQuantity) : '0',
+      });
+    } else {
+      setF(EMPTY);
+    }
+  }, [open, isEdit, editingProduct]);
 
   const save = () => {
     if (!valid) return;
-    createMut.mutate({
+    const dto = {
       name: f.name.trim(),
       barcode: f.barcode.trim(),
       unit: f.unit.trim(),
@@ -192,17 +266,26 @@ function ProductDrawer({ open, onClose }) {
       costPrice: Number(f.costPrice),
       vatRate: Number(f.vatRate),
       description: f.description.trim() || undefined,
-      initialQuantity: Number(f.initialQuantity) || 0,
       minQuantity: Number(f.minQuantity) || 0,
-    }, { onSuccess: onClose });
+    };
+    if (isEdit) {
+      updateMut.mutate({ id: editingProduct.productId, dto }, { onSuccess: onClose });
+    } else {
+      createMut.mutate(
+        { ...dto, initialQuantity: Number(f.initialQuantity) || 0 },
+        { onSuccess: onClose }
+      );
+    }
   };
 
+  const pending = createMut.isPending || updateMut.isPending;
+
   return (
-    <Drawer open={open} onClose={onClose} closeOnBackdrop={false} title="Yeni Ürün"
+    <Drawer open={open} onClose={onClose} closeOnBackdrop={false} title={isEdit ? 'Ürünü Düzenle' : 'Yeni Ürün'}
       footer={
         <>
           <button className="btn ghost" onClick={onClose}>Vazgeç</button>
-          <button className="btn primary" disabled={!valid || createMut.isPending} onClick={save}>Kaydet</button>
+          <button className="btn primary" disabled={!valid || pending} onClick={save}>Kaydet</button>
         </>
       }>
       <div className="col gap-12">
@@ -237,15 +320,22 @@ function ProductDrawer({ open, onClose }) {
           </div>
         </div>
         <div className="grid-2">
-          <div className="field">
-            <label>Başlangıç Stoku</label>
-            <input className="input mono" type="number" min="0" value={f.initialQuantity} onChange={e => setF({ ...f, initialQuantity: e.target.value })} />
-          </div>
-          <div className="field">
+          {!isEdit && (
+            <div className="field">
+              <label>Başlangıç Stoku</label>
+              <input className="input mono" type="number" min="0" value={f.initialQuantity} onChange={e => setF({ ...f, initialQuantity: e.target.value })} />
+            </div>
+          )}
+          <div className="field" style={isEdit ? { gridColumn: '1 / -1' } : undefined}>
             <label>Min. Stok Eşiği</label>
             <input className="input mono" type="number" min="0" value={f.minQuantity} onChange={e => setF({ ...f, minQuantity: e.target.value })} />
           </div>
         </div>
+        {isEdit && (
+          <div className="muted" style={{ fontSize: 11 }}>
+            Stok miktarı bu ekrandan değiştirilmez. Hareket geçmişinden manuel hareket girerek değiştirebilirsiniz.
+          </div>
+        )}
         <div className="field">
           <label>Açıklama</label>
           <textarea className="input" rows={2} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} />
