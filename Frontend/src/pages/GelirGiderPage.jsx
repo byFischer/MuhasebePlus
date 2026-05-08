@@ -112,7 +112,7 @@ function TransactionDrawer({ open, onClose, banks }) {
   };
 
   return (
-    <Drawer open={open} onClose={onClose} title="Yeni İşlem"
+    <Drawer open={open} onClose={onClose} closeOnBackdrop={false} title="Yeni İşlem"
       footer={
         <>
           <button className="btn ghost" onClick={onClose}>Vazgeç</button>

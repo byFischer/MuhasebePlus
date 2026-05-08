@@ -48,6 +48,15 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpec
         @Param("saleType") InvoiceType saleType,
         @Param("paidStatus") PaymentStatus paidStatus);
 
+    @Query("SELECT i.customerId, COALESCE(SUM(i.totalAmount), 0) FROM Invoice i " +
+           "WHERE i.company.companyId = :companyId AND i.isDeleted = false " +
+           "AND i.invoiceType = :purchaseType AND i.paymentStatus <> :paidStatus " +
+           "GROUP BY i.customerId")
+    List<Object[]> calculateOutstandingBalancesByCompanyPurchase(
+        @Param("companyId") Long companyId,
+        @Param("purchaseType") InvoiceType purchaseType,
+        @Param("paidStatus") PaymentStatus paidStatus);
+
     @Query("SELECT COALESCE(SUM(i.totalAmount), 0) FROM Invoice i " +
            "WHERE i.customerId = :customerId AND i.company.companyId = :companyId " +
            "AND i.isDeleted = false AND i.invoiceType = :saleType AND i.paymentStatus <> :paidStatus")
@@ -55,6 +64,15 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpec
         @Param("customerId") Long customerId,
         @Param("companyId") Long companyId,
         @Param("saleType") InvoiceType saleType,
+        @Param("paidStatus") PaymentStatus paidStatus);
+
+    @Query("SELECT COALESCE(SUM(i.totalAmount), 0) FROM Invoice i " +
+           "WHERE i.customerId = :customerId AND i.company.companyId = :companyId " +
+           "AND i.isDeleted = false AND i.invoiceType = :purchaseType AND i.paymentStatus <> :paidStatus")
+    BigDecimal calculateOutstandingBalanceForCustomerPurchase(
+        @Param("customerId") Long customerId,
+        @Param("companyId") Long companyId,
+        @Param("purchaseType") InvoiceType purchaseType,
         @Param("paidStatus") PaymentStatus paidStatus);
 
     @Query("SELECT DISTINCT i FROM Invoice i LEFT JOIN FETCH i.customer " +

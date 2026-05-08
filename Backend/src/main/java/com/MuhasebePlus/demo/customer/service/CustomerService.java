@@ -2,6 +2,7 @@ package com.MuhasebePlus.demo.customer.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -219,19 +220,43 @@ public class CustomerService implements HardDeletable {
     // PRIVATE METOTLAR
 
     private Map<Long, BigDecimal> buildBalanceMap(Long companyId) {
-        return invoiceRepository
+        Map<Long, BigDecimal> saleBalances = invoiceRepository
             .calculateOutstandingBalancesByCompany(companyId, InvoiceType.sale, PaymentStatus.paid)
             .stream()
             .collect(Collectors.toMap(
                 row -> (Long) row[0],
                 row -> (BigDecimal) row[1]
             ));
+
+        Map<Long, BigDecimal> purchaseBalances = invoiceRepository
+            .calculateOutstandingBalancesByCompanyPurchase(companyId, InvoiceType.purchase, PaymentStatus.paid)
+            .stream()
+            .collect(Collectors.toMap(
+                row -> (Long) row[0],
+                row -> ((BigDecimal) row[1]).negate()
+            ));
+
+        Set<Long> allCustomerIds = new HashSet<>();
+        allCustomerIds.addAll(saleBalances.keySet());
+        allCustomerIds.addAll(purchaseBalances.keySet());
+
+        Map<Long, BigDecimal> combined = new java.util.HashMap<>();
+        for (Long id : allCustomerIds) {
+            BigDecimal sale = saleBalances.getOrDefault(id, BigDecimal.ZERO);
+            BigDecimal purchase = purchaseBalances.getOrDefault(id, BigDecimal.ZERO);
+            combined.put(id, sale.add(purchase));
+        }
+        return combined;
     }
 
     private BigDecimal fetchBalance(Long customerId, Long companyId) {
-        BigDecimal balance = invoiceRepository.calculateOutstandingBalanceForCustomer(
+        BigDecimal saleBalance = invoiceRepository.calculateOutstandingBalanceForCustomer(
             customerId, companyId, InvoiceType.sale, PaymentStatus.paid);
-        return balance != null ? balance : BigDecimal.ZERO;
+        BigDecimal purchaseBalance = invoiceRepository.calculateOutstandingBalanceForCustomerPurchase(
+            customerId, companyId, InvoiceType.purchase, PaymentStatus.paid);
+        BigDecimal sale = saleBalance != null ? saleBalance : BigDecimal.ZERO;
+        BigDecimal purchase = purchaseBalance != null ? purchaseBalance : BigDecimal.ZERO;
+        return sale.subtract(purchase);
     }
 
     private Customer findCustomerEntityById(Long id) {

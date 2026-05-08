@@ -17,13 +17,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.MuhasebePlus.demo.stock.dto.request.StockAdjustmentRequestDto;
 import com.MuhasebePlus.demo.stock.dto.request.StockRequestDto;
 import com.MuhasebePlus.demo.stock.dto.response.StockResponseDto;
 import com.MuhasebePlus.demo.stock.service.StockService;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Min;
 
 @RestController
 @RequestMapping("/api/stocks")
@@ -63,30 +61,6 @@ public class StockController {
             @PathVariable Integer productId,
             @Valid @RequestBody StockRequestDto dto) {
         return ResponseEntity.ok(stockService.updateStock(productId, dto));
-    }
-
-    @PostMapping("/{productId}/add")
-    @PreAuthorize("hasAnyRole('ADMIN','USER')")
-    public ResponseEntity<StockResponseDto> addStock(
-            @PathVariable Integer productId,
-            @Valid @RequestBody StockAdjustmentRequestDto dto) {
-        return ResponseEntity.ok(stockService.addStock(productId, dto));
-    }
-
-    @PostMapping("/{productId}/remove")
-    @PreAuthorize("hasAnyRole('ADMIN','USER')")
-    public ResponseEntity<StockResponseDto> removeStock(
-            @PathVariable Integer productId,
-            @Valid @RequestBody StockAdjustmentRequestDto dto) {
-        return ResponseEntity.ok(stockService.removeStock(productId, dto));
-    }
-
-    @PutMapping("/{productId}/count")
-    @PreAuthorize("hasAnyRole('ADMIN','USER')")
-    public ResponseEntity<StockResponseDto> setQuantityAfterCount(
-            @PathVariable Integer productId,
-            @RequestParam @Min(0) Integer quantity) {
-        return ResponseEntity.ok(stockService.markCounted(productId, quantity));
     }
 
     @DeleteMapping("/{productId}")

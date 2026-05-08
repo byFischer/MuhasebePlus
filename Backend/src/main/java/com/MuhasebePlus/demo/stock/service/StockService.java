@@ -1,17 +1,13 @@
 package com.MuhasebePlus.demo.stock.service;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 
 import com.MuhasebePlus.demo.common.service.CompanyContext;
 import com.MuhasebePlus.demo.company.repository.CompanyRepository;
-import com.MuhasebePlus.demo.stock.dto.request.StockAdjustmentRequestDto;
-import com.MuhasebePlus.demo.stock.dto.request.StockCheckItemDto;
 import com.MuhasebePlus.demo.stock.dto.request.StockRequestDto;
-import com.MuhasebePlus.demo.stock.dto.response.StockCheckResultDto;
 import com.MuhasebePlus.demo.stock.dto.response.StockResponseDto;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceLineItemRepository;
 import com.MuhasebePlus.demo.stock.entity.Product;
@@ -115,104 +111,6 @@ public class StockService {
         return stockRepository.findLowStockItems(companyId).stream()
             .map(this::toResponseDto)
             .toList();
-    }
-
-
-    //PUBLIC METODLAR - MİKTAR İŞLEMLERİ 
-
-    public StockResponseDto addStock(Integer productId, StockAdjustmentRequestDto dto) {
-        Stock stock = findActiveStockByProductId(productId);
-
-        int current = stock.getQuantity() != null ? stock.getQuantity() : 0;
-        stock.setQuantity(current + dto.amount());
-
-        Stock updated = stockRepository.save(stock);
-        return toResponseDto(updated);
-    }
-
-    public StockResponseDto removeStock(Integer productId, StockAdjustmentRequestDto dto) {
-        Stock stock = findActiveStockByProductId(productId);
-
-        int current = stock.getQuantity() != null ? stock.getQuantity() : 0;
-        if (current < dto.amount()) {
-            throw new RuntimeException(
-                "Insufficient stock for productId " + productId
-                + ": requested " + dto.amount() + ", available " + current);
-        }
-
-        stock.setQuantity(current - dto.amount());
-
-        Stock updated = stockRepository.save(stock);
-        return toResponseDto(updated);
-    }
-
-    public StockResponseDto setQuantity(Integer productId, Integer newQuantity) {
-        if (newQuantity == null || newQuantity < 0) {
-            throw new RuntimeException("Quantity must be non-negative");
-        }
-
-        Stock stock = findActiveStockByProductId(productId);
-        stock.setQuantity(newQuantity);
-        stock.setLastCountDate(LocalDateTime.now());
-
-        Stock updated = stockRepository.save(stock);
-        return toResponseDto(updated);
-    }
-
-
-    //PUBLIC METODLAR - FATURA ENTEGRASYONU (FAT.1)
-
-    public List<StockCheckResultDto> checkStock(List<StockCheckItemDto> items) {
-        List<StockCheckResultDto> results = new ArrayList<>();
-        Long companyId = companyContext.getCurrentCompanyId();
-
-        for (StockCheckItemDto item : items) {
-            Stock stock = stockRepository.findByProductIdAndCompanyCompanyId(item.productId(), companyId)
-                .filter(s -> !s.isDeleted())
-                .orElse(null);
-
-            int available = (stock != null && stock.getQuantity() != null) ? stock.getQuantity() : 0;
-            boolean sufficient = stock != null && available >= item.quantity();
-
-            results.add(new StockCheckResultDto(
-                item.productId(),
-                item.quantity(),
-                available,
-                sufficient
-            ));
-        }
-
-        return results;
-    }
-
-    public void decreaseStock(List<StockCheckItemDto> items) {
-        List<StockCheckResultDto> checks = checkStock(items);
-
-        for (StockCheckResultDto check : checks) {
-            if (!check.isSufficient()) {
-                throw new RuntimeException(
-                    "Insufficient stock for productId " + check.productId()
-                    + ": requested " + check.requestedQuantity()
-                    + ", available " + check.availableQuantity());
-            }
-        }
-
-        for (StockCheckItemDto item : items) {
-            Stock stock = findActiveStockByProductId(item.productId());
-            stock.setQuantity(stock.getQuantity() - item.quantity());
-            stockRepository.save(stock);
-        }
-    }
-
-
-    //PUBLIC METODLAR - SAYIM
-
-    public StockResponseDto markCounted(Integer productId, Integer countedQuantity) {
-        return setQuantity(productId, countedQuantity);
-    }
-
-    public void scheduleCount(Integer productId, LocalDateTime plannedDate) {
-        findActiveStockByProductId(productId);
     }
 
 

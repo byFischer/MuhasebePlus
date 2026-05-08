@@ -165,6 +165,7 @@ function CustomerDrawer({ open, mode, customer, onClose, onSave }) {
     <Drawer
       open={open}
       onClose={onClose}
+      closeOnBackdrop={false}
       title={mode === 'edit' ? `Düzenle — ${customer?.name}` : 'Yeni Müşteri'}
       footer={
         <>

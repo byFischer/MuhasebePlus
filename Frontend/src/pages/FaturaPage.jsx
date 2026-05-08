@@ -11,6 +11,7 @@ function InvoicePill({ status }) {
   const map = {
     draft:   { cls: 'warn', l: 'Taslak' },
     pending: { cls: 'info', l: 'Beklemede' },
+    partially_paid: { cls: 'warn', l: 'Kısmi Ödeme' },
     paid:    { cls: 'pos',  l: 'Ödendi' },
     overdue: { cls: 'neg',  l: 'Gecikmiş' },
   };
@@ -98,7 +99,7 @@ export default function FaturaPage() {
   );
 }
 
-const EMPTY_LINE = () => ({ productId: '', quantity: 1 });
+const EMPTY_LINE = () => ({ productId: '', quantity: 1, newProduct: null, showNewProduct: false });
 
 function InvoiceDrawer({ open, onClose, customers, products }) {
   const createMut = useCreateInvoice();
@@ -110,12 +111,23 @@ function InvoiceDrawer({ open, onClose, customers, products }) {
     if (!open) { setF(EMPTY); setLines([EMPTY_LINE()]); }
   }, [open]);
 
-  const validLines = lines.filter(l => l.productId && Number(l.quantity) >= 1);
+  const isPurchase = f.invoiceType === 'purchase';
+
+  const validLines = lines.filter(l => {
+    if (l.newProduct) {
+      return l.newProduct.barcode?.trim() && l.newProduct.name?.trim() && l.newProduct.unit?.trim()
+        && Number(l.newProduct.salePrice) > 0 && Number(l.newProduct.costPrice) > 0
+        && Number(l.quantity) >= 1;
+    }
+    return l.productId && Number(l.quantity) >= 1;
+  });
+
   const valid = f.invoiceNumber.trim() && f.customerId && f.invoiceType && f.dueDate && validLines.length > 0;
 
   const addLine = () => setLines(prev => [...prev, EMPTY_LINE()]);
   const removeLine = (i) => setLines(prev => prev.length > 1 ? prev.filter((_, j) => j !== i) : prev);
   const updateLine = (i, field, val) => setLines(prev => prev.map((l, j) => j === i ? { ...l, [field]: val } : l));
+  const updateNewProduct = (i, field, val) => setLines(prev => prev.map((l, j) => j === i ? { ...l, newProduct: { ...l.newProduct, [field]: val } } : l));
 
   const save = () => {
     if (!valid) return;
@@ -124,12 +136,31 @@ function InvoiceDrawer({ open, onClose, customers, products }) {
       customerId: Number(f.customerId),
       invoiceType: f.invoiceType,
       dueDate: f.dueDate,
-      lineItems: validLines.map(l => ({ productId: Number(l.productId), quantity: Number(l.quantity) })),
+      lineItems: validLines.map(l => {
+        if (l.newProduct) {
+          const np = l.newProduct;
+          return {
+            productId: null,
+            quantity: Number(l.quantity),
+            newProduct: {
+              barcode: np.barcode.trim(),
+              name: np.name.trim(),
+              description: np.description?.trim() || undefined,
+              unit: np.unit.trim(),
+              salePrice: Number(np.salePrice),
+              vatRate: Number(np.vatRate),
+              costPrice: Number(np.costPrice),
+              minQuantity: Number(np.minQuantity) || 0,
+            },
+          };
+        }
+        return { productId: Number(l.productId), quantity: Number(l.quantity), newProduct: null };
+      }),
     }, { onSuccess: onClose });
   };
 
   return (
-    <Drawer open={open} onClose={onClose} title="Yeni Fatura" width={560}
+    <Drawer open={open} onClose={onClose} closeOnBackdrop={false} title="Yeni Fatura" width={isPurchase ? 640 : 560}
       footer={
         <>
           <button className="btn ghost" onClick={onClose}>Vazgeç</button>
@@ -140,7 +171,7 @@ function InvoiceDrawer({ open, onClose, customers, products }) {
         <div className="grid-2">
           <div className="field">
             <label>Fatura No *</label>
-            <input className="input mono" value={f.invoiceNumber} onChange={e => setF({ ...f, invoiceNumber: e.target.value })} placeholder="FTR-2024-001" />
+            <input className="input mono" value={f.invoiceNumber} onChange={e => setF({ ...f, invoiceNumber: e.target.value.replace(/ /g, '-').slice(0, 25) })} placeholder="FTR-2024-001" maxLength={25} />
           </div>
           <div className="field">
             <label>Fatura Türü *</label>
@@ -172,38 +203,100 @@ function InvoiceDrawer({ open, onClose, customers, products }) {
           </div>
           <div className="col gap-8">
             {lines.map((l, i) => (
-              <div key={i} className="row gap-8" style={{ alignItems: 'flex-end' }}>
-                <div className="field" style={{ flex: 1, margin: 0 }}>
-                  {i === 0 && <label style={{ fontSize: 11 }}>Ürün</label>}
-                  <select className="input" value={l.productId} onChange={e => updateLine(i, 'productId', e.target.value)}>
-                    <option value="">Ürün seçin...</option>
-                    {products.map(p => (
-                      <option key={p.productId} value={p.productId}>{p.name} — {TRY(p.salePrice)}</option>
-                    ))}
-                  </select>
+              <div key={i} style={{ border: '1px solid var(--line)', borderRadius: 6, padding: 10 }}>
+                <div className="row gap-8" style={{ alignItems: 'flex-end' }}>
+                  <div className="field" style={{ flex: 1, margin: 0 }}>
+                    {i === 0 && <label style={{ fontSize: 11 }}>Ürün</label>}
+                    {isPurchase && !l.newProduct && (
+                      <button
+                        className="btn ghost sm"
+                        style={{ marginBottom: 4, fontSize: 11 }}
+                        onClick={() => {
+                          updateLine(i, 'showNewProduct', true);
+                          if (!l.newProduct) updateLine(i, 'newProduct', { barcode: '', name: '', unit: 'adet', salePrice: '', costPrice: '', vatRate: '18', minQuantity: '0' });
+                        }}
+                      >
+                        <Icon name="plus" size={10} /> Yeni ürün ekle
+                      </button>
+                    )}
+                    {l.showNewProduct && isPurchase ? (
+                      <div className="col gap-4">
+                        <div className="grid-2">
+                          <div className="field" style={{ margin: 0 }}>
+                            <label style={{ fontSize: 11 }}>Barkod *</label>
+                            <input
+                              className="input mono"
+                              value={l.newProduct?.barcode || ''}
+                              onChange={e => updateNewProduct(i, 'barcode', e.target.value.replace(/\D/g, '').slice(0, 13))}
+                              placeholder="13 haneli barkod"
+                              maxLength={13}
+                            />
+                          </div>
+                          <div className="field" style={{ margin: 0 }}>
+                            <label style={{ fontSize: 11 }}>Ürün Adı *</label>
+                            <input className="input" value={l.newProduct?.name || ''} onChange={e => updateNewProduct(i, 'name', e.target.value)} placeholder="Ürün adı" />
+                          </div>
+                        </div>
+                        <div className="grid-3">
+                          <div className="field" style={{ margin: 0 }}>
+                            <label style={{ fontSize: 11 }}>Birim *</label>
+                            <input className="input" value={l.newProduct?.unit || 'adet'} onChange={e => updateNewProduct(i, 'unit', e.target.value)} />
+                          </div>
+                          <div className="field" style={{ margin: 0 }}>
+                            <label style={{ fontSize: 11 }}>Maliyet *</label>
+                            <input className="input mono" type="number" min="0.01" step="0.01" value={l.newProduct?.costPrice || ''} onChange={e => updateNewProduct(i, 'costPrice', e.target.value)} placeholder="0.00" />
+                          </div>
+                          <div className="field" style={{ margin: 0 }}>
+                            <label style={{ fontSize: 11 }}>Satış *</label>
+                            <input className="input mono" type="number" min="0.01" step="0.01" value={l.newProduct?.salePrice || ''} onChange={e => updateNewProduct(i, 'salePrice', e.target.value)} placeholder="0.00" />
+                          </div>
+                        </div>
+                        <div className="grid-3">
+                          <div className="field" style={{ margin: 0 }}>
+                            <label style={{ fontSize: 11 }}>KDV % *</label>
+                            <input className="input mono" type="number" min="0" max="100" value={l.newProduct?.vatRate || '18'} onChange={e => updateNewProduct(i, 'vatRate', e.target.value)} />
+                          </div>
+                          <div className="field" style={{ margin: 0 }}>
+                            <label style={{ fontSize: 11 }}>Min. Stok</label>
+                            <input className="input mono" type="number" min="0" value={l.newProduct?.minQuantity || '0'} onChange={e => updateNewProduct(i, 'minQuantity', e.target.value)} />
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                            <button className="btn ghost sm" onClick={() => { updateLine(i, 'showNewProduct', false); updateLine(i, 'newProduct', null); }}>İptal</button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <select className="input" value={l.productId} onChange={e => updateLine(i, 'productId', e.target.value)}>
+                        <option value="">Ürün seçin...</option>
+                        {products.map(p => (
+                          <option key={p.productId} value={p.productId}>{p.name} — {TRY(p.salePrice)}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                  <div className="field" style={{ width: 80, margin: 0 }}>
+                    {i === 0 && <label style={{ fontSize: 11 }}>Adet</label>}
+                    <input
+                      className="input mono"
+                      type="number"
+                      min="1"
+                      value={l.quantity}
+                      onChange={e => updateLine(i, 'quantity', e.target.value)}
+                    />
+                  </div>
+                  <button
+                    className="tb-icon-btn"
+                    style={{ marginBottom: 1 }}
+                    onClick={() => removeLine(i)}
+                    disabled={lines.length === 1}
+                  >
+                    <Icon name="trash" size={14} />
+                  </button>
                 </div>
-                <div className="field" style={{ width: 80, margin: 0 }}>
-                  {i === 0 && <label style={{ fontSize: 11 }}>Adet</label>}
-                  <input
-                    className="input mono"
-                    type="number"
-                    min="1"
-                    value={l.quantity}
-                    onChange={e => updateLine(i, 'quantity', e.target.value)}
-                  />
-                </div>
-                <button
-                  className="tb-icon-btn"
-                  style={{ marginBottom: 1 }}
-                  onClick={() => removeLine(i)}
-                  disabled={lines.length === 1}
-                >
-                  <Icon name="trash" size={14} />
-                </button>
               </div>
             ))}
           </div>
-          {products.length === 0 && (
+          {!isPurchase && products.length === 0 && (
             <span style={{ fontSize: 11, color: 'var(--warn)', marginTop: 4, display: 'block' }}>Önce stok sayfasından ürün ekleyin</span>
           )}
         </div>

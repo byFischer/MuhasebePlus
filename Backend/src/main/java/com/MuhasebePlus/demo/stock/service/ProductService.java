@@ -10,10 +10,12 @@ import com.MuhasebePlus.demo.company.repository.CompanyRepository;
 import com.MuhasebePlus.demo.stock.dto.request.ProductRequestDto;
 import com.MuhasebePlus.demo.stock.dto.response.ProductResponseDto;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceLineItemRepository;
+import com.MuhasebePlus.demo.stock.entity.MovementType;
 import com.MuhasebePlus.demo.stock.entity.Product;
 import com.MuhasebePlus.demo.stock.entity.Stock;
 import com.MuhasebePlus.demo.stock.repository.ProductRepository;
 import com.MuhasebePlus.demo.stock.repository.StockRepository;
+import com.MuhasebePlus.demo.stock.service.StockMovementService;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -30,12 +32,13 @@ public class ProductService implements HardDeletable {
     private final InvoiceLineItemRepository invoiceLineItemRepository;
     private final CompanyContext companyContext;
     private final CompanyRepository companyRepository;
+    private final StockMovementService stockMovementService;
 
     //PUBLIC METOTLAR
 
-    public ProductResponseDto createProduct(ProductRequestDto dto) {
+    public Product createProductEntity(ProductRequestDto dto) {
         Long companyId = companyContext.getCurrentCompanyId();
-        
+
         if(productRepository.existsByBarcodeAndCompanyCompanyIdAndIsDeletedFalse(dto.barcode(), companyId)) {
             throw new RuntimeException("A product with the same barcode already exists in your company: " + dto.barcode());
         }
@@ -56,12 +59,21 @@ public class ProductService implements HardDeletable {
         Stock stock = new Stock();
         stock.setCompany(companyRepository.getReferenceById(companyId));
         stock.setProductId(saved.getProductId());
-        stock.setQuantity(dto.initialQuantity() != null ? dto.initialQuantity() : 0);
+        stock.setQuantity(0);
         stock.setMinQuantity(dto.minQuantity() != null ? dto.minQuantity() : 0);
         stock.setDeleted(false);
         stockRepository.save(stock);
 
-        return toResponseDto(saved);
+        if (dto.initialQuantity() != null && dto.initialQuantity() > 0) {
+            stockMovementService.recordMovement(saved.getProductId(), dto.initialQuantity(),
+                    MovementType.OPENING_BALANCE, "INITIAL", null, dto.costPrice(), "Açılış bakiyesi");
+        }
+
+        return saved;
+    }
+
+    public ProductResponseDto createProduct(ProductRequestDto dto) {
+        return toResponseDto(createProductEntity(dto));
     }
 
     public List<ProductResponseDto> getAllProducts() {

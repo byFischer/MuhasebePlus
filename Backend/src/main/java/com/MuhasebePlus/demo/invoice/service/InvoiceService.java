@@ -6,8 +6,10 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -22,6 +24,7 @@ import com.MuhasebePlus.demo.customer.entity.Customer;
 import com.MuhasebePlus.demo.customer.repository.CustomerRepository;
 import com.MuhasebePlus.demo.invoice.dto.request.InvoiceLineItemRequestDto;
 import com.MuhasebePlus.demo.invoice.dto.request.InvoiceRequestDto;
+import com.MuhasebePlus.demo.invoice.dto.request.NewProductRequestDto;
 import com.MuhasebePlus.demo.invoice.dto.response.InvoiceLineItemResponseDto;
 import com.MuhasebePlus.demo.invoice.dto.response.InvoiceResponseDto;
 import com.MuhasebePlus.demo.invoice.entity.Invoice;
@@ -32,11 +35,11 @@ import com.MuhasebePlus.demo.invoice.repository.InvoiceLineItemRepository;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceRepository;
 import com.MuhasebePlus.demo.log.entity.LogLevel;
 import com.MuhasebePlus.demo.log.service.SystemLogService;
-import com.MuhasebePlus.demo.stock.dto.request.StockCheckItemDto;
-import com.MuhasebePlus.demo.stock.dto.response.StockCheckResultDto;
+import com.MuhasebePlus.demo.stock.entity.MovementType;
 import com.MuhasebePlus.demo.stock.entity.Product;
 import com.MuhasebePlus.demo.stock.repository.ProductRepository;
-import com.MuhasebePlus.demo.stock.service.StockService;
+import com.MuhasebePlus.demo.stock.service.StockMovementService;
+import com.MuhasebePlus.demo.stock.service.ProductService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -49,7 +52,8 @@ public class InvoiceService implements HardDeletable {
     private final InvoiceLineItemRepository lineItemRepository;
     private final CustomerRepository customerRepository;
     private final ProductRepository productRepository;
-    private final StockService stockService;
+    private final StockMovementService stockMovementService;
+    private final ProductService productService;
     private final CompanyContext companyContext;
     private final CompanyRepository companyRepository;
     private final SystemLogService systemLogService;
@@ -65,26 +69,7 @@ public class InvoiceService implements HardDeletable {
         }
 
         Customer customer = validateCustomer(dto.customerId());
-        Map<Integer, Product> productMap = fetchAndValidateProducts(dto.lineItems());
-
-        if (dto.invoiceType() == InvoiceType.sale) {
-            List<StockCheckResultDto> checks = stockService.checkStock(toStockCheckList(dto.lineItems()));
-            List<StockCheckResultDto> insufficient = checks.stream()
-                .filter(c -> !c.isSufficient())
-                .toList();
-
-            if (!insufficient.isEmpty()) {
-                StringBuilder sb = new StringBuilder("Yetersiz stok: ");
-                for (StockCheckResultDto c : insufficient) {
-                    Product p = productMap.get(c.productId());
-                    String name = p != null ? p.getName() : "Bilinmeyen";
-                    sb.append(name).append(" (İstenen: ").append(c.requestedQuantity())
-                      .append(", Mevcut: ").append(c.availableQuantity()).append("); ");
-                }
-                systemLogService.log(LogLevel.ERROR, "Fatura oluşturma başarısız - stok yetersiz: " + sb);
-                throw new BusinessException(sb.toString().trim());
-            }
-        }
+        Map<Integer, Product> productMap = resolveProducts(dto.lineItems(), dto.invoiceType());
 
         Invoice invoice = new Invoice();
         invoice.setCompany(companyRepository.getReferenceById(companyId));
@@ -100,8 +85,22 @@ public class InvoiceService implements HardDeletable {
         applyTotals(savedInvoice, savedLineItems);
         Invoice finalInvoice = invoiceRepository.save(savedInvoice);
 
-        if (dto.invoiceType() == InvoiceType.sale) {
-            stockService.decreaseStock(toStockCheckList(dto.lineItems()));
+        for (InvoiceLineItemRequestDto item : dto.lineItems()) {
+            Integer resolvedProductId = item.productId() != null ? item.productId()
+                    : productMap.values().stream()
+                            .filter(p -> p.getBarcode().equals(item.newProduct().barcode()))
+                            .findFirst().map(Product::getProductId).orElse(null);
+            if (resolvedProductId == null) continue;
+
+            if (dto.invoiceType() == InvoiceType.sale) {
+                stockMovementService.recordMovement(resolvedProductId, -item.quantity(),
+                        MovementType.SALE, "INVOICE", savedInvoice.getInvoiceId(), null, null);
+            } else if (dto.invoiceType() == InvoiceType.purchase) {
+                Product p = productMap.get(resolvedProductId);
+                stockMovementService.recordMovement(resolvedProductId, item.quantity(),
+                        MovementType.PURCHASE, "INVOICE", savedInvoice.getInvoiceId(),
+                        p != null ? p.getCostPrice() : null, null);
+            }
         }
 
         systemLogService.log(LogLevel.INFO, "Fatura oluşturuldu: " + dto.invoiceNumber());
@@ -123,29 +122,10 @@ public class InvoiceService implements HardDeletable {
         }
 
         if (invoice.getInvoiceType() == InvoiceType.sale) {
-            List<StockCheckItemDto> checkList = lineItems.stream()
-                .map(li -> new StockCheckItemDto(li.getProductId(), li.getQuantity()))
-                .toList();
-
-            List<StockCheckResultDto> checks = stockService.checkStock(checkList);
-            Map<Integer, Product> productMap = batchLoadProducts(List.of(lineItems), companyId);
-            List<StockCheckResultDto> insufficient = checks.stream()
-                .filter(c -> !c.isSufficient())
-                .toList();
-
-            if (!insufficient.isEmpty()) {
-                StringBuilder sb = new StringBuilder("Yetersiz stok: ");
-                for (StockCheckResultDto c : insufficient) {
-                    Product p = productMap.get(c.productId());
-                    String name = p != null ? p.getName() : "Bilinmeyen";
-                    sb.append(name).append(" (İstenen: ").append(c.requestedQuantity())
-                      .append(", Mevcut: ").append(c.availableQuantity()).append("); ");
-                }
-                systemLogService.log(LogLevel.ERROR, "Taslak fatura onaylama başarısız - stok yetersiz: " + sb);
-                throw new BusinessException(sb.toString().trim());
+            for (InvoiceLineItem li : lineItems) {
+                stockMovementService.recordMovement(li.getProductId(), -li.getQuantity(),
+                        MovementType.SALE, "INVOICE", invoiceId, null, null);
             }
-
-            stockService.decreaseStock(checkList);
         }
 
         invoice.setPaymentStatus(PaymentStatus.pending);
@@ -206,12 +186,17 @@ public class InvoiceService implements HardDeletable {
         if (invoice.getPaymentStatus() == PaymentStatus.paid) {
             throw new RuntimeException("Paid invoices cannot be deleted: " + invoiceId);
         }
+        if (invoice.getPaymentStatus() == PaymentStatus.partially_paid) {
+            throw new BusinessException("Üzerinde ödeme bulunan faturalar silinemez. Önce ödemeleri silin.");
+        }
 
         Long companyId = companyContext.getCurrentCompanyId();
         List<InvoiceLineItem> lineItems = lineItemRepository
                 .findByInvoiceIdAndCompanyCompanyIdAndIsDeletedFalse(invoiceId, companyId);
         lineItems.forEach(li -> li.setDeleted(true));
         lineItemRepository.saveAll(lineItems);
+
+        stockMovementService.recordReverseMovementsForInvoice(invoiceId);
 
         invoice.setDeleted(true);
         invoice.setDeletedAt(LocalDateTime.now());
@@ -277,6 +262,9 @@ public class InvoiceService implements HardDeletable {
         if (paymentStatus == PaymentStatus.draft) {
             throw new RuntimeException("Cannot set payment status to draft manually.");
         }
+        if (paymentStatus == PaymentStatus.paid || paymentStatus == PaymentStatus.partially_paid) {
+            throw new BusinessException("Use /payments endpoint to manage payment status");
+        }
         if (invoice.getPaymentStatus() == PaymentStatus.draft && paymentStatus == PaymentStatus.pending) {
             throw new RuntimeException("Use /confirm endpoint to transition a draft invoice to pending.");
         }
@@ -295,27 +283,39 @@ public class InvoiceService implements HardDeletable {
             .orElseThrow(() -> new RuntimeException("Customer not found or inactive for your company: " + customerId));
     }
 
-    private Map<Integer, Product> fetchAndValidateProducts(List<InvoiceLineItemRequestDto> items) {
+    private Map<Integer, Product> resolveProducts(List<InvoiceLineItemRequestDto> items, InvoiceType invoiceType) {
         Long companyId = companyContext.getCurrentCompanyId();
         Map<Integer, Product> map = new HashMap<>();
+        Set<String> newBarcodes = new HashSet<>();
 
         for (InvoiceLineItemRequestDto item : items) {
-            if (map.containsKey(item.productId())) {
-                continue;
+            if (item.productId() != null) {
+                if (map.containsKey(item.productId())) continue;
+                Product product = productRepository.findByProductIdAndCompanyCompanyIdAndIsDeletedFalse(item.productId(), companyId)
+                    .orElseThrow(() -> new RuntimeException("Product not found or inactive for your company: " + item.productId()));
+                map.put(item.productId(), product);
+            } else if (item.newProduct() != null) {
+                if (invoiceType != InvoiceType.purchase) {
+                    throw new BusinessException("Satış faturasında yeni ürün eklenemez");
+                }
+                NewProductRequestDto np = item.newProduct();
+                if (newBarcodes.contains(np.barcode())) {
+                    throw new BusinessException("Aynı request içinde aynı barcode tekrar edilemez: " + np.barcode());
+                }
+                if (productRepository.existsByBarcodeAndCompanyCompanyIdAndIsDeletedFalse(np.barcode(), companyId)) {
+                    throw new BusinessException("Bu barcode zaten mevcut: " + np.barcode());
+                }
+                newBarcodes.add(np.barcode());
+
+                Product newProduct = productService.createProductEntity(new com.MuhasebePlus.demo.stock.dto.request.ProductRequestDto(
+                        np.barcode(), np.name(), np.description(), np.unit(),
+                        np.salePrice(), np.vatRate(), np.costPrice(), 0, np.minQuantity()));
+                map.put(newProduct.getProductId(), newProduct);
             }
-            Product product = productRepository.findByProductIdAndCompanyCompanyIdAndIsDeletedFalse(item.productId(), companyId)
-                .orElseThrow(() -> new RuntimeException(
-                    "Product not found or inactive for your company: " + item.productId()));
-            map.put(item.productId(), product);
         }
         return map;
     }
 
-    private List<StockCheckItemDto> toStockCheckList(List<InvoiceLineItemRequestDto> items) {
-        return items.stream()
-            .map(i -> new StockCheckItemDto(i.productId(), i.quantity()))
-            .toList();
-    }
 
 
     //PRIVATE METODLAR - BATCH LOADING
@@ -353,7 +353,16 @@ public class InvoiceService implements HardDeletable {
         List<InvoiceLineItem> saved = new ArrayList<>();
 
         for (InvoiceLineItemRequestDto req : items) {
-            Product product = productMap.get(req.productId());
+            Integer pid = req.productId();
+            if (pid == null && req.newProduct() != null) {
+                pid = productMap.values().stream()
+                        .filter(p -> p.getBarcode().equals(req.newProduct().barcode()))
+                        .findFirst().map(Product::getProductId).orElse(null);
+            }
+            if (pid == null) continue;
+
+            Product product = productMap.get(pid);
+            if (product == null) continue;
 
             BigDecimal unitPrice = product.getSalePrice() != null ? product.getSalePrice() : BigDecimal.ZERO;
             BigDecimal vatRate   = product.getVatRate()   != null ? product.getVatRate()   : BigDecimal.ZERO;
@@ -366,7 +375,7 @@ public class InvoiceService implements HardDeletable {
             InvoiceLineItem li = new InvoiceLineItem();
             li.setCompany(companyRepository.getReferenceById(companyId));
             li.setInvoiceId(invoiceId);
-            li.setProductId(req.productId());
+            li.setProductId(pid);
             li.setQuantity(req.quantity());
             li.setUnitPrice(unitPrice);
             li.setVatRate(vatRate);

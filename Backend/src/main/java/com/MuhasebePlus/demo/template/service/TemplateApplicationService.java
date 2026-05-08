@@ -11,8 +11,9 @@ import com.MuhasebePlus.demo.invoice.dto.request.InvoiceRequestDto;
 import com.MuhasebePlus.demo.invoice.dto.response.InvoiceResponseDto;
 import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
 import com.MuhasebePlus.demo.invoice.service.InvoiceService;
-import com.MuhasebePlus.demo.stock.dto.request.StockAdjustmentRequestDto;
-import com.MuhasebePlus.demo.stock.service.StockService;
+import com.MuhasebePlus.demo.stock.dto.request.StockMovementRequestDto;
+import com.MuhasebePlus.demo.stock.entity.MovementType;
+import com.MuhasebePlus.demo.stock.service.StockMovementService;
 
 import java.time.LocalDate;
 import com.MuhasebePlus.demo.template.dto.request.TemplateApplyRequestDto;
@@ -55,7 +56,7 @@ public class TemplateApplicationService {
     private InvoiceService invoiceService;
 
     @Autowired
-    private StockService stockService;
+    private StockMovementService stockMovementService;
 
     public TemplateApplyResponseDto applyTemplate(Long templateId, TemplateApplyRequestDto dto) {
         Long companyId = companyContext.getCurrentCompanyId();
@@ -189,7 +190,7 @@ public class TemplateApplicationService {
             Integer productId = extractIntFromMap(item, "productId");
             Integer quantity = extractIntFromMap(item, "quantity");
             if (productId != null && quantity != null && quantity > 0) {
-                lineItems.add(new InvoiceLineItemRequestDto(productId, quantity));
+                lineItems.add(new InvoiceLineItemRequestDto(productId, quantity, null));
             }
         }
 
@@ -216,13 +217,9 @@ public class TemplateApplicationService {
         }
 
         String direction = extractString(payload, "direction", "IN");
-        StockAdjustmentRequestDto adjDto = new StockAdjustmentRequestDto(quantity, "Şablon uygulaması: " + template.getTemplateName());
-
-        if ("OUT".equalsIgnoreCase(direction)) {
-            stockService.removeStock(productId, adjDto);
-        } else {
-            stockService.addStock(productId, adjDto);
-        }
+        MovementType type = "OUT".equalsIgnoreCase(direction) ? MovementType.ADJUSTMENT_OUT : MovementType.ADJUSTMENT_IN;
+        StockMovementRequestDto movementDto = new StockMovementRequestDto(productId, quantity, type, "Şablon uygulaması: " + template.getTemplateName(), null);
+        stockMovementService.createManualMovement(movementDto);
 
         return productId.longValue();
     }

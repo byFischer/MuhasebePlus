@@ -1,15 +1,19 @@
 import api from '@/services/api';
-const BASE = '/api/stocks';
-const stockService = {
-  list:       ()          => api.get(BASE).then(r => r.data),
-  getByProduct: (pid)     => api.get(`${BASE}/product/${pid}`).then(r => r.data),
-  lowStock:   ()          => api.get(`${BASE}/low`).then(r => r.data),
-  create:     (dto)       => api.post(BASE, dto).then(r => r.data),
-  update:     (pid, dto)  => api.put(`${BASE}/${pid}`, dto).then(r => r.data),
-  addStock:   (pid, dto)  => api.post(`${BASE}/${pid}/add`, dto).then(r => r.data),
-  removeStock:(pid, dto)  => api.post(`${BASE}/${pid}/remove`, dto).then(r => r.data),
-  countAdj:   (pid, qty)  => api.put(`${BASE}/${pid}/count`, null, { params: { quantity: qty } }).then(r => r.data),
-  remove:     (pid)       => api.delete(`${BASE}/${pid}`).then(r => r.data),
-  restore:    (pid)       => api.put(`${BASE}/${pid}/restore`).then(r => r.data),
+
+const STOCK_BASE = '/api/stocks';
+const MOVEMENT_BASE = '/api/stock-movements';
+
+export const stockService = {
+  list:        ()          => api.get(STOCK_BASE).then(r => r.data),
+  getByProduct:(pid)       => api.get(`${STOCK_BASE}/product/${pid}`).then(r => r.data),
+  lowStock:    ()          => api.get(`${STOCK_BASE}/low`).then(r => r.data),
+  create:      (dto)       => api.post(STOCK_BASE, dto).then(r => r.data),
+  update:      (pid, dto)  => api.put(`${STOCK_BASE}/${pid}`, dto).then(r => r.data),
+  remove:      (pid)       => api.delete(`${STOCK_BASE}/${pid}`).then(r => r.data),
+  restore:     (pid)       => api.put(`${STOCK_BASE}/${pid}/restore`).then(r => r.data),
 };
-export default stockService;
+
+export const stockMovementService = {
+  create:      (dto)       => api.post(MOVEMENT_BASE, dto).then(r => r.data),
+  list:        (productId) => api.get(MOVEMENT_BASE, { params: productId != null ? { productId } : {} }).then(r => r.data),
+};

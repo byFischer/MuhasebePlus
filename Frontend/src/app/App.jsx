@@ -11,6 +11,7 @@ import PasswordResetPage from "@/pages/PasswordResetPage";
 import DashboardPage from "@/pages/DashboardPage";
 import CariPage from "@/pages/CariPage";
 import FaturaPage from "@/pages/FaturaPage";
+import InvoicePaymentPage from "@/pages/InvoicePaymentPage";
 import StokPage from "@/pages/StokPage";
 import GelirGiderPage from "@/pages/GelirGiderPage";
 import BankaPage from "@/pages/BankaPage";
@@ -40,6 +41,7 @@ export default function App() {
                 <Route path="/dashboard"   element={<DashboardPage />} />
                 <Route path="/cari"        element={<CariPage />} />
                 <Route path="/fatura"      element={<FaturaPage />} />
+                <Route path="/fatura/odemeler" element={<InvoicePaymentPage />} />
                 <Route path="/stok"        element={<StokPage />} />
                 <Route path="/gelir-gider" element={<GelirGiderPage />} />
                 <Route path="/banka"       element={<BankaPage />} />

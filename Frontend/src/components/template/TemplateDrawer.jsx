@@ -402,6 +402,7 @@ export default function TemplateDrawer({ open, onClose, template }) {
     <Drawer
       open={open}
       onClose={onClose}
+      closeOnBackdrop={false}
       title={isEdit ? 'Şablon Düzenle' : 'Yeni Şablon'}
       width="520px"
       footer={

@@ -113,7 +113,13 @@ input, select, textarea { font: inherit; color: inherit; }
   display: flex; align-items: center; gap: 10px;
   padding: 0 16px;
   border-bottom: 1px solid var(--line);
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
 }
+.brand:hover { background: var(--bg-hover); }
+.brand.active { background: var(--bg-hover); }
 .sidebar-brand-mark {
   width: 52px; height: 52px;
   border-radius: 6px;
@@ -175,6 +181,54 @@ input, select, textarea { font: inherit; color: inherit; }
   padding: 1px 5px; border-radius: 8px; min-width: 16px; text-align: center;
 }
 .nav-item .badge.info { background: var(--info); }
+
+.nav-group-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 10px;
+  border-radius: var(--r-md);
+  color: var(--ink-2);
+  cursor: pointer;
+  font-size: 13px;
+  position: relative;
+  border: 1px solid transparent;
+  background: none; border: none; width: 100%; text-align: left;
+  font-family: inherit;
+}
+.nav-group-header:hover { background: var(--bg-2); color: var(--ink); }
+.nav-group-header .nav-chevron {
+  margin-left: auto;
+  transition: transform 0.2s ease;
+}
+.nav-group-header.expanded .nav-chevron {
+  transform: rotate(180deg);
+}
+.nav-children {
+  padding-left: 16px;
+  margin-top: 2px;
+}
+.nav-child {
+  display: flex; align-items: center; gap: 10px;
+  padding: 5px 10px;
+  border-radius: var(--r-md);
+  color: var(--ink-3);
+  cursor: pointer;
+  font-size: 12px;
+  position: relative;
+  border: 1px solid transparent;
+  text-decoration: none;
+}
+.nav-child:hover { background: var(--bg-2); color: var(--ink); }
+.nav-child.on {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 500;
+  border-color: var(--line);
+  box-shadow: var(--shadow-1);
+}
+.nav-child.on::before {
+  content: ''; position: absolute; left: -8px; top: 6px; bottom: 6px; width: 2px;
+  background: var(--accent); border-radius: 2px;
+}
 
 /* ============ SIDEBAR WIDGET SHELL ============ */
 .sb-widget {

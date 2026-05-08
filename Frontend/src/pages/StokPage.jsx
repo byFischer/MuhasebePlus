@@ -4,6 +4,31 @@ import Pagination from '@/components/mp/Pagination';
 import Drawer from '@/components/mp/Drawer';
 import { TRY } from '@/lib/format';
 import { useProducts, useCreateProduct, useDeleteProduct } from '@/hooks/useProducts';
+import { useStockMovements } from '@/hooks/useStock';
+
+const MOVEMENT_LABELS = {
+  PURCHASE: 'Alış',
+  SALE: 'Satış',
+  RETURN_IN: 'Müşteri İadesi',
+  RETURN_OUT: 'Tedarikçi İadesi',
+  ADJUSTMENT_IN: 'Manuel Giriş',
+  ADJUSTMENT_OUT: 'Manuel Çıkış',
+  PRODUCTION_IN: 'Üretim Giriş',
+  PRODUCTION_OUT: 'Üretim Çıkış',
+  OPENING_BALANCE: 'Açılış',
+};
+
+const MOVEMENT_TYPE_COLORS = {
+  PURCHASE: 'pos',
+  SALE: 'neg',
+  RETURN_IN: 'pos',
+  RETURN_OUT: 'neg',
+  ADJUSTMENT_IN: 'info',
+  ADJUSTMENT_OUT: 'warn',
+  PRODUCTION_IN: 'pos',
+  PRODUCTION_OUT: 'neg',
+  OPENING_BALANCE: 'info',
+};
 
 export default function StokPage() {
   const { data: list = [], isLoading, isError, refetch } = useProducts();
@@ -12,7 +37,10 @@ export default function StokPage() {
   const [filter, setFilter] = useState('hepsi');
   const [page, setPage] = useState(1);
   const [drawer, setDrawer] = useState(false);
+  const [movementProductId, setMovementProductId] = useState(null);
   const PAGE_SIZE = 15;
+
+  const { data: movements = [] } = useStockMovements(movementProductId);
 
   const filtered = useMemo(() => list.filter(p => {
     if (filter === 'dusuk' && !((p.stockQuantity || p.quantity || 0) > 0 && (p.stockQuantity || p.quantity || 0) < (p.minStockLevel || p.minQuantity || 0))) return false;
@@ -27,6 +55,14 @@ export default function StokPage() {
   const pageStart = (page - 1) * PAGE_SIZE;
   const pageEnd = Math.min(pageStart + PAGE_SIZE, filtered.length);
   const paged = filtered.slice(pageStart, pageEnd);
+
+  const openMovements = (productId) => {
+    setMovementProductId(productId);
+  };
+
+  const closeMovements = () => {
+    setMovementProductId(null);
+  };
 
   if (isLoading) return <div className="page"><div className="card" style={{ height: 200 }} /></div>;
   if (isError) return <div className="page"><div className="card empty">Veri alınamadı <button className="btn sm" onClick={() => refetch()}>Tekrar Dene</button></div></div>;
@@ -73,7 +109,14 @@ export default function StokPage() {
                       </span>
                     </td>
                     <td>
-                      <button className="tb-icon-btn" onClick={() => deleteMut.mutate(p.productId)}><Icon name="trash" size={14} /></button>
+                      <div className="row gap-4">
+                        <button className="tb-icon-btn" title="Hareket Geçmişi" onClick={() => openMovements(p.productId)}>
+                          <Icon name="log" size={14} />
+                        </button>
+                        <button className="tb-icon-btn" title="Sil" onClick={() => deleteMut.mutate(p.productId)}>
+                          <Icon name="trash" size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -84,7 +127,47 @@ export default function StokPage() {
         </div>
         <Pagination page={page} totalPages={totalPages} setPage={setPage} pageStart={pageStart} pageEnd={pageEnd} total={filtered.length} />
       </div>
+
       <ProductDrawer open={drawer} onClose={() => setDrawer(false)} />
+
+      <Drawer open={movementProductId != null} onClose={closeMovements} closeOnBackdrop={false} title="Stok Hareket Geçmişi" width={640}>
+        {movementProductId != null && (
+          <div className="col gap-8">
+            <div className="muted" style={{ fontSize: 12 }}>{movements.length} hareket kaydı</div>
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Tarih</th>
+                    <th>Tür</th>
+                    <th className="num">Miktar</th>
+                    <th>Kaynak</th>
+                    <th>Sebep</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {movements.map(m => {
+                    const label = MOVEMENT_LABELS[m.movementType] || m.movementType;
+                    const color = MOVEMENT_TYPE_COLORS[m.movementType] || '';
+                    const qty = m.quantity;
+                    const qtyStr = qty > 0 ? `+${qty}` : `${qty}`;
+                    return (
+                      <tr key={m.movementId}>
+                        <td className="muted" style={{ fontSize: 12 }}>{m.createdAt ? m.createdAt.slice(0, 10) : '—'}</td>
+                        <td><span className={`pill ${color}`}><span className="dot" />{label}</span></td>
+                        <td className="num mono tnum" style={{ color: qty > 0 ? 'var(--pos)' : 'var(--neg)', fontWeight: 600 }}>{qtyStr}</td>
+                        <td className="muted" style={{ fontSize: 12 }}>{m.sourceType === 'INVOICE' ? `Fatura #${m.sourceId}` : m.sourceType || '—'}</td>
+                        <td className="muted" style={{ fontSize: 12, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.reason || '—'}</td>
+                      </tr>
+                    );
+                  })}
+                  {movements.length === 0 && <tr><td colSpan="5" className="empty">Henüz hareket kaydı yok</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </Drawer>
     </div>
   );
 }
@@ -115,7 +198,7 @@ function ProductDrawer({ open, onClose }) {
   };
 
   return (
-    <Drawer open={open} onClose={onClose} title="Yeni Ürün"
+    <Drawer open={open} onClose={onClose} closeOnBackdrop={false} title="Yeni Ürün"
       footer={
         <>
           <button className="btn ghost" onClick={onClose}>Vazgeç</button>
@@ -130,7 +213,7 @@ function ProductDrawer({ open, onClose }) {
           </div>
           <div className="field">
             <label>Barkod *</label>
-            <input className="input mono" value={f.barcode} onChange={e => setF({ ...f, barcode: e.target.value })} placeholder="8690000000000" />
+            <input className="input mono" value={f.barcode} onChange={e => setF({ ...f, barcode: e.target.value.replace(/\D/g, '').slice(0, 13) })} placeholder="8690000000000" maxLength={13} />
           </div>
         </div>
         <div className="grid-2">

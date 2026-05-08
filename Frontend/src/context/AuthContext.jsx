@@ -5,7 +5,6 @@ import authService from '../services/authService';
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  localStorage.removeItem('token');
   const [token, setToken] = useState(sessionStorage.getItem('token'));
   const [user, setUser] = useState(null);
 

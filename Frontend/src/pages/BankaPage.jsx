@@ -115,13 +115,46 @@ export default function BankaPage() {
                   duration={800}
                 />
               </div>
-              {b.iban && <div className="muted mono" style={{ fontSize: 11, marginTop: 4 }}>{b.iban}</div>}
+              {b.iban && (
+                <CopyIban iban={b.iban} />
+              )}
             </div>
           </div>
         ))}
         {list.length === 0 && <div className="card empty">Henüz hesap eklenmemiş</div>}
       </div>
       <BankAccountDrawer open={drawer} onClose={() => setDrawer(false)} />
+    </div>
+  );
+}
+
+function CopyIban({ iban }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(iban);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+      <div className="muted mono" style={{ fontSize: 11 }}>{iban}</div>
+      <button
+        className="tb-icon-btn"
+        style={{
+          width: 22, height: 22,
+          background: copied ? 'var(--pos)' : 'transparent',
+          color: copied ? '#fff' : 'var(--ink-2)',
+          boxShadow: copied ? '0 0 8px var(--pos)' : 'none',
+          transition: 'all 0.2s ease',
+        }}
+        title="IBAN'ı kopyala"
+        onClick={handleCopy}
+      >
+        <Icon name={copied ? 'check' : 'copy'} size={12} />
+      </button>
     </div>
   );
 }
@@ -145,7 +178,7 @@ function BankAccountDrawer({ open, onClose }) {
   };
 
   return (
-    <Drawer open={open} onClose={onClose} title="Yeni Banka Hesabı"
+    <Drawer open={open} onClose={onClose} closeOnBackdrop={false} title="Yeni Banka Hesabı"
       footer={
         <>
           <button className="btn ghost" onClick={onClose}>Vazgeç</button>

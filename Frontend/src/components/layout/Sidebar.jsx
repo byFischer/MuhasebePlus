@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import Icon from '@/components/mp/Icon';
 import { NAV } from '@/lib/routes';
 import { useAuth } from '@/context/AuthContext';
@@ -8,7 +8,24 @@ import LiveCurrencyRates from '@/components/layout/LiveCurrencyRates';
 
 export default function Sidebar({ onOpenCmdk }) {
   const { user, logoutUser } = useAuth();
+  const location = useLocation();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({});
+
+  useEffect(() => {
+    const newExpanded = {};
+    NAV.forEach((n) => {
+      if (n.children) {
+        const hasActiveChild = n.children.some((c) => location.pathname === c.to);
+        if (hasActiveChild) newExpanded[n.to] = true;
+      }
+    });
+    setExpandedSections((prev) => ({ ...prev, ...newExpanded }));
+  }, [location.pathname]);
+
+  const toggleSection = (to) => {
+    setExpandedSections((prev) => ({ ...prev, [to]: !prev[to] }));
+  };
 
   const fullName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : 'Yükleniyor...';
   const role = user?.role === 'ADMIN' ? 'Yönetici' : 'Kullanıcı';
@@ -16,13 +33,13 @@ export default function Sidebar({ onOpenCmdk }) {
 
   return (
     <aside className="sidebar">
-      <div className="brand">
+      <NavLink to="/dashboard" className="brand">
         <img src="/logo.svg" alt="Muhasebe+" className="sidebar-brand-mark" />
         <div>
           <div className="brand-name">Muhasebe<span style={{ color: 'var(--accent)' }}>+</span></div>
           <div className="brand-tag">{user?.companyName || 'Muhasebe+'}</div>
         </div>
-      </div>
+      </NavLink>
       <div className="sb-search" onClick={onOpenCmdk} role="button" tabIndex={0}>
         <Icon name="search" size={14} />
         <input placeholder="Ara: müşteri, fatura..." readOnly />
@@ -31,6 +48,26 @@ export default function Sidebar({ onOpenCmdk }) {
       <nav className="nav">
         {NAV.map((n, i) => n.section ? (
           <div key={i} className="nav-section">{n.section}</div>
+        ) : n.children ? (
+          <div key={n.to}>
+            <button
+              className={`nav-item nav-group-header ${expandedSections[n.to] ? 'expanded' : ''}`}
+              onClick={() => toggleSection(n.to)}
+            >
+              <Icon name={n.icon} size={15} />
+              <span>{n.label}</span>
+              <Icon name="chevDown" size={12} className="nav-chevron" />
+            </button>
+            {expandedSections[n.to] && (
+              <div className="nav-children">
+                {n.children.map((c) => (
+                  <NavLink key={c.to} to={c.to} className={({ isActive }) => `nav-item nav-child ${isActive ? 'on' : ''}`}>
+                    <span>{c.label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            )}
+          </div>
         ) : (
           <NavLink key={n.to} to={n.to} className={({ isActive }) => `nav-item ${isActive ? 'on' : ''}`}>
             <Icon name={n.icon} size={15} />
