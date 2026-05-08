@@ -48,6 +48,9 @@ public class DashboardWidget extends BaseEntity {
     @Column(name = "height")
     private int height = 3;
 
+    @Column(name = "slot_index")
+    private Integer slotIndex;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "config", columnDefinition = "jsonb")
     private String config;

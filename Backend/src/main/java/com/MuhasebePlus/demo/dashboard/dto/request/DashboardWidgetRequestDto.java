@@ -7,6 +7,7 @@ public record DashboardWidgetRequestDto(
         @NotNull WidgetType widgetType,
         Long definitionId,
         String title,
+        Integer slotIndex,
         int positionX,
         int positionY,
         int width,

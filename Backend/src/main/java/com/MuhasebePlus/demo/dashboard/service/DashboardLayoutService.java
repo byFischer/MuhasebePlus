@@ -64,6 +64,7 @@ public class DashboardLayoutService {
         layout.setDefault(dto.isDefault());
         layout.setTheme(dto.theme() != null ? dto.theme() : "dark");
         layout.setAccentColor(dto.accentColor() != null ? dto.accentColor() : "#2f6df6");
+        layout.setLayoutPreset(dto.layoutPreset() != null ? dto.layoutPreset() : "LAYOUT_3");
 
         return toDto(layoutRepository.save(layout));
     }
@@ -82,6 +83,12 @@ public class DashboardLayoutService {
         layout.setDefault(dto.isDefault());
         if (dto.theme() != null) layout.setTheme(dto.theme());
         if (dto.accentColor() != null) layout.setAccentColor(dto.accentColor());
+
+        // Layout preset değişirse mevcut tüm widget'lar silinir (slot uyumsuzluğunu önlemek için).
+        if (dto.layoutPreset() != null && !dto.layoutPreset().equals(layout.getLayoutPreset())) {
+            layout.getWidgets().clear();
+            layout.setLayoutPreset(dto.layoutPreset());
+        }
 
         return toDto(layoutRepository.save(layout));
     }
@@ -111,12 +118,14 @@ public class DashboardLayoutService {
         clone.setDefault(false);
         clone.setTheme(source.getTheme());
         clone.setAccentColor(source.getAccentColor());
+        clone.setLayoutPreset(source.getLayoutPreset());
 
         for (DashboardWidget w : source.getWidgets()) {
             DashboardWidget wClone = new DashboardWidget();
             wClone.setLayout(clone);
             wClone.setWidgetType(w.getWidgetType());
             wClone.setTitle(w.getTitle());
+            wClone.setSlotIndex(w.getSlotIndex());
             wClone.setPositionX(w.getPositionX());
             wClone.setPositionY(w.getPositionY());
             wClone.setWidth(w.getWidth());
@@ -147,6 +156,7 @@ public class DashboardLayoutService {
         layout.setDefault(true);
         layout.setTheme("dark");
         layout.setAccentColor("#2f6df6");
+        layout.setLayoutPreset("LAYOUT_3");
 
         return toDto(layoutRepository.save(layout));
     }
@@ -160,6 +170,7 @@ public class DashboardLayoutService {
                             w.getWidgetType(),
                             def != null ? def.getDefinitionId() : null,
                             w.getTitle(),
+                            w.getSlotIndex(),
                             w.getPositionX(),
                             w.getPositionY(),
                             w.getWidth(),
@@ -178,6 +189,7 @@ public class DashboardLayoutService {
                 layout.isDefault(),
                 layout.getTheme(),
                 layout.getAccentColor(),
+                layout.getLayoutPreset() != null ? layout.getLayoutPreset() : "LAYOUT_3",
                 widgets,
                 layout.getCreatedAt(),
                 layout.getUpdatedAt()

@@ -42,6 +42,9 @@ public class DashboardLayout extends SoftDeletableEntity {
     @Column(name = "accent_color")
     private String accentColor;
 
+    @Column(name = "layout_preset", length = 20)
+    private String layoutPreset = "LAYOUT_3";
+
     @OneToMany(mappedBy = "layout", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<DashboardWidget> widgets = new ArrayList<>();
 }

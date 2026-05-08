@@ -35,10 +35,21 @@ public class DashboardWidgetService {
     public DashboardWidgetResponseDto addWidget(Long layoutId, DashboardWidgetRequestDto dto) {
         DashboardLayout layout = verifyLayoutOwnership(layoutId);
 
+        if (dto.slotIndex() != null) {
+            boolean slotOccupied = widgetRepository
+                    .findByLayoutLayoutIdOrderByPositionYAscPositionXAsc(layoutId)
+                    .stream()
+                    .anyMatch(w -> dto.slotIndex().equals(w.getSlotIndex()));
+            if (slotOccupied) {
+                throw new RuntimeException("Slot dolu: " + dto.slotIndex());
+            }
+        }
+
         DashboardWidget widget = new DashboardWidget();
         widget.setLayout(layout);
         widget.setWidgetType(dto.widgetType());
         widget.setTitle(dto.title());
+        widget.setSlotIndex(dto.slotIndex());
         widget.setPositionX(dto.positionX());
         widget.setPositionY(dto.positionY());
         widget.setWidth(dto.width() > 0 ? dto.width() : 4);
@@ -61,6 +72,7 @@ public class DashboardWidgetService {
 
         widget.setWidgetType(dto.widgetType());
         widget.setTitle(dto.title());
+        if (dto.slotIndex() != null) widget.setSlotIndex(dto.slotIndex());
         widget.setPositionX(dto.positionX());
         widget.setPositionY(dto.positionY());
         widget.setWidth(dto.width() > 0 ? dto.width() : widget.getWidth());
@@ -114,6 +126,7 @@ public class DashboardWidgetService {
                 w.getWidgetType(),
                 definitionId,
                 w.getTitle(),
+                w.getSlotIndex(),
                 w.getPositionX(),
                 w.getPositionY(),
                 w.getWidth(),

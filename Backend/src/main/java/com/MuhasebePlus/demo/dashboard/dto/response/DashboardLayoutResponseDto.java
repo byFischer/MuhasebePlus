@@ -9,6 +9,7 @@ public record DashboardLayoutResponseDto(
         boolean isDefault,
         String theme,
         String accentColor,
+        String layoutPreset,
         List<DashboardWidgetResponseDto> widgets,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

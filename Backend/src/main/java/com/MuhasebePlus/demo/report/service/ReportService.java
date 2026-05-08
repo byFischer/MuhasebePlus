@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,8 +29,12 @@ import com.MuhasebePlus.demo.common.service.CompanyContext;
 import com.MuhasebePlus.demo.company.repository.CompanyRepository;
 import com.MuhasebePlus.demo.customer.entity.Customer;
 import com.MuhasebePlus.demo.customer.repository.CustomerRepository;
+import com.MuhasebePlus.demo.financial.entity.BankAccount;
+import com.MuhasebePlus.demo.financial.entity.Budget;
 import com.MuhasebePlus.demo.financial.entity.Transaction;
 import com.MuhasebePlus.demo.financial.entity.TransactionType;
+import com.MuhasebePlus.demo.financial.repository.BankAccountRepository;
+import com.MuhasebePlus.demo.financial.repository.BudgetRepository;
 import com.MuhasebePlus.demo.financial.repository.TransactionRepository;
 import com.MuhasebePlus.demo.invoice.entity.Invoice;
 import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
@@ -90,6 +95,12 @@ public class ReportService implements HardDeletable {
 
     @Autowired
     private ProductRepository productRepository;
+
+    @Autowired
+    private BudgetRepository budgetRepository;
+
+    @Autowired
+    private BankAccountRepository bankAccountRepository;
 
     @Value("${app.report.storage-path:./reports/}")
     private String storagePath;
@@ -194,8 +205,9 @@ public class ReportService implements HardDeletable {
             case STOCK_STATUS -> previewStockStatus(companyId);
             case COLLECTION_PERFORMANCE -> previewCollectionPerformance(companyId, dto.startDate(), dto.endDate());
             case SLOW_INVENTORY -> previewSlowInventory(companyId);
-            case BUDGET_VARIANCE, BANK_RECONCILIATION, EXECUTIVE_SUMMARY ->
-                    notImplementedSection(dto.reportType());
+            case BUDGET_VARIANCE -> previewBudgetVariance(companyId, dto.startDate(), dto.endDate());
+            case BANK_RECONCILIATION -> previewBankReconciliation(companyId, dto.startDate(), dto.endDate());
+            case EXECUTIVE_SUMMARY -> previewExecutiveSummary(companyId, dto.startDate(), dto.endDate());
         };
     }
 
@@ -549,6 +561,263 @@ public class ReportService implements HardDeletable {
                 new BucketPoint("180+ gün",  BigDecimal.valueOf(b4))
         );
         return single(kpis, null, null, null, buckets);
+    }
+
+
+    // BÜTÇE-GERÇEKLEŞEN SAPMA (Budget Variance)
+
+    private ReportPreviewResponseDto previewBudgetVariance(Long companyId, LocalDate start, LocalDate end) {
+        List<Budget> allBudgets = budgetRepository.findByCompanyCompanyIdAndIsDeletedFalse(companyId);
+        List<Budget> periodBudgets = allBudgets.stream()
+                .filter(b -> {
+                    LocalDate budgetMonth = LocalDate.of(b.getYear(), b.getMonth(), 1);
+                    LocalDate budgetEnd = budgetMonth.withDayOfMonth(budgetMonth.lengthOfMonth());
+                    return !budgetEnd.isBefore(start) && !budgetMonth.isAfter(end);
+                })
+                .toList();
+
+        List<Transaction> allTx = transactionRepository
+                .findByTransactionDateBetweenAndCompanyCompanyIdAndIsDeletedFalseOrderByTransactionDateDesc(start, end, companyId);
+
+        java.util.Map<String, BigDecimal> plannedByCategory = new java.util.HashMap<>();
+        for (Budget b : periodBudgets) {
+            String cat = b.getCategory() != null ? b.getCategory() : "Diğer";
+            plannedByCategory.merge(cat, b.getPlannedAmount() != null ? b.getPlannedAmount() : BigDecimal.ZERO, BigDecimal::add);
+        }
+        java.util.Map<String, BigDecimal> actualByCategory = new java.util.HashMap<>();
+        for (Transaction tx : allTx) {
+            String cat = tx.getCategory() != null && !tx.getCategory().isBlank() ? tx.getCategory() : "Diğer";
+            actualByCategory.merge(cat, tx.getAmount() != null ? tx.getAmount() : BigDecimal.ZERO, BigDecimal::add);
+        }
+
+        BigDecimal totalPlanned = plannedByCategory.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalActual = actualByCategory.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalVariance = totalActual.subtract(totalPlanned);
+        BigDecimal variancePct = totalPlanned.signum() > 0
+                ? totalVariance.abs().multiply(BigDecimal.valueOf(100)).divide(totalPlanned, 1, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
+        List<KpiItem> kpis = List.of(
+                new KpiItem("Toplam Plan", totalPlanned, "currency", "neutral"),
+                new KpiItem("Toplam Gerçekleşen", totalActual, "currency", "neutral"),
+                new KpiItem("Sapma", totalVariance, "currency", totalVariance.signum() > 0 ? "neg" : "pos"),
+                new KpiItem("Sapma %", variancePct, "count", variancePct.compareTo(BigDecimal.valueOf(20)) > 0 ? "neg" : "pos")
+        );
+
+        java.util.Set<String> allCats = new java.util.LinkedHashSet<>();
+        allCats.addAll(plannedByCategory.keySet());
+        allCats.addAll(actualByCategory.keySet());
+        List<BucketPoint> buckets = new ArrayList<>();
+        for (String cat : allCats) {
+            BigDecimal pl = plannedByCategory.getOrDefault(cat, BigDecimal.ZERO);
+            BigDecimal ac = actualByCategory.getOrDefault(cat, BigDecimal.ZERO);
+            BigDecimal var = ac.subtract(pl);
+            String label = cat + " (" + (var.signum() >= 0 ? "+" : "") + var.toPlainString() + ")";
+            buckets.add(new BucketPoint(label, ac));
+        }
+        // Sırala: en büyük gerçekleşen üstte
+        buckets.sort((a, b) -> b.value().compareTo(a.value()));
+
+        return single(kpis, variancePct, "Sapma %", null, buckets);
+    }
+
+
+    // BANKA/KASA MUTABAKAT (Bank Reconciliation)
+
+    private ReportPreviewResponseDto previewBankReconciliation(Long companyId, LocalDate start, LocalDate end) {
+        List<Transaction> allTx = transactionRepository
+                .findByTransactionDateBetweenAndCompanyCompanyIdAndIsDeletedFalseOrderByTransactionDateDesc(start, end, companyId);
+
+        List<BankAccount> accounts = bankAccountRepository
+                .findByCompanyCompanyIdAndIsDeletedFalseOrderByAccountIdDesc(companyId);
+
+        java.util.Map<Long, String> accountNames = new java.util.HashMap<>();
+        for (BankAccount a : accounts) {
+            accountNames.put(a.getAccountId(), a.getBankName() != null ? a.getBankName() : "Hesap #" + a.getAccountId());
+        }
+
+        java.util.Map<Long, BigDecimal> inByAccount = new java.util.HashMap<>();
+        java.util.Map<Long, BigDecimal> outByAccount = new java.util.HashMap<>();
+        int missingDescCount = 0;
+
+        for (Transaction tx : allTx) {
+            if (tx.getDescription() == null || tx.getDescription().isBlank()) {
+                missingDescCount++;
+            }
+            if (tx.getAccountId() == null) continue;
+            BigDecimal amt = tx.getAmount() != null ? tx.getAmount() : BigDecimal.ZERO;
+            if (tx.getTransactionType() == TransactionType.INCOME) {
+                inByAccount.merge(tx.getAccountId(), amt, BigDecimal::add);
+            } else {
+                outByAccount.merge(tx.getAccountId(), amt, BigDecimal::add);
+            }
+        }
+
+        // Çift kayıt tespiti
+        java.util.Map<String, List<Transaction>> dupGroups = new java.util.HashMap<>();
+        for (Transaction tx : allTx) {
+            String key = tx.getAccountId() + "|" + tx.getTransactionDate() + "|" + tx.getAmount() + "|" + tx.getTransactionType();
+            dupGroups.computeIfAbsent(key, k -> new ArrayList<>()).add(tx);
+        }
+        long duplicateCount = dupGroups.values().stream().filter(l -> l.size() > 1).count();
+
+        BigDecimal totalNet = BigDecimal.ZERO;
+        List<BucketPoint> buckets = new ArrayList<>();
+        for (BankAccount acc : accounts) {
+            BigDecimal in = inByAccount.getOrDefault(acc.getAccountId(), BigDecimal.ZERO);
+            BigDecimal out = outByAccount.getOrDefault(acc.getAccountId(), BigDecimal.ZERO);
+            BigDecimal net = in.subtract(out);
+            totalNet = totalNet.add(net);
+            buckets.add(new BucketPoint(accountNames.get(acc.getAccountId()), net));
+        }
+        // Sırala: en yüksek net bakiye üstte
+        buckets.sort((a, b) -> b.value().compareTo(a.value()));
+
+        List<KpiItem> kpis = List.of(
+                new KpiItem("Toplam Hesap", BigDecimal.valueOf(accounts.size()), "count", "neutral"),
+                new KpiItem("Net Toplam Bakiye", totalNet, "currency", totalNet.signum() >= 0 ? "pos" : "neg"),
+                new KpiItem("Eksik Açıklama", BigDecimal.valueOf(missingDescCount), "count", missingDescCount > 0 ? "neg" : "pos"),
+                new KpiItem("Olası Çift Kayıt", BigDecimal.valueOf(duplicateCount), "count", duplicateCount > 0 ? "neg" : "pos")
+        );
+
+        return single(kpis, null, null, null, buckets);
+    }
+
+
+    // YÖNETİCİ FİNANS SAĞLIĞI ÖZETİ (Executive Summary)
+
+    private ReportPreviewResponseDto previewExecutiveSummary(Long companyId, LocalDate start, LocalDate end) {
+        LocalDate today = LocalDate.now();
+
+        // --- Karlılık ---
+        List<Invoice> paidSales = fetchPaidInvoices(companyId, InvoiceType.sale, start, end);
+        List<Invoice> paidPurchases = fetchPaidInvoices(companyId, InvoiceType.purchase, start, end);
+        List<Transaction> incTx = fetchTransactions(companyId, TransactionType.INCOME, start, end);
+        List<Transaction> expTx = fetchTransactions(companyId, TransactionType.EXPENSE, start, end);
+        BigDecimal totalIncome = sumInvoices(paidSales).add(sumTransactions(incTx));
+        BigDecimal totalExpense = sumInvoices(paidPurchases).add(sumTransactions(expTx));
+        BigDecimal netProfit = totalIncome.subtract(totalExpense);
+        BigDecimal margin = totalIncome.signum() > 0
+                ? netProfit.multiply(BigDecimal.valueOf(100)).divide(totalIncome, 1, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
+        List<KpiItem> profitabilityKpis = List.of(
+                new KpiItem("Toplam Gelir", totalIncome, "currency", "pos"),
+                new KpiItem("Toplam Gider", totalExpense, "currency", "neg"),
+                new KpiItem("Net Kar", netProfit, "currency", netProfit.signum() >= 0 ? "pos" : "neg")
+        );
+        List<MonthlyPoint> monthlySeries = buildMonthlySeries(companyId, ReportType.PROFIT_LOSS, end);
+
+        // --- Tahsilat ---
+        List<Invoice> openInvoices = new ArrayList<>();
+        openInvoices.addAll(invoiceRepository
+                .findByPaymentStatusAndInvoiceTypeAndCompanyCompanyIdAndIsDeletedFalse(
+                        PaymentStatus.pending, InvoiceType.sale, companyId));
+        openInvoices.addAll(invoiceRepository
+                .findByPaymentStatusAndInvoiceTypeAndCompanyCompanyIdAndIsDeletedFalse(
+                        PaymentStatus.overdue, InvoiceType.sale, companyId));
+
+        BigDecimal arTotal = BigDecimal.ZERO;
+        BigDecimal ar90Plus = BigDecimal.ZERO;
+        BigDecimal overdueAmt = BigDecimal.ZERO;
+        BigDecimal b1 = BigDecimal.ZERO, b2 = BigDecimal.ZERO, b3 = BigDecimal.ZERO, b4 = BigDecimal.ZERO;
+
+        for (Invoice inv : openInvoices) {
+            BigDecimal amt = inv.getTotalAmount() != null ? inv.getTotalAmount() : BigDecimal.ZERO;
+            arTotal = arTotal.add(amt);
+            long days = inv.getDueDate() != null ? ChronoUnit.DAYS.between(inv.getDueDate(), today) : 0;
+            if (days > 0) overdueAmt = overdueAmt.add(amt);
+            if (days > 90) ar90Plus = ar90Plus.add(amt);
+            if (days <= 30) b1 = b1.add(amt);
+            else if (days <= 60) b2 = b2.add(amt);
+            else if (days <= 90) b3 = b3.add(amt);
+            else b4 = b4.add(amt);
+        }
+        BigDecimal overduePct = arTotal.signum() > 0
+                ? overdueAmt.multiply(BigDecimal.valueOf(100)).divide(arTotal, 1, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
+        List<KpiItem> collectionKpis = List.of(
+                new KpiItem("Toplam Açık Alacak", arTotal, "currency", "neutral"),
+                new KpiItem("Vadesi Geçmiş %", overduePct, "count", overduePct.compareTo(BigDecimal.valueOf(25)) > 0 ? "neg" : "pos"),
+                new KpiItem("90+ Gün Risk", ar90Plus, "currency", "neg")
+        );
+        List<BucketPoint> collectionBuckets = List.of(
+                new BucketPoint("0-30 gün", b1),
+                new BucketPoint("31-60 gün", b2),
+                new BucketPoint("61-90 gün", b3),
+                new BucketPoint("90+ gün", b4)
+        );
+
+        // --- Stok ---
+        List<Stock> stocks = stockRepository.findActiveStocks(companyId);
+        Map<Integer, Product> productMap = loadProductMap(companyId, stocks);
+        LocalDateTime twelveMonthsAgo = today.minusMonths(12).atStartOfDay();
+        List<Object[]> salesRows = invoiceLineItemRepository.sumQuantityByProductLast12Months(companyId, twelveMonthsAgo);
+        Map<Integer, BigDecimal> soldQtyMap = new HashMap<>();
+        BigDecimal totalSold12M = BigDecimal.ZERO;
+        for (Object[] row : salesRows) {
+            BigDecimal qty = BigDecimal.valueOf(((Number) row[1]).longValue());
+            soldQtyMap.put((Integer) row[0], qty);
+            totalSold12M = totalSold12M.add(qty);
+        }
+        BigDecimal boundCapital = BigDecimal.ZERO;
+        long slowMoving = 0;
+        long sb1 = 0, sb2 = 0, sb3 = 0, sb4 = 0;
+
+        for (Stock stock : stocks) {
+            Product product = productMap.get(stock.getProductId());
+            if (product == null) continue;
+            int qty = stock.getQuantity() != null ? stock.getQuantity() : 0;
+            BigDecimal cost = product.getCostPrice() != null ? product.getCostPrice() : BigDecimal.ZERO;
+            BigDecimal bc = cost.multiply(BigDecimal.valueOf(qty));
+            boundCapital = boundCapital.add(bc);
+
+            Optional<LocalDateTime> lastSaleOpt = invoiceLineItemRepository
+                    .findLastSaleDateByProductId(stock.getProductId(), companyId);
+            long daysSinceLastSale;
+            if (lastSaleOpt.isPresent()) {
+                daysSinceLastSale = ChronoUnit.DAYS.between(lastSaleOpt.get().toLocalDate(), today);
+            } else {
+                daysSinceLastSale = stock.getCreatedAt() != null
+                        ? ChronoUnit.DAYS.between(stock.getCreatedAt().toLocalDate(), today)
+                        : 9999;
+            }
+            if (daysSinceLastSale <= 60) sb1++;
+            else if (daysSinceLastSale <= 90) sb2++;
+            else if (daysSinceLastSale <= 180) sb3++;
+            else sb4++;
+
+            if (daysSinceLastSale > 90 || !soldQtyMap.containsKey(stock.getProductId())) {
+                slowMoving++;
+            }
+        }
+        BigDecimal avgStockTotal = stocks.stream()
+                .map(s -> BigDecimal.valueOf(s.getQuantity() != null ? s.getQuantity() : 0))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal avgTurnover = avgStockTotal.signum() > 0
+                ? totalSold12M.divide(avgStockTotal, 2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
+        List<KpiItem> stockKpis = List.of(
+                new KpiItem("Bağlanan Sermaye", boundCapital, "currency", "neutral"),
+                new KpiItem("Yavaş Hareket Eden", BigDecimal.valueOf(slowMoving), "count", "neg"),
+                new KpiItem("Stok Devir Hızı", avgTurnover, "count", avgTurnover.compareTo(BigDecimal.valueOf(4)) >= 0 ? "pos" : "neg")
+        );
+        List<BucketPoint> stockBuckets = List.of(
+                new BucketPoint("0-60 gün", BigDecimal.valueOf(sb1)),
+                new BucketPoint("61-90 gün", BigDecimal.valueOf(sb2)),
+                new BucketPoint("91-180 gün", BigDecimal.valueOf(sb3)),
+                new BucketPoint("180+ gün", BigDecimal.valueOf(sb4))
+        );
+
+        // Multi-section response
+        List<PreviewSection> sections = List.of(
+                new PreviewSection("Karlılık", profitabilityKpis, margin, "Kar Marjı %", monthlySeries, null),
+                new PreviewSection("Tahsilat", collectionKpis, overduePct, "Vadesi Geçmiş %", null, collectionBuckets),
+                new PreviewSection("Stok", stockKpis, null, null, null, stockBuckets)
+        );
+        return new ReportPreviewResponseDto(sections);
     }
 
 
