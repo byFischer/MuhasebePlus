@@ -79,7 +79,12 @@ export default function InvoicePaymentPage() {
     setFormOpen(true);
   };
 
-  const closePaymentForm = () => {
+  const cancelPaymentForm = () => {
+    setFormOpen(false);
+    setSelectedInvoiceId(null);
+  };
+
+  const closePaymentFormKeepDetail = () => {
     setFormOpen(false);
   };
 
@@ -148,8 +153,8 @@ export default function InvoicePaymentPage() {
                             invoice={inv}
                             remaining={invRemaining}
                             invoiceType={tab}
-                            onClose={closePaymentForm}
-                            onSuccess={() => { closePaymentForm(); }}
+                            onCancel={cancelPaymentForm}
+                            onSuccess={closePaymentFormKeepDetail}
                           />
                         </td>
                       </tr>
@@ -255,18 +260,41 @@ export default function InvoicePaymentPage() {
   );
 }
 
-function InlinePaymentForm({ invoice, remaining, invoiceType, onClose, onSuccess }) {
+function formatCents(cents) {
+  const c = Math.max(0, Math.floor(Number(cents) || 0));
+  const lira = Math.floor(c / 100);
+  const kurus = String(c % 100).padStart(2, '0');
+  return `${lira.toLocaleString('tr-TR')},${kurus}`;
+}
+
+function InlinePaymentForm({ invoice, remaining, invoiceType, onCancel, onSuccess }) {
   const createMut = useCreateInvoicePayment(invoice?.invoiceId);
   const { data: bankAccounts = [] } = useBankAccounts();
-  const EMPTY = { amount: '', paymentDate: new Date().toISOString().split('T')[0], paymentMethod: 'cash', bankAccountId: '', notes: '' };
+  const remainingCents = Math.round(Number(remaining || 0) * 100);
+  const EMPTY = {
+    amountCents: 0,
+    paymentDate: new Date().toISOString().split('T')[0],
+    paymentMethod: 'cash',
+    bankAccountId: '',
+    notes: '',
+  };
   const [f, setF] = useState(EMPTY);
 
-  const valid = f.amount && Number(f.amount) > 0 && f.paymentDate && f.bankAccountId && Number(f.amount) <= remaining;
+  const valid = f.amountCents > 0 && f.paymentDate && f.bankAccountId && f.amountCents <= remainingCents;
+
+  const handleAmountChange = (raw) => {
+    const digits = String(raw).replace(/\D/g, '');
+    let cents = digits === '' ? 0 : parseInt(digits, 10);
+    if (cents > remainingCents) cents = remainingCents;
+    setF((prev) => ({ ...prev, amountCents: cents }));
+  };
+
+  const fillAll = () => setF((prev) => ({ ...prev, amountCents: remainingCents }));
 
   const save = () => {
     if (!valid || !invoice) return;
     createMut.mutate({
-      amount: Number(f.amount),
+      amount: f.amountCents / 100,
       paymentDate: f.paymentDate,
       paymentMethod: f.paymentMethod,
       bankAccountId: Number(f.bankAccountId),
@@ -283,22 +311,32 @@ function InlinePaymentForm({ invoice, remaining, invoiceType, onClose, onSuccess
           <span style={{ fontWeight: 600, fontSize: 13 }}>{isSale ? 'Yeni Tahsilat' : 'Yeni Ödeme'} — </span>
           <span className="mono" style={{ fontSize: 13 }}>{invoice.invoiceNumber}</span>
         </div>
-        <button className="tb-icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
+        <button className="tb-icon-btn" onClick={onCancel}><Icon name="x" size={14} /></button>
       </div>
 
       <div className="row gap-12" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div className="field" style={{ flex: 1, minWidth: 120, margin: 0 }}>
+        <div className="field" style={{ flex: 1.2, minWidth: 160, margin: 0 }}>
           <label>Tutar *</label>
-          <input
-            className="input mono"
-            type="number"
-            step="0.01"
-            min="0"
-            max={remaining}
-            value={f.amount}
-            onChange={(e) => setF({ ...f, amount: e.target.value })}
-            placeholder="0.00"
-          />
+          <div className="row gap-4">
+            <input
+              className="input mono"
+              type="text"
+              inputMode="numeric"
+              value={formatCents(f.amountCents)}
+              onChange={(e) => handleAmountChange(e.target.value)}
+              placeholder="0,00"
+              style={{ flex: 1, textAlign: 'right' }}
+            />
+            <button
+              type="button"
+              className="btn ghost sm"
+              onClick={fillAll}
+              title="Kalan tutarın tamamını gir"
+              disabled={remainingCents <= 0}
+            >
+              Tümü
+            </button>
+          </div>
         </div>
 
         <div className="field" style={{ flex: 1, minWidth: 140, margin: 0 }}>
@@ -352,7 +390,7 @@ function InlinePaymentForm({ invoice, remaining, invoiceType, onClose, onSuccess
         </div>
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-          <button className="btn ghost sm" onClick={onClose}>Vazgeç</button>
+          <button className="btn ghost sm" onClick={onCancel}>Vazgeç</button>
           <button className="btn primary sm" disabled={!valid || createMut.isPending} onClick={save}>
             {createMut.isPending ? 'Kaydediliyor...' : 'Kaydet'}
           </button>

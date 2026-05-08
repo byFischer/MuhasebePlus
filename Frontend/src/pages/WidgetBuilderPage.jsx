@@ -6,14 +6,16 @@ import dashboardService from '@/services/dashboardService';
 import DataWidget from '@/widgets/DataWidget';
 
 // ─── Sözlükler — kullanıcı dostu kelimeler ───────────────────────────────────
+// Hangi tiplerin görüneceğine backend metadata karar verir; bu sözlükler sadece
+// key → kullanıcı dostu etiket çevirisi sağlar.
 
-const METRIC_OPTIONS = [
-  { key: 'SUM',   label: 'Toplam',   needsField: true,  hint: 'tüm değerleri topla' },
-  { key: 'AVG',   label: 'Ortalama', needsField: true,  hint: 'aritmetik ortalama' },
-  { key: 'MIN',   label: 'En Az',    needsField: true,  hint: 'en küçük değer' },
-  { key: 'MAX',   label: 'En Çok',   needsField: true,  hint: 'en büyük değer' },
-  { key: 'COUNT', label: 'Adet',     needsField: false, hint: 'kayıt sayısı' },
-];
+const METRIC_LABELS = {
+  SUM:   { label: 'Toplam',   needsField: true,  hint: 'tüm değerleri topla' },
+  AVG:   { label: 'Ortalama', needsField: true,  hint: 'aritmetik ortalama' },
+  MIN:   { label: 'En Az',    needsField: true,  hint: 'en küçük değer' },
+  MAX:   { label: 'En Çok',   needsField: true,  hint: 'en büyük değer' },
+  COUNT: { label: 'Adet',     needsField: false, hint: 'kayıt sayısı' },
+};
 
 const CHART_OPTIONS = [
   { key: 'KPI',   label: 'Tek Değer',     icon: 'sparkle', desc: 'Büyük rakam, tek bakışta' },
@@ -38,15 +40,19 @@ const STEPS = [
   { num: 3, label: 'Görünüm',    desc: 'Nasıl gösterelim?' },
 ];
 
-const FILTER_OPS = [
-  { key: 'EQ',   label: 'eşit' },
-  { key: 'NE',   label: 'eşit değil' },
-  { key: 'GT',   label: 'büyük' },
-  { key: 'LT',   label: 'küçük' },
-  { key: 'GTE',  label: 'büyük/eşit' },
-  { key: 'LTE',  label: 'küçük/eşit' },
-  { key: 'LIKE', label: 'içerir' },
-];
+const FILTER_OP_LABELS = {
+  EQ:     'eşit',
+  NE:     'eşit değil',
+  GT:     'büyük',
+  LT:     'küçük',
+  GTE:    'büyük/eşit',
+  LTE:    'küçük/eşit',
+  LIKE:   'içerir',
+  IN:     'şunlardan biri',
+  BEFORE: 'öncesi',
+  AFTER:  'sonrası',
+  BETWEEN:'aralık',
+};
 
 // ─── Yardımcılar ─────────────────────────────────────────────────────────────
 
@@ -100,10 +106,7 @@ function buildPayload(form) {
     : (form.metricField ? {
         function: form.metricFunc,
         field: form.metricField,
-        alias: form.metricFunc === 'SUM' ? 'Toplam'
-             : form.metricFunc === 'AVG' ? 'Ortalama'
-             : form.metricFunc === 'MIN' ? 'En Az'
-             : form.metricFunc === 'MAX' ? 'En Çok' : 'Değer'
+        alias: METRIC_LABELS[form.metricFunc]?.label || 'Değer',
       } : null);
 
   const groupBy = form.groupField
@@ -184,11 +187,22 @@ export default function WidgetBuilderPage() {
     next[i] = { ...next[i], ...patch };
     update({ filters: next });
   };
-  const addFilter   = () => update({ filters: [...form.filters, { field: '', operator: 'EQ', value: '' }] });
+  const addFilter   = () => update({ filters: [...form.filters, { field: '', operator: '', value: '' }] });
   const removeFilter= (i) => update({ filters: form.filters.filter((_, idx) => idx !== i) });
 
-  const aggregateFields = useMemo(() => fields.filter(f => f.aggregateable), [fields]);
-  const dimensionFields = useMemo(() => fields.filter(f => !f.aggregateable && f.type !== 'REFERENCE'), [fields]);
+  const currentDataSource = useMemo(
+    () => dataSources.find(ds => ds.key === form.dataSource),
+    [dataSources, form.dataSource]
+  );
+  const supportedAggKeys = currentDataSource?.supportedAggregations || [];
+
+  const aggregateFields = useMemo(() => fields.filter(f =>
+    f.role === 'METRIC' &&
+    Array.isArray(f.applicableAggregations) &&
+    f.applicableAggregations.includes(form.metricFunc)
+  ), [fields, form.metricFunc]);
+
+  const dimensionFields = useMemo(() => fields.filter(f => f.groupable === true), [fields]);
 
   const canPreview = form.dataSource && (form.metricFunc === 'COUNT' || form.metricField);
 
@@ -318,7 +332,13 @@ export default function WidgetBuilderPage() {
                     <button
                       key={ds.key}
                       className={`btn ${form.dataSource === ds.key ? 'primary' : 'ghost'}`}
-                      onClick={() => update({ dataSource: ds.key, metricField: '', groupField: '', filters: [] })}
+                      onClick={() => {
+                        const supported = ds.supportedAggregations || [];
+                        const nextFunc = supported.includes(form.metricFunc)
+                          ? form.metricFunc
+                          : (supported[0] || 'COUNT');
+                        update({ dataSource: ds.key, metricFunc: nextFunc, metricField: '', groupField: '', groupTransform: '', filters: [] });
+                      }}
                       style={{ justifyContent: 'flex-start', textAlign: 'left', height: 'auto', padding: '14px 16px', borderWidth: 2 }}
                     >
                       <div>
@@ -336,27 +356,36 @@ export default function WidgetBuilderPage() {
                       Toplam mı, ortalama mı, adet mi?
                     </p>
                     <div className="row gap-8" style={{ flexWrap: 'wrap', marginBottom: 12 }}>
-                      {METRIC_OPTIONS.map(m => (
-                        <button
-                          key={m.key}
-                          className={`btn sm ${form.metricFunc === m.key ? 'primary' : 'ghost'}`}
-                          onClick={() => update({ metricFunc: m.key })}
-                          title={m.hint}
-                        >
-                          {m.label}
-                        </button>
-                      ))}
+                      {supportedAggKeys.map(k => {
+                        const m = METRIC_LABELS[k];
+                        if (!m) return null;
+                        return (
+                          <button
+                            key={k}
+                            className={`btn sm ${form.metricFunc === k ? 'primary' : 'ghost'}`}
+                            onClick={() => update({ metricFunc: k, metricField: '' })}
+                            title={m.hint}
+                          >
+                            {m.label}
+                          </button>
+                        );
+                      })}
                     </div>
 
                     {form.metricFunc !== 'COUNT' && (
                       <div className="col gap-6">
-                        <label style={{ fontSize: 12, fontWeight: 500 }}>Hangi alanın {METRIC_OPTIONS.find(m=>m.key===form.metricFunc)?.label.toLowerCase()}'ı?</label>
+                        <label style={{ fontSize: 12, fontWeight: 500 }}>Hangi alanın {METRIC_LABELS[form.metricFunc]?.label.toLowerCase()}'ı?</label>
                         <select className="input" value={form.metricField} onChange={e => update({ metricField: e.target.value })}>
                           <option value="">Alan seçin</option>
                           {aggregateFields.map(f => (
                             <option key={f.key} value={f.key}>{f.label}</option>
                           ))}
                         </select>
+                        {aggregateFields.length === 0 && (
+                          <span style={{ fontSize: 11, color: 'var(--warn)' }}>
+                            Bu hesaplama için uygun alan yok. Farklı bir hesaplama veya Adet seçin.
+                          </span>
+                        )}
                       </div>
                     )}
 
@@ -366,8 +395,8 @@ export default function WidgetBuilderPage() {
                         Tek bir değer mi istersin yoksa kategorilere/aylara mı bölünsün?
                       </p>
                       <div className="row gap-8">
-                        <select className="input" style={{ flex: 1 }} value={form.groupField} onChange={e => update({ groupField: e.target.value })}>
-                          <option value="">Gruplama yok (tek değer)</option>
+                        <select className="input" style={{ flex: 1 }} value={form.groupField} onChange={e => update({ groupField: e.target.value, groupTransform: '' })} disabled={dimensionFields.length === 0}>
+                          <option value="">{dimensionFields.length === 0 ? 'Gruplanabilir alan yok' : 'Gruplama yok (tek değer)'}</option>
                           {dimensionFields.map(f => (
                             <option key={f.key} value={f.key}>{f.label}</option>
                           ))}
@@ -403,14 +432,29 @@ export default function WidgetBuilderPage() {
                 {form.filters.map((f, i) => {
                   const meta = fields.find(fld => fld.key === f.field);
                   const isEnum = meta?.type === 'ENUM';
+                  const ops = meta?.applicableFilterOps || [];
                   return (
                     <div key={i} className="row gap-8" style={{ alignItems: 'center', background: 'var(--bg-2)', padding: 10, borderRadius: 10, flexWrap: 'wrap' }}>
-                      <select className="input" style={{ minWidth: 140, flex: '1 1 140px' }} value={f.field} onChange={e => setFilter(i, { field: e.target.value, value: '' })}>
+                      <select className="input" style={{ minWidth: 140, flex: '1 1 140px' }} value={f.field} onChange={e => {
+                        const nextField = e.target.value;
+                        const nextMeta = fields.find(fld => fld.key === nextField);
+                        const nextOps = nextMeta?.applicableFilterOps || [];
+                        setFilter(i, { field: nextField, operator: nextOps[0] || 'EQ', value: '' });
+                      }}>
                         <option value="">Alan</option>
                         {fields.map(fld => <option key={fld.key} value={fld.key}>{fld.label}</option>)}
                       </select>
-                      <select className="input" style={{ minWidth: 110 }} value={f.operator} onChange={e => setFilter(i, { operator: e.target.value })}>
-                        {FILTER_OPS.map(op => <option key={op.key} value={op.key}>{op.label}</option>)}
+                      <select
+                        className="input"
+                        style={{ minWidth: 110 }}
+                        value={f.operator}
+                        onChange={e => setFilter(i, { operator: e.target.value })}
+                        disabled={!f.field}
+                      >
+                        {!f.field && <option value="">Önce alan seçin</option>}
+                        {ops.map(opKey => (
+                          <option key={opKey} value={opKey}>{FILTER_OP_LABELS[opKey] || opKey}</option>
+                        ))}
                       </select>
                       {isEnum && meta?.options ? (
                         <select className="input" style={{ flex: 1, minWidth: 140 }} value={f.value} onChange={e => setFilter(i, { value: e.target.value })}>
@@ -418,7 +462,14 @@ export default function WidgetBuilderPage() {
                           {meta.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                         </select>
                       ) : (
-                        <input className="input" style={{ flex: 1, minWidth: 140 }} placeholder="Değer" value={f.value} onChange={e => setFilter(i, { value: e.target.value })} />
+                        <input
+                          className="input"
+                          style={{ flex: 1, minWidth: 140 }}
+                          placeholder="Değer"
+                          type={meta?.type === 'NUMBER' ? 'number' : meta?.type === 'DATE' ? 'date' : 'text'}
+                          value={f.value}
+                          onChange={e => setFilter(i, { value: e.target.value })}
+                        />
                       )}
                       <button className="tb-icon-btn" onClick={() => removeFilter(i)}><Icon name="x" size={14} /></button>
                     </div>
