@@ -94,15 +94,7 @@ public class ReportExcelBuilder {
         }
     }
 
-    private void buildNotImplemented(Workbook wb, ReportType type) {
-        Sheet sheet = wb.createSheet("Bilgi");
-        CellStyle bold = boldStyle(wb);
-        Row r0 = sheet.createRow(0);
-        Cell c0 = r0.createCell(0);
-        c0.setCellValue(type.name() + " — Yakında eklenecek");
-        c0.setCellStyle(bold);
-        autoSize(sheet, 1);
-    }
+
 
 
     // PROFIT/LOSS
@@ -218,6 +210,7 @@ public class ReportExcelBuilder {
 
     // AR AGING (Cari Yaşlandırma)
 
+    @SuppressWarnings("null")
     private void buildArAging(Workbook wb, Long companyId) {
         LocalDate today = LocalDate.now();
         List<Invoice> openInvoices = new ArrayList<>();
@@ -379,8 +372,8 @@ public class ReportExcelBuilder {
             if (cid == null) continue;
             openByCustomer.merge(cid, amount, BigDecimal::add);
             if (days > 90) over90ByCustomer.merge(cid, amount, BigDecimal::add);
-            totalDelayDays.merge(cid, Math.max(0, days), Long::sum);
-            invoiceCountByCustomer.merge(cid, 1, Integer::sum);
+            totalDelayDays.merge(cid, Math.max(0, days), (a, b) -> a + b);
+            invoiceCountByCustomer.merge(cid, 1, (a, b) -> a + b);
         }
 
         BigDecimal endingAR = b1.add(b2).add(b3).add(b4);
@@ -476,7 +469,6 @@ public class ReportExcelBuilder {
 
     private void buildSlowInventory(Workbook wb, Long companyId) {
         LocalDate today = LocalDate.now();
-        LocalDateTime todayStart = today.atStartOfDay();
         LocalDateTime twelveMonthsAgo = today.minusMonths(12).atStartOfDay();
 
         List<Stock> stocks = stockRepository.findActiveStocks(companyId);
@@ -683,7 +675,6 @@ public class ReportExcelBuilder {
     // BANK RECONCILIATION (Banka/Kasa Mutabakat)
 
     private void buildBankReconciliation(Workbook wb, Long companyId, LocalDate start, LocalDate end) {
-        LocalDate today = LocalDate.now();
         List<Transaction> allTx = transactionRepository
                 .findByTransactionDateBetweenAndCompanyCompanyIdAndIsDeletedFalseOrderByTransactionDateDesc(start, end, companyId);
 
@@ -761,6 +752,7 @@ public class ReportExcelBuilder {
 
     // EXECUTIVE SUMMARY (Yönetici Finans Sağlığı Özeti)
 
+    @SuppressWarnings("null")
     private void buildExecutiveSummary(Workbook wb, Long companyId, LocalDate start, LocalDate end) {
         LocalDate today = LocalDate.now();
 
@@ -797,7 +789,7 @@ public class ReportExcelBuilder {
             if (days > 90) ar90Plus = ar90Plus.add(amt);
             if (inv.getCustomerId() != null) {
                 openByCustomer.merge(inv.getCustomerId(), amt, BigDecimal::add);
-                maxAgingByCustomer.merge(inv.getCustomerId(), days, Math::max);
+                maxAgingByCustomer.merge(inv.getCustomerId(), days, (a, b) -> Math.max(a, b));
             }
         }
         BigDecimal overduePct = arTotal.signum() > 0

@@ -15,7 +15,7 @@ import com.MuhasebePlus.demo.stock.entity.Product;
 import com.MuhasebePlus.demo.stock.entity.Stock;
 import com.MuhasebePlus.demo.stock.repository.ProductRepository;
 import com.MuhasebePlus.demo.stock.repository.StockRepository;
-import com.MuhasebePlus.demo.stock.service.StockMovementService;
+
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
