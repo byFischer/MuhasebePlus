@@ -1,5 +1,6 @@
 package com.MuhasebePlus.demo.dashboard.service.provider;
 
+import com.MuhasebePlus.demo.dashboard.dto.query.QueryConfigDto;
 import com.MuhasebePlus.demo.dashboard.entity.WidgetType;
 import com.MuhasebePlus.demo.dashboard.service.DynamicQueryService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -24,11 +25,10 @@ public class DataQueryProvider implements WidgetDataProvider {
     @Override
     public Map<String, Object> fetchData(Long companyId, Map<String, Object> config) {
         try {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> queryConfig = config.containsKey("queryConfig")
-                    ? (Map<String, Object>) config.get("queryConfig")
-                    : parseJson((String) config.get("queryConfigJson"));
-
+            Object raw = config.containsKey("queryConfig")
+                    ? config.get("queryConfig")
+                    : parseJsonRaw((String) config.get("queryConfigJson"));
+            QueryConfigDto queryConfig = objectMapper.convertValue(raw, QueryConfigDto.class);
             DynamicQueryService.QueryResult result = dynamicQueryService.executeQuery(queryConfig, companyId);
 
             return Map.of(
@@ -42,7 +42,7 @@ public class DataQueryProvider implements WidgetDataProvider {
         }
     }
 
-    private Map<String, Object> parseJson(String json) {
+    private Map<String, Object> parseJsonRaw(String json) {
         if (json == null || json.isBlank()) return Map.of();
         try {
             return objectMapper.readValue(json, new TypeReference<>() {});

@@ -1,6 +1,7 @@
 package com.MuhasebePlus.demo.dashboard.service;
 
 import com.MuhasebePlus.demo.customer.entity.Customer;
+import com.MuhasebePlus.demo.dashboard.dto.query.*;
 import com.MuhasebePlus.demo.financial.entity.BankAccount;
 import com.MuhasebePlus.demo.financial.entity.Transaction;
 import com.MuhasebePlus.demo.invoice.entity.Invoice;
@@ -13,6 +14,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.criteria.*;
+import jakarta.persistence.metamodel.SingularAttribute;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,66 +43,56 @@ public class DynamicQueryService {
             "REPORT", Report.class
     );
 
-    @SuppressWarnings("unchecked")
-    public QueryResult executeQuery(Map<String, Object> queryConfig, Long companyId) {
-        String dataSource = (String) queryConfig.get("dataSource");
-        Class<?> entityClass = ENTITY_MAP.get(dataSource);
+    public QueryResult executeQuery(QueryConfigDto config, Long companyId) {
+        Class<?> entityClass = ENTITY_MAP.get(config.dataSource());
         if (entityClass == null) {
-            throw new IllegalArgumentException("Unsupported data source: " + dataSource);
+            throw new IllegalArgumentException("Unsupported data source: " + config.dataSource());
         }
 
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Tuple> cq = cb.createTupleQuery();
         Root<?> root = cq.from(entityClass);
 
-        // Apply base filters (including company_id and isDeleted=false)
-        List<Predicate> predicates = buildBasePredicates(cb, root, entityClass, companyId);
-        predicates.addAll(buildFilters(cb, root, (List<Map<String, Object>>) queryConfig.getOrDefault("filters", List.of())));
+        List<Predicate> predicates = buildBasePredicates(cb, root, companyId);
+        List<FilterClause> filters = config.filters() != null ? config.filters() : List.of();
+        predicates.addAll(buildFilters(cb, root, filters));
 
-        // Group By
-        List<Map<String, Object>> groupByList = (List<Map<String, Object>>) queryConfig.getOrDefault("groupBy", List.of());
+        List<GroupByClause> groupByList = config.groupBy() != null ? config.groupBy() : List.of();
         List<Expression<?>> groupExpressions = buildGroupBy(cb, root, groupByList);
         if (!groupExpressions.isEmpty()) {
             cq.groupBy(groupExpressions);
         }
 
-        // Select columns
-        Map<String, Object> aggregate = (Map<String, Object>) queryConfig.get("aggregate");
-        List<Selection<?>> selections = new ArrayList<>();
-        selections.addAll(groupExpressions);
+        AggregateClause aggregate = config.aggregate();
+        List<Selection<?>> selections = new ArrayList<>(groupExpressions);
 
         final String aggregateAlias;
         if (aggregate != null) {
-            String func = (String) aggregate.get("function");
-            String field = (String) aggregate.get("field");
-            aggregateAlias = (String) aggregate.getOrDefault("alias", "value");
-            Expression<?> aggExpr = buildAggregate(cb, root, func, field);
+            aggregateAlias = aggregate.alias() != null ? aggregate.alias() : "value";
+            Expression<?> aggExpr = buildAggregate(cb, root, aggregate.function(), aggregate.field());
             selections.add(aggExpr.alias(aggregateAlias));
         } else {
             aggregateAlias = "value";
             selections.add(root);
         }
 
-        cq.multiselect(selections);
+        cq.select(cb.tuple(selections.toArray(new Selection<?>[0])));
         cq.where(predicates.toArray(new Predicate[0]));
 
-        // HAVING
-        List<Map<String, Object>> havingList = (List<Map<String, Object>>) queryConfig.getOrDefault("having", List.of());
+        List<HavingClause> havingList = config.having() != null ? config.having() : List.of();
         if (!havingList.isEmpty() && aggregate != null) {
-            List<Predicate> havingPredicates = buildHavingPredicates(cb, cq, root, havingList, (String) aggregate.get("function"), (String) aggregate.get("field"));
+            List<Predicate> havingPredicates = buildHavingPredicates(cb, root, havingList, aggregate);
             cq.having(havingPredicates.toArray(new Predicate[0]));
         }
 
-        // Sort
-        List<Map<String, Object>> sortList = (List<Map<String, Object>>) queryConfig.getOrDefault("sort", List.of());
+        List<SortClause> sortList = config.sort() != null ? config.sort() : List.of();
         if (!sortList.isEmpty()) {
-            List<Order> orders = buildSort(cb, cq, root, sortList, groupExpressions, aggregate, aggregateAlias);
+            List<Order> orders = buildSort(cb, root, sortList, groupExpressions, aggregate, aggregateAlias);
             cq.orderBy(orders);
         }
 
-        // Execute
         var typedQuery = entityManager.createQuery(cq);
-        int limit = queryConfig.containsKey("limit") ? ((Number) queryConfig.get("limit")).intValue() : 100;
+        int limit = config.limit() != null ? config.limit() : 100;
         typedQuery.setMaxResults(Math.min(limit, 1000));
 
         List<Tuple> tuples = typedQuery.getResultList();
@@ -108,112 +100,116 @@ public class DynamicQueryService {
                 .map(t -> tupleToMap(t, groupByList, aggregateAlias))
                 .collect(Collectors.toList());
 
-        // Aggregate meta
         Map<String, Object> aggregateMeta = Map.of(
-                "function", aggregate != null ? aggregate.get("function") : null,
-                "field", aggregate != null ? aggregate.get("field") : null
+                "function", aggregate != null ? aggregate.function() : null,
+                "field", aggregate != null ? aggregate.field() : null
         );
 
         return new QueryResult(rows, buildColumnMeta(groupByList, aggregate, aggregateAlias), aggregateMeta, (long) rows.size());
     }
 
-    private List<Predicate> buildBasePredicates(CriteriaBuilder cb, Root<?> root, Class<?> entityClass, Long companyId) {
+    private List<Predicate> buildBasePredicates(CriteriaBuilder cb, Root<?> root, Long companyId) {
         List<Predicate> predicates = new ArrayList<>();
         predicates.add(cb.equal(root.get("company").get("companyId"), companyId));
         try {
             root.get("isDeleted");
             predicates.add(cb.isFalse(root.get("isDeleted")));
         } catch (IllegalArgumentException e) {
-            // no soft delete field
+            // entity has no soft-delete field
         }
         return predicates;
     }
 
-    private List<Predicate> buildFilters(CriteriaBuilder cb, Root<?> root, List<Map<String, Object>> filters) {
-        return filters.stream().map(f -> buildFilterPredicate(cb, root, f)).filter(Objects::nonNull).collect(Collectors.toList());
+    private List<Predicate> buildFilters(CriteriaBuilder cb, Root<?> root, List<FilterClause> filters) {
+        return filters.stream()
+                .map(f -> buildFilterPredicate(cb, root, f))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
     }
 
     @SuppressWarnings("unchecked")
-    private Predicate buildFilterPredicate(CriteriaBuilder cb, Root<?> root, Map<String, Object> filter) {
-        String field = (String) filter.get("field");
-        String operator = (String) filter.get("operator");
-        Object value = filter.get("value");
-        Path<?> path = resolvePath(root, field);
+    private Predicate buildFilterPredicate(CriteriaBuilder cb, Root<?> root, FilterClause filter) {
+        Path<?> path = resolvePath(root, filter.field());
+        Object value = filter.value();
 
-        return switch (operator.toUpperCase()) {
-            case "EQ" -> cb.equal(path, coerceValue(path.getJavaType(), value));
-            case "NE" -> cb.notEqual(path, coerceValue(path.getJavaType(), value));
-            case "GT" -> cb.greaterThan((Path<Comparable>) path, (Comparable) coerceValue(path.getJavaType(), value));
-            case "GTE" -> cb.greaterThanOrEqualTo((Path<Comparable>) path, (Comparable) coerceValue(path.getJavaType(), value));
-            case "LT" -> cb.lessThan((Path<Comparable>) path, (Comparable) coerceValue(path.getJavaType(), value));
-            case "LTE" -> cb.lessThanOrEqualTo((Path<Comparable>) path, (Comparable) coerceValue(path.getJavaType(), value));
-            case "BETWEEN" -> {
+        return switch (filter.operator()) {
+            case EQ       -> cb.equal(path, coerceValue(path.getJavaType(), value));
+            case NE       -> cb.notEqual(path, coerceValue(path.getJavaType(), value));
+            case GT       -> compareGt(cb, path, coerceValue(path.getJavaType(), value));
+            case GTE      -> compareGte(cb, path, coerceValue(path.getJavaType(), value));
+            case LT       -> compareLt(cb, path, coerceValue(path.getJavaType(), value));
+            case LTE      -> compareLte(cb, path, coerceValue(path.getJavaType(), value));
+            case BETWEEN  -> {
                 List<?> vals = (List<?>) value;
-                yield cb.between((Path<Comparable>) path, (Comparable) coerceValue(path.getJavaType(), vals.get(0)), (Comparable) coerceValue(path.getJavaType(), vals.get(1)));
+                yield compareBetween(cb, path,
+                        coerceValue(path.getJavaType(), vals.get(0)),
+                        coerceValue(path.getJavaType(), vals.get(1)));
             }
-            case "LIKE" -> cb.like(cb.lower((Path<String>) path), "%" + value.toString().toLowerCase() + "%");
-            case "IN" -> path.in(((List<?>) value).stream().map(v -> coerceValue(path.getJavaType(), v)).toList());
-            case "IS_NULL" -> cb.isNull(path);
-            case "IS_NOT_NULL" -> cb.isNotNull(path);
-            default -> null;
+            case LIKE     -> cb.like(cb.lower((Path<String>) path), "%" + value.toString().toLowerCase() + "%");
+            case IN       -> path.in(((List<?>) value).stream().map(v -> coerceValue(path.getJavaType(), v)).toList());
+            case IS_NULL     -> cb.isNull(path);
+            case IS_NOT_NULL -> cb.isNotNull(path);
         };
     }
 
-    private List<Expression<?>> buildGroupBy(CriteriaBuilder cb, Root<?> root, List<Map<String, Object>> groupByList) {
+    private List<Expression<?>> buildGroupBy(CriteriaBuilder cb, Root<?> root, List<GroupByClause> groupByList) {
         return groupByList.stream()
-            .<Expression<?>>map(g -> {
-                String field = (String) g.get("field");
-                String transform = (String) g.get("transform");
-                Path<?> path = resolvePath(root, field);
-                if ("month".equals(transform) && path.getJavaType() == LocalDate.class) {
-                    return cb.function("date_trunc", String.class, cb.literal("month"), path);
-                } else if ("year".equals(transform) && path.getJavaType() == LocalDate.class) {
-                    return cb.function("date_trunc", String.class, cb.literal("year"), path);
-                }
-                return path;
-            })
-            .collect(Collectors.toList());
+                .<Expression<?>>map(g -> {
+                    Path<?> path = resolvePath(root, g.field());
+                    if (g.transform() == DateTransform.MONTH && path.getJavaType() == LocalDate.class) {
+                        return cb.function("date_trunc", String.class, cb.literal("month"), path);
+                    } else if (g.transform() == DateTransform.YEAR && path.getJavaType() == LocalDate.class) {
+                        return cb.function("date_trunc", String.class, cb.literal("year"), path);
+                    }
+                    return path;
+                })
+                .collect(Collectors.toList());
     }
 
     @SuppressWarnings("unchecked")
-    private Expression<?> buildAggregate(CriteriaBuilder cb, Root<?> root, String func, String field) {
-        Path<?> path = "*".equals(field) || field == null ? root.get(root.getModel().getId(Class.class)) : resolvePath(root, field);
-        return switch (func.toUpperCase()) {
-            case "COUNT" -> cb.count((Path<Number>) path);
-            case "SUM" -> cb.sum((Path<Number>) path);
-            case "AVG" -> cb.avg((Path<Number>) path);
-            case "MIN" -> cb.min((Path<Number>) path);
-            case "MAX" -> cb.max((Path<Number>) path);
-            default -> cb.sum((Path<Number>) path);
+    private Expression<?> buildAggregate(CriteriaBuilder cb, Root<?> root, AggregateFunction func, String field) {
+        Path<?> path = (field == null || "*".equals(field))
+                ? root.get(root.getModel().getSingularAttributes().stream()
+                        .filter(SingularAttribute::isId)
+                        .map(SingularAttribute::getName)
+                        .findFirst()
+                        .orElse("id"))
+                : resolvePath(root, field);
+        return switch (func) {
+            case COUNT -> cb.count(path);
+            case SUM   -> cb.sum((Path<Number>) path);
+            case AVG   -> cb.avg((Path<Number>) path);
+            case MIN   -> cb.min((Path<Number>) path);
+            case MAX   -> cb.max((Path<Number>) path);
         };
     }
 
-    private List<Predicate> buildHavingPredicates(CriteriaBuilder cb, CriteriaQuery<?> cq, Root<?> root, List<Map<String, Object>> havingList, String aggFunc, String aggField) {
-        Expression<?> aggExpr = buildAggregate(cb, root, aggFunc, aggField);
+    @SuppressWarnings("unchecked")
+    private List<Predicate> buildHavingPredicates(CriteriaBuilder cb, Root<?> root,
+                                                   List<HavingClause> havingList, AggregateClause aggregate) {
+        Expression<? extends Number> aggExpr = (Expression<? extends Number>) buildAggregate(cb, root, aggregate.function(), aggregate.field());
         return havingList.stream().map(h -> {
-            String operator = (String) h.get("operator");
-            Object value = h.get("value");
-            return switch (operator.toUpperCase()) {
-                case "GT" -> cb.greaterThan((Expression<BigDecimal>) aggExpr, new BigDecimal(value.toString()));
-                case "GTE" -> cb.greaterThanOrEqualTo((Expression<BigDecimal>) aggExpr, new BigDecimal(value.toString()));
-                case "LT" -> cb.lessThan((Expression<BigDecimal>) aggExpr, new BigDecimal(value.toString()));
-                case "LTE" -> cb.lessThanOrEqualTo((Expression<BigDecimal>) aggExpr, new BigDecimal(value.toString()));
-                case "EQ" -> cb.equal(aggExpr, coerceValue(aggExpr.getJavaType(), value));
-                default -> null;
+            Number coerced = (Number) coerceValue(aggExpr.getJavaType(), h.value());
+            return switch (h.operator()) {
+                case GT  -> cb.gt(aggExpr, coerced);
+                case GTE -> cb.ge(aggExpr, coerced);
+                case LT  -> cb.lt(aggExpr, coerced);
+                case LTE -> cb.le(aggExpr, coerced);
+                case EQ  -> cb.equal(aggExpr, coerced);
+                default  -> null;
             };
         }).filter(Objects::nonNull).collect(Collectors.toList());
     }
 
-    @SuppressWarnings("unchecked")
-    private List<Order> buildSort(CriteriaBuilder cb, CriteriaQuery<?> cq, Root<?> root, List<Map<String, Object>> sortList,
-                                   List<Expression<?>> groupExpressions, Map<String, Object> aggregate, String aggregateAlias) {
+    private List<Order> buildSort(CriteriaBuilder cb, Root<?> root, List<SortClause> sortList,
+                                   List<Expression<?>> groupExpressions, AggregateClause aggregate, String aggregateAlias) {
         return sortList.stream().map(s -> {
-            String field = (String) s.get("field");
-            String direction = (String) s.getOrDefault("direction", "ASC");
+            String field = s.field();
+            boolean desc = s.direction() == SortDirection.DESC;
             Expression<?> expr = null;
 
             if (aggregateAlias.equals(field) && aggregate != null) {
-                expr = buildAggregate(cb, root, (String) aggregate.get("function"), (String) aggregate.get("field"));
+                expr = buildAggregate(cb, root, aggregate.function(), aggregate.field());
             } else {
                 try {
                     expr = resolvePath(root, field);
@@ -226,16 +222,15 @@ public class DynamicQueryService {
             }
 
             if (expr == null) return null;
-            return "DESC".equalsIgnoreCase(direction) ? cb.desc(expr) : cb.asc(expr);
+            return desc ? cb.desc(expr) : cb.asc(expr);
         }).filter(Objects::nonNull).collect(Collectors.toList());
     }
 
-    private Map<String, Object> tupleToMap(Tuple tuple, List<Map<String, Object>> groupByList, String aggregateAlias) {
+    private Map<String, Object> tupleToMap(Tuple tuple, List<GroupByClause> groupByList, String aggregateAlias) {
         Map<String, Object> map = new LinkedHashMap<>();
         int idx = 0;
-        for (Map<String, Object> gb : groupByList) {
-            String field = (String) gb.get("field");
-            map.put(field, tuple.get(idx));
+        for (GroupByClause gb : groupByList) {
+            map.put(gb.field(), tuple.get(idx));
             idx++;
         }
         if (tuple.getElements().size() > groupByList.size()) {
@@ -244,14 +239,14 @@ public class DynamicQueryService {
         return map;
     }
 
-    private List<ColumnMeta> buildColumnMeta(List<Map<String, Object>> groupByList, Map<String, Object> aggregate, String aggregateAlias) {
+    private List<ColumnMeta> buildColumnMeta(List<GroupByClause> groupByList, AggregateClause aggregate, String aggregateAlias) {
         List<ColumnMeta> cols = new ArrayList<>();
-        for (Map<String, Object> gb : groupByList) {
-            String field = (String) gb.get("field");
-            cols.add(new ColumnMeta(field, field, "DIMENSION"));
+        for (GroupByClause gb : groupByList) {
+            cols.add(new ColumnMeta(gb.field(), gb.field(), "DIMENSION"));
         }
         if (aggregate != null) {
-            cols.add(new ColumnMeta(aggregateAlias, (String) aggregate.getOrDefault("alias", aggregateAlias), "MEASURE"));
+            String label = aggregate.alias() != null ? aggregate.alias() : aggregateAlias;
+            cols.add(new ColumnMeta(aggregateAlias, label, "MEASURE"));
         }
         return cols;
     }
@@ -266,6 +261,33 @@ public class DynamicQueryService {
             return path;
         }
         return root.get(field);
+    }
+
+    // These helpers resolve overload ambiguity by binding Path<?> and value to the same type
+    // variable Y within a single method scope. Cast is safe for any field Hibernate maps as Comparable.
+    @SuppressWarnings("unchecked")
+    private static <Y extends Comparable<? super Y>> Predicate compareGt(CriteriaBuilder cb, Path<?> path, Object value) {
+        return cb.greaterThan((Path<Y>) path, (Y) value);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <Y extends Comparable<? super Y>> Predicate compareGte(CriteriaBuilder cb, Path<?> path, Object value) {
+        return cb.greaterThanOrEqualTo((Path<Y>) path, (Y) value);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <Y extends Comparable<? super Y>> Predicate compareLt(CriteriaBuilder cb, Path<?> path, Object value) {
+        return cb.lessThan((Path<Y>) path, (Y) value);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <Y extends Comparable<? super Y>> Predicate compareLte(CriteriaBuilder cb, Path<?> path, Object value) {
+        return cb.lessThanOrEqualTo((Path<Y>) path, (Y) value);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <Y extends Comparable<? super Y>> Predicate compareBetween(CriteriaBuilder cb, Path<?> path, Object lo, Object hi) {
+        return cb.between((Path<Y>) path, (Y) lo, (Y) hi);
     }
 
     private Object coerceValue(Class<?> targetType, Object value) {
@@ -287,7 +309,7 @@ public class DynamicQueryService {
             return Double.valueOf(value.toString());
         }
         if (targetType.isEnum()) {
-            @SuppressWarnings({ "unchecked", "rawtypes" })
+            @SuppressWarnings({"unchecked", "rawtypes"})
             Object enumVal = Enum.valueOf((Class<Enum>) targetType, value.toString());
             return enumVal;
         }

@@ -6,8 +6,10 @@ import com.MuhasebePlus.demo.dashboard.dto.request.WidgetDefinitionRequestDto;
 import com.MuhasebePlus.demo.dashboard.dto.response.WidgetDefinitionResponseDto;
 import com.MuhasebePlus.demo.dashboard.entity.WidgetDefinition;
 import com.MuhasebePlus.demo.dashboard.repository.WidgetDefinitionRepository;
+import com.MuhasebePlus.demo.dashboard.dto.query.QueryConfigDto;
 import com.MuhasebePlus.demo.dashboard.service.DynamicQueryService;
 import com.MuhasebePlus.demo.user.repository.UserRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -31,6 +33,7 @@ public class WidgetDefinitionController {
     @Autowired private DynamicQueryService dynamicQueryService;
     @Autowired private CompanyRepository companyRepository;
     @Autowired private UserRepository userRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
@@ -114,11 +117,10 @@ public class WidgetDefinitionController {
     @PostMapping("/preview")
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public ResponseEntity<Map<String, Object>> previewQuery(@RequestBody Map<String, Object> body) {
-        @SuppressWarnings("unchecked")
-        Map<String, Object> queryConfig = (Map<String, Object>) body.get("queryConfig");
+        QueryConfigDto config = objectMapper.convertValue(body.get("queryConfig"), QueryConfigDto.class);
         Long companyId = companyContext.getCurrentCompanyId();
         try {
-            DynamicQueryService.QueryResult result = dynamicQueryService.executeQuery(queryConfig, companyId);
+            DynamicQueryService.QueryResult result = dynamicQueryService.executeQuery(config, companyId);
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "data", result.rows(),
