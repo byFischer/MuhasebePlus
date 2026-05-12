@@ -1474,3 +1474,25 @@ button.filter:hover {
   font-size: 10px;
   font-weight: 600;
 }
+
+/* View Transitions API — animated theme toggle */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-new(root) {
+  opacity: 1;
+}
+
+@keyframes togSpin {
+  from {
+    transform: rotate(-90deg) scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: rotate(0deg) scale(1);
+    opacity: 1;
+  }
+}

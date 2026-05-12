@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import Icon from '@/components/mp/Icon';
+import AnimatedThemeToggler from '@/components/mp/AnimatedThemeToggler';
 import { ROUTE_META } from '@/lib/routes';
-import { useColorMode } from '@/components/ui/color-mode';
 import { AnimatedList } from '@/components/ui/animated-list';
 import api from '@/services/api';
 
@@ -17,7 +17,6 @@ export default function Topbar() {
   const location = useLocation();
   const meta = ROUTE_META[location.pathname] || ROUTE_META['/dashboard'];
   const crumbs = meta?.crumbs || ['Dashboard'];
-  const { toggleColorMode } = useColorMode();
 
   // --- Notification state (ported from Header.tsx) ---
   const [notifications, setNotifications] = useState([]);
@@ -92,9 +91,7 @@ export default function Topbar() {
         )}
       </div>
 
-      <button className="tb-icon-btn" title="Tema" onClick={toggleColorMode}>
-        <Icon name="moon" size={14} />
-      </button>
+      <AnimatedThemeToggler size={36} />
     </header>
   );
 }
