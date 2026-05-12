@@ -1,12 +1,17 @@
 package com.MuhasebePlus.demo.customer.controller;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -22,9 +27,13 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.MuhasebePlus.demo.customer.dto.request.CustomerNoteRequestDto;
 import com.MuhasebePlus.demo.customer.dto.request.CustomerRequestDto;
+import com.MuhasebePlus.demo.customer.dto.response.CustomerActivityDto;
+import com.MuhasebePlus.demo.customer.dto.response.CustomerAgingDto;
 import com.MuhasebePlus.demo.customer.dto.response.CustomerNoteResponseDto;
 import com.MuhasebePlus.demo.customer.dto.response.CustomerResponseDto;
 import com.MuhasebePlus.demo.customer.dto.response.ImportResultDto;
+import com.MuhasebePlus.demo.customer.service.CustomerExcelService;
+import com.MuhasebePlus.demo.customer.service.CustomerPdfService;
 import com.MuhasebePlus.demo.customer.service.CustomerService;
 
 import jakarta.validation.Valid;
@@ -35,6 +44,12 @@ public class CustomerController {
 
     @Autowired
     private CustomerService customerService;
+
+    @Autowired
+    private CustomerExcelService customerExcelService;
+
+    @Autowired
+    private CustomerPdfService customerPdfService;
 
     // CUSTOMER CRUD
 
@@ -124,5 +139,42 @@ public class CustomerController {
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public ResponseEntity<ImportResultDto> importCustomers(@RequestParam("file") MultipartFile file) {
         return ResponseEntity.ok(customerService.importCustomers(file));
+    }
+
+    @GetMapping("/{customerId}/activity")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<List<CustomerActivityDto>> getActivity(
+            @PathVariable Long customerId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        return ResponseEntity.ok(customerService.getCustomerActivity(customerId, startDate, endDate));
+    }
+
+    @GetMapping("/aging")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<List<CustomerAgingDto>> getAging() {
+        return ResponseEntity.ok(customerService.getCustomerAging());
+    }
+
+    @GetMapping("/export/excel")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<byte[]> exportExcel() {
+        byte[] data = customerExcelService.exportToExcel();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        headers.setContentDisposition(ContentDisposition.attachment().filename("musteri-listesi.xlsx").build());
+        headers.setContentLength(data.length);
+        return ResponseEntity.ok().headers(headers).body(data);
+    }
+
+    @GetMapping("/export/pdf")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<byte[]> exportPdf() {
+        byte[] data = customerPdfService.exportToPdf();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(ContentDisposition.inline().filename("musteri-listesi.pdf").build());
+        headers.setContentLength(data.length);
+        return ResponseEntity.ok().headers(headers).body(data);
     }
 }

@@ -26,6 +26,8 @@ public record CustomerResponseDto(
     String iban,
     String currency,
     BigDecimal creditLimit,
-    String customerRole
+    String customerRole,
+    String status,
+    String customerGroup
 ) {
 }

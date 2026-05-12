@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +32,8 @@ import com.MuhasebePlus.demo.common.service.CompanyContext;
 import com.MuhasebePlus.demo.company.repository.CompanyRepository;
 import com.MuhasebePlus.demo.customer.dto.request.CustomerNoteRequestDto;
 import com.MuhasebePlus.demo.customer.dto.request.CustomerRequestDto;
+import com.MuhasebePlus.demo.customer.dto.response.CustomerActivityDto;
+import com.MuhasebePlus.demo.customer.dto.response.CustomerAgingDto;
 import com.MuhasebePlus.demo.customer.dto.response.CustomerNoteResponseDto;
 import com.MuhasebePlus.demo.customer.dto.response.CustomerResponseDto;
 import com.MuhasebePlus.demo.customer.dto.response.ImportResultDto;
@@ -41,8 +44,11 @@ import com.MuhasebePlus.demo.customer.entity.CustomerType;
 import com.MuhasebePlus.demo.customer.repository.CustomerNoteRepository;
 import com.MuhasebePlus.demo.customer.repository.CustomerRepository;
 import com.MuhasebePlus.demo.financial.entity.Currency;
+import com.MuhasebePlus.demo.invoice.entity.Invoice;
+import com.MuhasebePlus.demo.invoice.entity.InvoicePayment;
 import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
 import com.MuhasebePlus.demo.invoice.entity.PaymentStatus;
+import com.MuhasebePlus.demo.invoice.repository.InvoicePaymentRepository;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceRepository;
 import com.MuhasebePlus.demo.log.entity.LogLevel;
 import com.MuhasebePlus.demo.log.service.SystemLogService;
@@ -65,6 +71,9 @@ public class CustomerService implements HardDeletable {
 
     @Autowired
     private InvoiceRepository invoiceRepository;
+
+    @Autowired
+    private InvoicePaymentRepository invoicePaymentRepository;
 
     @Autowired
     private SystemLogService systemLogService;
@@ -103,6 +112,8 @@ public class CustomerService implements HardDeletable {
         customer.setCurrency(dto.currency());
         customer.setCreditLimit(dto.creditLimit());
         customer.setCustomerRole(dto.customerRole() != null ? dto.customerRole() : com.MuhasebePlus.demo.customer.entity.CustomerRole.BOTH);
+        customer.setStatus(dto.status() != null ? dto.status() : com.MuhasebePlus.demo.customer.entity.CustomerStatus.ACTIVE);
+        customer.setCustomerGroup(dto.customerGroup());
 
         Customer saved = customerRepository.save(customer);
         systemLogService.log(LogLevel.INFO, "Müşteri oluşturuldu: " + saved.getName() + " (id=" + saved.getCustomerId() + ")");
@@ -159,6 +170,8 @@ public class CustomerService implements HardDeletable {
         customer.setCurrency(dto.currency());
         customer.setCreditLimit(dto.creditLimit());
         customer.setCustomerRole(dto.customerRole() != null ? dto.customerRole() : customer.getCustomerRole());
+        customer.setStatus(dto.status() != null ? dto.status() : customer.getStatus());
+        customer.setCustomerGroup(dto.customerGroup());
 
         Customer updated = customerRepository.save(customer);
         BigDecimal balance = fetchBalance(updated.getCustomerId(), companyId);
@@ -247,6 +260,103 @@ public class CustomerService implements HardDeletable {
             .map(c -> toResponseDto(c, balances.getOrDefault(c.getCustomerId(), BigDecimal.ZERO),
                    overdueIds.contains(c.getCustomerId())))
             .toList();
+    }
+
+    public List<CustomerActivityDto> getCustomerActivity(Long customerId, LocalDate startDate, LocalDate endDate) {
+        Long companyId = companyContext.getCurrentCompanyId();
+        Customer customer = findCustomerEntityById(customerId);
+
+        BigDecimal opening = customer.getOpeningBalance() != null ? customer.getOpeningBalance() : BigDecimal.ZERO;
+
+        List<CustomerActivityDto> lines = new java.util.ArrayList<>();
+
+        if (opening.compareTo(BigDecimal.ZERO) != 0) {
+            lines.add(new CustomerActivityDto(
+                customer.getOpeningBalanceDate(), "ACILIS", "Acilis Bakiyesi", "—",
+                opening.compareTo(BigDecimal.ZERO) > 0 ? opening : BigDecimal.ZERO,
+                opening.compareTo(BigDecimal.ZERO) < 0 ? opening.negate() : BigDecimal.ZERO,
+                opening
+            ));
+        }
+
+        List<Invoice> invoices = invoiceRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(customerId, companyId)
+            .stream()
+            .filter(i -> !i.getInvoiceDate().isBefore(startDate) && !i.getInvoiceDate().isAfter(endDate))
+            .sorted(Comparator.comparing(Invoice::getInvoiceDate))
+            .toList();
+
+        BigDecimal runningBalance = opening;
+        for (Invoice inv : invoices) {
+            boolean isSale = inv.getInvoiceType() == InvoiceType.sale;
+            String desc = isSale ? "Satis Faturasi" : "Alis Faturasi";
+            if (inv.isCancelled()) desc += " (IPTAL)";
+
+            if (isSale) runningBalance = runningBalance.add(inv.getTotalAmount());
+            else runningBalance = runningBalance.subtract(inv.getTotalAmount());
+
+            lines.add(new CustomerActivityDto(
+                inv.getInvoiceDate(), "FATURA", desc, inv.getInvoiceNumber(),
+                isSale ? inv.getTotalAmount() : BigDecimal.ZERO,
+                !isSale ? inv.getTotalAmount() : BigDecimal.ZERO,
+                runningBalance
+            ));
+
+            List<InvoicePayment> payments = invoicePaymentRepository.findByInvoiceIdAndCompanyCompanyIdAndIsDeletedFalse(inv.getInvoiceId(), companyId);
+            for (InvoicePayment pmt : payments) {
+                if (pmt.getPaymentDate().isBefore(startDate) || pmt.getPaymentDate().isAfter(endDate)) continue;
+                runningBalance = runningBalance.subtract(pmt.getAmount());
+                lines.add(new CustomerActivityDto(
+                    pmt.getPaymentDate(), "TAHSILAT", "Tahsilat / Odeme", "#PMT" + pmt.getPaymentId(),
+                    BigDecimal.ZERO, pmt.getAmount(), runningBalance
+                ));
+            }
+        }
+
+        lines.sort(Comparator.comparing(CustomerActivityDto::date));
+        return lines;
+    }
+
+    public List<CustomerAgingDto> getCustomerAging() {
+        Long companyId = companyContext.getCurrentCompanyId();
+        LocalDate today = LocalDate.now();
+
+        List<Invoice> openInvoices = new ArrayList<>();
+        openInvoices.addAll(invoiceRepository.findByPaymentStatusAndInvoiceTypeAndCompanyCompanyIdAndIsDeletedFalse(
+                PaymentStatus.pending, InvoiceType.sale, companyId));
+        openInvoices.addAll(invoiceRepository.findByPaymentStatusAndInvoiceTypeAndCompanyCompanyIdAndIsDeletedFalse(
+                PaymentStatus.overdue, InvoiceType.sale, companyId));
+
+        List<Customer> customers = customerRepository.findByCompanyCompanyIdAndIsDeletedFalse(companyId);
+        Map<Long, Customer> customerMap = customers.stream()
+                .collect(Collectors.toMap(Customer::getCustomerId, c -> c));
+
+        Map<Long, CustomerAgingDto> agingMap = new java.util.HashMap<>();
+
+        for (Invoice inv : openInvoices) {
+            if (inv.getCustomerId() == null || inv.getDueDate() == null) continue;
+            Customer c = customerMap.get(inv.getCustomerId());
+            if (c == null) continue;
+
+            long days = java.time.temporal.ChronoUnit.DAYS.between(inv.getDueDate(), today);
+            if (days <= 0) continue;
+
+            CustomerAgingDto dto = agingMap.computeIfAbsent(inv.getCustomerId(), k ->
+                new CustomerAgingDto(inv.getCustomerId(), c.getName(), c.getAccountCode(),
+                        BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO));
+
+            BigDecimal amount = inv.getTotalAmount() != null ? inv.getTotalAmount() : BigDecimal.ZERO;
+            agingMap.put(inv.getCustomerId(),
+                new CustomerAgingDto(dto.customerId(), dto.customerName(), dto.accountCode(),
+                    dto.totalAR().add(amount),
+                    days <= 30 ? dto.bucket0to30().add(amount) : dto.bucket0to30(),
+                    days > 30 && days <= 60 ? dto.bucket31to60().add(amount) : dto.bucket31to60(),
+                    days > 60 && days <= 90 ? dto.bucket61to90().add(amount) : dto.bucket61to90(),
+                    days > 90 ? dto.bucket90plus().add(amount) : dto.bucket90plus()));
+        }
+
+        return agingMap.values().stream()
+                .sorted(Comparator.comparing(CustomerAgingDto::totalAR).reversed())
+                .toList();
     }
 
     public CustomerNoteResponseDto addNote(Long customerId, CustomerNoteRequestDto dto) {
@@ -349,7 +459,9 @@ public class CustomerService implements HardDeletable {
             getCellString(row, 12),                   // iban
             parseCurrency(getCellString(row, 13)),    // currency
             getCellBigDecimal(row, 14),               // creditLimit
-            parseCustomerRole(getCellString(row, 15)) // customerRole
+            parseCustomerRole(getCellString(row, 15)), // customerRole
+            null,                                      // status (defaults in service)
+            getCellString(row, 16)                     // customerGroup
         );
     }
 
@@ -391,7 +503,9 @@ public class CustomerService implements HardDeletable {
             getPart(parts, 12),                                                                         // iban
             parseCurrency(getPart(parts, 13)),                                                          // currency
             parseBigDecimal(getPart(parts, 14)),                                                        // creditLimit
-            parseCustomerRole(getPart(parts, 15))                                                       // customerRole
+            parseCustomerRole(getPart(parts, 15)),                                                       // customerRole
+            null,                                                                                         // status
+            getPart(parts, 16)                                                                            // customerGroup
         );
     }
 
@@ -478,27 +592,36 @@ public class CustomerService implements HardDeletable {
                 row -> ((BigDecimal) row[1]).negate()
             ));
 
+        List<Customer> allCustomers = customerRepository.findByCompanyCompanyIdAndIsDeletedFalse(companyId);
+
         Set<Long> allCustomerIds = new HashSet<>();
         allCustomerIds.addAll(saleBalances.keySet());
         allCustomerIds.addAll(purchaseBalances.keySet());
+        for (Customer c : allCustomers) allCustomerIds.add(c.getCustomerId());
 
         Map<Long, BigDecimal> combined = new java.util.HashMap<>();
         for (Long id : allCustomerIds) {
             BigDecimal sale = saleBalances.getOrDefault(id, BigDecimal.ZERO);
             BigDecimal purchase = purchaseBalances.getOrDefault(id, BigDecimal.ZERO);
-            combined.put(id, sale.add(purchase));
+            Customer c = allCustomers.stream().filter(x -> x.getCustomerId().equals(id)).findFirst().orElse(null);
+            BigDecimal opening = (c != null && c.getOpeningBalance() != null) ? c.getOpeningBalance() : BigDecimal.ZERO;
+            combined.put(id, sale.add(purchase).add(opening));
         }
         return combined;
     }
 
     private BigDecimal fetchBalance(Long customerId, Long companyId) {
+        Customer c = customerRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(customerId, companyId)
+                .orElse(null);
+        BigDecimal opening = (c != null && c.getOpeningBalance() != null) ? c.getOpeningBalance() : BigDecimal.ZERO;
+
         BigDecimal saleBalance = invoiceRepository.calculateOutstandingBalanceForCustomer(
             customerId, companyId, InvoiceType.sale, PaymentStatus.paid);
         BigDecimal purchaseBalance = invoiceRepository.calculateOutstandingBalanceForCustomerPurchase(
             customerId, companyId, InvoiceType.purchase, PaymentStatus.paid);
         BigDecimal sale = saleBalance != null ? saleBalance : BigDecimal.ZERO;
         BigDecimal purchase = purchaseBalance != null ? purchaseBalance : BigDecimal.ZERO;
-        return sale.subtract(purchase);
+        return sale.subtract(purchase).add(opening);
     }
 
     private Customer findCustomerEntityById(Long id) {
@@ -546,7 +669,9 @@ public class CustomerService implements HardDeletable {
                 c.getIban(),
                 c.getCurrency() != null ? c.getCurrency().name() : null,
                 c.getCreditLimit(),
-                c.getCustomerRole() != null ? c.getCustomerRole().name() : null
+                c.getCustomerRole() != null ? c.getCustomerRole().name() : null,
+                c.getStatus() != null ? c.getStatus().name() : "ACTIVE",
+                c.getCustomerGroup()
         );
     }
 

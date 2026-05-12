@@ -73,6 +73,13 @@ public class Customer extends SoftDeletableEntity {
     @Column(name = "customer_role", length = 10)
     private CustomerRole customerRole;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 10)
+    private CustomerStatus status;
+
+    @Column(name = "customer_group", length = 50)
+    private String customerGroup;
+
     @Transient
     private BigDecimal currentBalance;
 }
