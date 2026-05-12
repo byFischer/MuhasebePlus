@@ -617,40 +617,78 @@ public class InvoiceService implements HardDeletable {
     }
 
     private void applyTotals(Invoice invoice, List<InvoiceLineItem> lineItems) {
-        BigDecimal subtotal  = BigDecimal.ZERO;
-        BigDecimal vatAmount = BigDecimal.ZERO;
-        BigDecimal wtAmount  = BigDecimal.ZERO;
+        // 1. Satır bazlı iskontoları hesapla, ara toplam (subtotal) ve stopajı bul
+        BigDecimal subtotal = BigDecimal.ZERO;
+        BigDecimal wtAmount = BigDecimal.ZERO;
+
+        record LineCalc(BigDecimal afterLineDiscount, BigDecimal vatRate, BigDecimal wtRate) {}
+        List<LineCalc> calcs = new ArrayList<>();
 
         for (InvoiceLineItem li : lineItems) {
             BigDecimal quantity = BigDecimal.valueOf(li.getQuantity());
             BigDecimal net      = round2(quantity.multiply(li.getUnitPrice()));
             BigDecimal liDiscountRate = li.getDiscountRate() != null ? li.getDiscountRate() : BigDecimal.ZERO;
             BigDecimal liDiscount = round2(net.multiply(liDiscountRate).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP));
-            BigDecimal afterDiscount = net.subtract(liDiscount);
-            BigDecimal vat = round2(afterDiscount.multiply(li.getVatRate()).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP));
+            BigDecimal afterLineDiscount = net.subtract(liDiscount);
+            BigDecimal vatRate = li.getVatRate() != null ? li.getVatRate() : BigDecimal.ZERO;
 
-            subtotal  = subtotal.add(afterDiscount);
-            vatAmount = vatAmount.add(vat);
+            subtotal = subtotal.add(afterLineDiscount);
+            calcs.add(new LineCalc(afterLineDiscount, vatRate,
+                li.getWithholdingTaxRate() != null ? li.getWithholdingTaxRate() : BigDecimal.ZERO));
 
-            BigDecimal liWtRate = li.getWithholdingTaxRate() != null ? li.getWithholdingTaxRate() : BigDecimal.ZERO;
-            if (liWtRate.compareTo(BigDecimal.ZERO) > 0) {
-                wtAmount = wtAmount.add(round2(afterDiscount.multiply(liWtRate).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP)));
+            if (calcs.get(calcs.size() - 1).wtRate().compareTo(BigDecimal.ZERO) > 0) {
+                wtAmount = wtAmount.add(round2(afterLineDiscount.multiply(calcs.get(calcs.size() - 1).wtRate())
+                    .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP)));
             }
         }
 
+        // 2. Fatura altı iskontoyu hesapla
         BigDecimal invoiceDiscount = BigDecimal.ZERO;
-        if (invoice.getDiscountType() != null && invoice.getDiscountAmount() != null && invoice.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
+        if (invoice.getDiscountType() != null && invoice.getDiscountAmount() != null
+                && invoice.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
             if (invoice.getDiscountType().name().equals("PERCENTAGE")) {
-                invoiceDiscount = round2(subtotal.multiply(invoice.getDiscountAmount()).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP));
+                invoiceDiscount = round2(subtotal.multiply(invoice.getDiscountAmount())
+                    .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP));
             } else {
                 invoiceDiscount = invoice.getDiscountAmount();
             }
         }
+        if (invoiceDiscount.compareTo(subtotal) > 0) {
+            invoiceDiscount = subtotal;
+        }
 
-        BigDecimal finalSubtotal = round2(subtotal.subtract(invoiceDiscount));
-        BigDecimal totalAmount  = round2(finalSubtotal.add(vatAmount).subtract(wtAmount));
+        // 3. Fatura altı iskontoyu satırlara orantılı dağıt, KDV'yi iskonto sonrası net üzerinden yeniden hesapla
+        BigDecimal finalSubtotal = BigDecimal.ZERO;
+        BigDecimal vatAmount = BigDecimal.ZERO;
+        BigDecimal distributed = BigDecimal.ZERO;
 
-        invoice.setSubtotal(finalSubtotal);
+        for (int i = 0; i < calcs.size(); i++) {
+            LineCalc calc = calcs.get(i);
+            BigDecimal lineShare;
+            if (subtotal.compareTo(BigDecimal.ZERO) > 0) {
+                // Son satırda kalan farkı al (yuvarlama hatası önleme)
+                if (i == calcs.size() - 1) {
+                    lineShare = invoiceDiscount.subtract(distributed);
+                } else {
+                    lineShare = round2(invoiceDiscount.multiply(calc.afterLineDiscount())
+                        .divide(subtotal, 4, RoundingMode.HALF_UP));
+                }
+            } else {
+                lineShare = BigDecimal.ZERO;
+            }
+            distributed = distributed.add(lineShare);
+
+            BigDecimal lineNet = calc.afterLineDiscount().subtract(lineShare);
+            BigDecimal lineVat = round2(lineNet.multiply(calc.vatRate())
+                .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP));
+
+            finalSubtotal = finalSubtotal.add(lineNet);
+            vatAmount = vatAmount.add(lineVat);
+        }
+
+        BigDecimal totalAmount = round2(finalSubtotal.add(vatAmount).subtract(wtAmount));
+
+        invoice.setSubtotal(round2(finalSubtotal));
         invoice.setVatAmount(round2(vatAmount));
         invoice.setWithholdingTaxAmount(round2(wtAmount));
         invoice.setTotalAmount(totalAmount);

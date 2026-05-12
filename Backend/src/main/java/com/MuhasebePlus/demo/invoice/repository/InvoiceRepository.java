@@ -36,6 +36,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpec
     List<Invoice> findByPaymentStatusAndCompanyCompanyIdAndIsDeletedFalse(PaymentStatus paymentStatus, Long companyId);
     List<Invoice> findByInvoiceTypeAndCompanyCompanyIdAndIsDeletedFalse(InvoiceType invoiceType, Long companyId);
     List<Invoice> findByPaymentStatusAndInvoiceTypeAndCompanyCompanyIdAndIsDeletedFalse(PaymentStatus paymentStatus, InvoiceType invoiceType, Long companyId);
+    List<Invoice> findByDueDateBeforeAndPaymentStatusInAndCompanyCompanyIdAndIsDeletedFalse(LocalDate date, List<PaymentStatus> statuses, Long companyId);
 
     List<Invoice> findByIsDeletedTrueAndDeletedAtBefore(LocalDateTime cutoff);
 

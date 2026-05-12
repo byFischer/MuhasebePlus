@@ -12,7 +12,7 @@ export default function LoginPage() {
           ease={40}
           size={0.5}
           color="#ffffff"
-          className="h-full w-full"
+          style={{ width: "100%", height: "100%" }}
         />
       </Box>
 

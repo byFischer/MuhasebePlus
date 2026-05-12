@@ -205,6 +205,7 @@ function InvoiceDetailDrawer({ open, onClose, invoiceId }) {
               <div className="col gap-4"><span className="muted" style={{ fontSize: 11 }}>Tür</span><b>{invoice.invoiceType === 'purchase' ? 'Alış' : invoice.invoiceType === 'sale' ? 'Satış' : invoice.invoiceType || '—'}</b></div>
               <div className="col gap-4"><span className="muted" style={{ fontSize: 11 }}>Fatura Tarihi</span><b className="mono">{invoice.invoiceDate || '—'}</b></div>
               <div className="col gap-4"><span className="muted" style={{ fontSize: 11 }}>Vade</span><b className="mono">{invoice.dueDate || '—'}</b></div>
+              <div className="col gap-4"><span className="muted" style={{ fontSize: 11 }}>Vade Tutarı</span><b className="mono tnum">{TRY(invoice.totalAmount || 0)}</b></div>
               <div className="col gap-4"><span className="muted" style={{ fontSize: 11 }}>Durum</span><div><InvoicePill status={invoice.paymentStatus} cancelled={invoice.cancelled} /></div></div>
               {invoice.currency && invoice.currency !== 'TRY' && (
                 <><div className="col gap-4"><span className="muted" style={{ fontSize: 11 }}>Döviz</span><b>{invoice.currency}</b></div>

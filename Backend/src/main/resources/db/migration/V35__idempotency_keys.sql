@@ -1,4 +1,4 @@
-CREATE TABLE idempotency_keys (
+CREATE TABLE IF NOT EXISTS idempotency_keys (
     idempotency_key VARCHAR(255) PRIMARY KEY,
     response_body   TEXT,
     response_status INTEGER       NOT NULL,
@@ -6,4 +6,4 @@ CREATE TABLE idempotency_keys (
     expires_at      TIMESTAMP     NOT NULL
 );
 
-CREATE INDEX idx_idempotency_expires ON idempotency_keys (expires_at);
+CREATE INDEX IF NOT EXISTS idx_idempotency_expires ON idempotency_keys (expires_at);

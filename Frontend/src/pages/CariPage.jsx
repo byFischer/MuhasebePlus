@@ -107,7 +107,12 @@ export default function CariPage() {
                   <td className="muted">{c.city}</td>
                   <td className="mono"><span style={{ color: (c.currentBalance || 0) < 0 ? 'var(--neg)' : (c.currentBalance || 0) > 0 ? 'var(--pos)' : 'var(--ink-2)' }}>{TRY(c.currentBalance)}</span></td>
                   <td><span className="pill">{c.currency || 'TRY'}</span></td>
-                  <td><span className="pill">{c.customerRole === 'BUYER' ? 'Alıcı' : c.customerRole === 'SELLER' ? 'Satıcı' : 'Her İkisi'}</span></td>
+                  <td>
+                    <div className="row gap-4">
+                      <span className="pill">{c.customerRole === 'BUYER' ? 'Alıcı' : c.customerRole === 'SELLER' ? 'Satıcı' : 'Her İkisi'}</span>
+                      {c.hasOverdueInvoices && <span className="pill neg">RİSKLİ</span>}
+                    </div>
+                  </td>
                   <td>
                     <div className="row gap-4">
                       <button className="tb-icon-btn" onClick={e => { e.stopPropagation(); setDrawer({ mode: 'edit', c }); }}><Icon name="edit" size={14} /></button>

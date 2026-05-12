@@ -263,8 +263,9 @@ export const Particles = ({
       className={cn("pointer-events-none", className)}
       ref={canvasContainerRef}
       aria-hidden="true"
+      style={{ width: "100%", height: "100%" }}
       {...props}>
-      <canvas ref={canvasRef} className="size-full" />
+      <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }} />
     </div>
   );
 }
