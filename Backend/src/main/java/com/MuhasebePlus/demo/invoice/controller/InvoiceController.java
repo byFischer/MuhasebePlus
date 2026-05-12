@@ -29,6 +29,10 @@ import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
 import com.MuhasebePlus.demo.invoice.entity.PaymentStatus;
 import com.MuhasebePlus.demo.invoice.service.InvoiceService;
 import com.MuhasebePlus.demo.invoice.service.PdfInvoiceService;
+import com.MuhasebePlus.demo.invoice.service.EInvoiceService;
+import com.MuhasebePlus.demo.common.service.CompanyContext;
+import com.MuhasebePlus.demo.invoice.entity.EInvoiceLog;
+import com.MuhasebePlus.demo.invoice.entity.EInvoiceProfile;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +44,8 @@ public class InvoiceController {
 
     private final InvoiceService invoiceService;
     private final PdfInvoiceService pdfInvoiceService;
+    private final EInvoiceService eInvoiceService;
+    private final CompanyContext companyContext;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
@@ -177,6 +183,39 @@ public class InvoiceController {
     public ResponseEntity<Void> fulfillPromise(@PathVariable Long invoiceId, @PathVariable Long promiseId) {
         invoiceService.fulfillCollectionPromise(promiseId);
         return ResponseEntity.noContent().build();
+    }
+
+    // E-FATURA / E-ARSIV ENDPOINTS
+
+    @PostMapping("/{invoiceId}/send-to-gib")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<EInvoiceLog> sendToGib(@PathVariable Long invoiceId) {
+        return ResponseEntity.ok(eInvoiceService.sendToGib(invoiceId));
+    }
+
+    @GetMapping("/{invoiceId}/gib-logs")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<List<EInvoiceLog>> getGibLogs(@PathVariable Long invoiceId) {
+        return ResponseEntity.ok(eInvoiceService.getLogs(invoiceId));
+    }
+
+    @PutMapping("/{invoiceId}/gib-status")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<EInvoiceLog> checkGibStatus(@PathVariable Long invoiceId) {
+        return ResponseEntity.ok(eInvoiceService.checkGibStatus(invoiceId));
+    }
+
+    @GetMapping("/gib-profile")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<EInvoiceProfile> getGibProfile() {
+        return ResponseEntity.ok(eInvoiceService.getProfile());
+    }
+
+    @PostMapping("/gib-profile")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<EInvoiceProfile> saveGibProfile(@RequestParam String alias, @RequestParam String password, @RequestParam(required = false) String defaultSeriesCode) {
+        Long companyId = companyContext.getCurrentCompanyId();
+        return ResponseEntity.ok(eInvoiceService.saveProfile(companyId, alias, password, defaultSeriesCode));
     }
 
     private InvoiceSeriesResponseDto toSeriesResponse(InvoiceSeries s) {

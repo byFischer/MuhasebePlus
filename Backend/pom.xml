@@ -89,6 +89,12 @@
 			<version>3.0.3</version>
 		</dependency>
 
+		<!-- XML processing for GIB e-invoice -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.dataformat</groupId>
+			<artifactId>jackson-dataformat-xml</artifactId>
+		</dependency>
+
 		<!-- JWT -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>

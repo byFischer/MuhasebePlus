@@ -38,6 +38,7 @@ export default function FaturaPage() {
   const [page, setPage] = useState(1);
   const [drawer, setDrawer] = useState(false);
   const [returnDrawer, setReturnDrawer] = useState(null);
+  const [gibOpen, setGibOpen] = useState(false);
   const [detailInvoiceId, setDetailInvoiceId] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const PAGE_SIZE = 15;
@@ -91,6 +92,15 @@ export default function FaturaPage() {
     }
   };
 
+  const handleSendToGib = async (invoiceId) => {
+    try {
+      const log = await invoiceService.sendToGib(invoiceId);
+      toast.ok('E-Arşiv gönderildi' + (log.envelopeId ? ' ETTN: ' + log.envelopeId : ''));
+    } catch (e) {
+      toast.err(e?.response?.data?.message || 'E-Arşiv gönderilemedi');
+    }
+  };
+
   const filtered = useMemo(() => list.filter(i => {
     if (tab === 'paid' && i.paymentStatus !== 'paid') return false;
     if (tab === 'unpaid' && i.paymentStatus === 'paid') return false;
@@ -114,6 +124,7 @@ export default function FaturaPage() {
       <div className="page-head">
         <div><h1 className="page-title">Fatura Yönetimi</h1><p className="page-sub">{list.length} fatura</p></div>
         <div className="page-actions">
+          <button className="btn ghost" onClick={() => setGibOpen(true)}><Icon name="globe" size={14} /> GİB</button>
           <button className="btn primary" onClick={() => setDrawer(true)}><Icon name="plus" /> Yeni Fatura</button>
         </div>
       </div>
@@ -169,6 +180,11 @@ export default function FaturaPage() {
                       <button className="tb-icon-btn" title="Yazdır" onClick={(e) => { e.stopPropagation(); handlePrintPdf(i.invoiceId); }}>
                         <Icon name="print" size={14} />
                       </button>
+                      {!i.cancelled && (
+                        <button className="tb-icon-btn" title="E-Arşiv Gönder" onClick={(e) => { e.stopPropagation(); handleSendToGib(i.invoiceId); }}>
+                          <Icon name="upload" size={14} />
+                        </button>
+                      )}
                       <button className="tb-icon-btn" title="Sil" onClick={() => deleteMut.mutate(i.invoiceId)}><Icon name="trash" size={14} /></button>
                     </div>
                   </td>
@@ -185,6 +201,7 @@ export default function FaturaPage() {
       {returnDrawer && (
         <ReturnInvoiceDrawer original={returnDrawer} customers={customers} onClose={() => setReturnDrawer(null)} />
       )}
+      {gibOpen && <GibProfileModal onClose={() => setGibOpen(false)} />}
     </div>
   );
 }
@@ -616,5 +633,49 @@ function ReturnInvoiceDrawer({ original, customers, onClose }) {
         <div className="muted" style={{ fontSize: 12 }}>İade faturası, orijinal faturadaki tüm kalemleri ters yönde içerecektir.</div>
       </div>
     </Drawer>
+  );
+}
+
+function GibProfileModal({ onClose }) {
+  const [alias, setAlias] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const save = async () => {
+    if (!alias.trim() || !password.trim()) return;
+    setLoading(true);
+    try {
+      await invoiceService.saveGibProfile(alias.trim(), password.trim(), null);
+      toast.ok('GİB profili kaydedildi');
+      onClose();
+    } catch (e) {
+      toast.err(e?.response?.data?.message || 'Kaydedilemedi');
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="drawer-scrim" onClick={onClose}>
+      <div className="drawer" style={{ maxWidth: 420, height: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div className="drawer-head">
+          <h2>GİB E-Arşiv Profili</h2>
+          <button className="tb-icon-btn" onClick={onClose}><Icon name="x" /></button>
+        </div>
+        <div className="drawer-body col gap-12">
+          <div className="field">
+            <label>GİB Kullanıcı Kodu (Alias)</label>
+            <input className="input mono" value={alias} onChange={e => setAlias(e.target.value)} placeholder="örn: 3333333300" />
+          </div>
+          <div className="field">
+            <label>Şifre</label>
+            <input className="input mono" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+          </div>
+          <p className="muted" style={{ fontSize: 11 }}>GİB test ortamı: efaturatest.efatura.gov.tr</p>
+          <button className="btn primary" disabled={loading || !alias.trim() || !password.trim()} onClick={save}>
+            {loading ? 'Kaydediliyor...' : 'Kaydet'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

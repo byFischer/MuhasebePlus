@@ -12,5 +12,7 @@ const customerService = {
     formData.append('file', file);
     return api.post(`${BASE}/import`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data);
   },
+  exportExcel: () => api.get(`${BASE}/export/excel`, { responseType: 'blob' }).then(r => r.data),
+  exportPdf: () => api.get(`${BASE}/export/pdf`, { responseType: 'blob' }).then(r => r.data),
 };
 export default customerService;

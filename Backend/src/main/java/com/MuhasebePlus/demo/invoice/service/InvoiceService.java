@@ -26,6 +26,7 @@ import com.MuhasebePlus.demo.common.scheduler.HardDeletable;
 import com.MuhasebePlus.demo.common.service.CompanyContext;
 import com.MuhasebePlus.demo.company.repository.CompanyRepository;
 import com.MuhasebePlus.demo.customer.entity.Customer;
+import com.MuhasebePlus.demo.customer.entity.CustomerStatus;
 import com.MuhasebePlus.demo.customer.repository.CustomerRepository;
 import com.MuhasebePlus.demo.financial.entity.Currency;
 import com.MuhasebePlus.demo.invoice.dto.request.CollectionPromiseRequestDto;
@@ -503,8 +504,17 @@ public class InvoiceService implements HardDeletable {
 
     private Customer validateCustomer(Long customerId) {
         Long companyId = companyContext.getCurrentCompanyId();
-        return customerRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(customerId, companyId)
+        Customer customer = customerRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(customerId, companyId)
             .orElseThrow(() -> new RuntimeException("Customer not found or inactive for your company: " + customerId));
+
+        if (customer.getStatus() == CustomerStatus.BLOCKED) {
+            throw new BusinessException("Bu müşteri bloke durumda, fatura kesilemez.");
+        }
+        if (customer.getStatus() == CustomerStatus.PASSIVE) {
+            throw new BusinessException("Bu müşteri pasif durumda, fatura kesilemez.");
+        }
+
+        return customer;
     }
 
     private Map<Integer, Product> resolveProducts(List<InvoiceLineItemRequestDto> items, InvoiceType invoiceType) {

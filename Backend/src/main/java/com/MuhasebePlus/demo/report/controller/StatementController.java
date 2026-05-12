@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.MuhasebePlus.demo.report.dto.response.ReconciliationResponseDto;
 import com.MuhasebePlus.demo.report.dto.response.StatementResponseDto;
+import com.MuhasebePlus.demo.report.service.PdfStatementService;
 import com.MuhasebePlus.demo.report.service.ReconciliationService;
 import com.MuhasebePlus.demo.report.service.StatementService;
 
@@ -25,6 +26,7 @@ public class StatementController {
 
     private final StatementService statementService;
     private final ReconciliationService reconciliationService;
+    private final PdfStatementService pdfStatementService;
 
     @GetMapping("/statement/{customerId}")
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
@@ -42,5 +44,18 @@ public class StatementController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodStart,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodEnd) {
         return ResponseEntity.ok(reconciliationService.generateReconciliation(customerId, periodStart, periodEnd));
+    }
+
+    @GetMapping("/statement/{customerId}/pdf")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<byte[]> downloadStatementPdf(
+            @PathVariable Long customerId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        byte[] pdf = pdfStatementService.generatePdf(customerId, startDate, endDate);
+        return ResponseEntity.ok()
+                .header("Content-Type", "application/pdf")
+                .header("Content-Disposition", "inline; filename=\"cari-ekstre-" + customerId + ".pdf\"")
+                .body(pdf);
     }
 }

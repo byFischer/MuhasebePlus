@@ -19,5 +19,10 @@ const invoiceService = {
   getLateFeeConfig: () => api.get(`${BASE}/late-fee-config`).then(r => r.data),
   updateLateFeeConfig: (monthlyRate, gracePeriodDays) => api.put(`${BASE}/late-fee-config`, null, { params: { monthlyRate, gracePeriodDays } }).then(r => r.data),
   downloadPdf: (id) => api.get(`${BASE}/${id}/pdf`, { responseType: 'blob' }).then(r => r.data),
+  sendToGib: (id) => api.post(`${BASE}/${id}/send-to-gib`).then(r => r.data),
+  getGibLogs: (id) => api.get(`${BASE}/${id}/gib-logs`).then(r => r.data),
+  checkGibStatus: (id) => api.put(`${BASE}/${id}/gib-status`).then(r => r.data),
+  getGibProfile: () => api.get(`${BASE}/gib-profile`).then(r => r.data),
+  saveGibProfile: (alias, password, defaultSeriesCode) => api.post(`${BASE}/gib-profile`, null, { params: { alias, password, defaultSeriesCode } }).then(r => r.data),
 };
 export default invoiceService;

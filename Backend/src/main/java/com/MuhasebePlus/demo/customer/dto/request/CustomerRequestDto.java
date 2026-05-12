@@ -1,6 +1,7 @@
 package com.MuhasebePlus.demo.customer.dto.request;
 
 import com.MuhasebePlus.demo.customer.entity.CustomerRole;
+import com.MuhasebePlus.demo.customer.entity.CustomerStatus;
 import com.MuhasebePlus.demo.customer.entity.CustomerType;
 import com.MuhasebePlus.demo.financial.entity.Currency;
 
@@ -59,6 +60,11 @@ public record CustomerRequestDto(
         BigDecimal creditLimit,
 
         @NotNull(message = "Customer role is required")
-        CustomerRole customerRole
+        CustomerRole customerRole,
+
+        CustomerStatus status,
+
+        @Size(max = 50)
+        String customerGroup
 ) {
 }

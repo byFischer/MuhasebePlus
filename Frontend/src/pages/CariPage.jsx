@@ -7,12 +7,13 @@ import { TRY } from '@/lib/format';
 import { validateEmail, validateTaxNumberByType } from '@/lib/validators';
 import { useCustomers, useCreateCustomer, useUpdateCustomer, useDeleteCustomer, useImportCustomers } from '@/hooks/useCustomers';
 import { toast } from '@/lib/toast';
+import customerService from '@/services/customerService';
 
 export default function CariPage() {
   const emptyForm = {
     name: '', email: '', phoneNumber: '', taxNumber: '', city: '', address: '', type: 'INDIVIDUAL',
     accountCode: '', openingBalance: '', openingBalanceDate: '', taxOffice: '', identityNumber: '',
-    iban: '', currency: 'TRY', creditLimit: '', customerRole: 'BOTH',
+    iban: '', currency: 'TRY', creditLimit: '', customerRole: 'BOTH', status: 'ACTIVE', customerGroup: '',
   };
 
   const { data: list = [], isLoading, isError, refetch } = useCustomers();
@@ -25,6 +26,8 @@ export default function CariPage() {
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState('hepsi');
   const [roleFilter, setRoleFilter] = useState('hepsi');
+  const [statusFilter, setStatusFilter] = useState('hepsi');
+  const [groupFilter, setGroupFilter] = useState('hepsi');
   const [city, setCity] = useState('hepsi');
   const [cityOpen, setCityOpen] = useState(false);
   const [drawer, setDrawer] = useState(null);
@@ -43,14 +46,16 @@ export default function CariPage() {
     if (filter === 'risk' && !c.hasOverdueInvoices) return false;
     if (roleFilter === 'BUYER' && c.customerRole !== 'BUYER') return false;
     if (roleFilter === 'SELLER' && c.customerRole !== 'SELLER') return false;
+    if (statusFilter !== 'hepsi' && c.status !== statusFilter) return false;
+    if (groupFilter !== 'hepsi' && c.customerGroup !== groupFilter) return false;
     if (city !== 'hepsi' && c.city !== city) return false;
     if (q && !(c.name + (c.customerId || '') + (c.taxNumber || '') + (c.accountCode || '')).toLowerCase().includes(q.toLowerCase())) return false;
     return true;
-  }), [list, q, filter, roleFilter, city]);
+  }), [list, q, filter, roleFilter, statusFilter, groupFilter, city]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [totalPages]);
-  useEffect(() => { setPage(1); }, [q, filter, roleFilter, city]);
+  useEffect(() => { setPage(1); }, [q, filter, roleFilter, statusFilter, groupFilter, city]);
   const pageStart = (page - 1) * PAGE_SIZE;
   const pageEnd = Math.min(pageStart + PAGE_SIZE, filtered.length);
   const paged = filtered.slice(pageStart, pageEnd);
@@ -65,6 +70,30 @@ export default function CariPage() {
     }
   };
 
+  const handleExportExcel = async () => {
+    try {
+      const blob = await customerService.exportExcel();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'musteri-listesi.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.err('Excel aktarılamadı');
+    }
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      const blob = await customerService.exportPdf();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (e) {
+      toast.err('PDF aktarılamadı');
+    }
+  };
+
   if (isLoading) return <div className="page"><div className="card" style={{ height: 200 }} /></div>;
   if (isError) return <div className="page"><div className="card empty">Veri alınamadı <button className="btn sm" onClick={() => refetch()}>Tekrar Dene</button></div></div>;
 
@@ -76,7 +105,9 @@ export default function CariPage() {
           <p className="page-sub">{list.length} müşteri/tedarikçi</p>
         </div>
         <div className="page-actions">
-          <button className="btn ghost" onClick={() => { setImportOpen(true); setImportFile(null); setImportResult(null); }}><Icon name="upload" size={14} /> Excel'den İçe Aktar</button>
+          <button className="btn ghost" onClick={handleExportExcel}><Icon name="download" size={14} /> Excel</button>
+          <button className="btn ghost" onClick={handleExportPdf}><Icon name="print" size={14} /> PDF</button>
+          <button className="btn ghost" onClick={() => { setImportOpen(true); setImportFile(null); setImportResult(null); }}><Icon name="upload" size={14} /> İçe Aktar</button>
           <button className="btn primary" onClick={() => setDrawer({ mode: 'new' })}><Icon name="plus" /> Yeni Müşteri</button>
         </div>
       </div>
@@ -93,11 +124,16 @@ export default function CariPage() {
               <button key={k} className={roleFilter === k ? 'on' : ''} onClick={() => setRoleFilter(k)}>{l}</button>
             )}
           </div>
+          <div className="seg">
+            {[['hepsi', 'Tümü'], ['ACTIVE', 'Aktif'], ['PASSIVE', 'Pasif'], ['BLOCKED', 'Bloke']].map(([k, l]) =>
+              <button key={k} className={statusFilter === k ? 'on' : ''} onClick={() => setStatusFilter(k)}>{l}</button>
+            )}
+          </div>
           <CityFilter cities={cities} city={city} setCity={setCity} open={cityOpen} setOpen={setCityOpen} />
         </div>
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Hesap Kodu</th><th>Müşteri</th><th>VKN/TCKN</th><th>Şehir</th><th>Bakiye</th><th>Döviz</th><th>Rol</th><th></th></tr></thead>
+            <thead><tr><th>Hesap Kodu</th><th>Müşteri</th><th>VKN/TCKN</th><th>Şehir</th><th>Bakiye</th><th>Grup</th><th>Durum</th><th></th></tr></thead>
             <tbody>
               {paged.map(c => (
                 <tr key={c.customerId} className={sel === c.customerId ? 'sel' : ''} onClick={() => setSel(c.customerId)}>
@@ -106,13 +142,14 @@ export default function CariPage() {
                   <td className="mono">{c.taxNumber}</td>
                   <td className="muted">{c.city}</td>
                   <td className="mono"><span style={{ color: (c.currentBalance || 0) < 0 ? 'var(--neg)' : (c.currentBalance || 0) > 0 ? 'var(--pos)' : 'var(--ink-2)' }}>{TRY(c.currentBalance)}</span></td>
-                  <td><span className="pill">{c.currency || 'TRY'}</span></td>
+                  <td>{c.customerGroup ? <span className="pill">{c.customerGroup}</span> : '-'}</td>
                   <td>
                     <div className="row gap-4">
-                      <span className="pill">{c.customerRole === 'BUYER' ? 'Alıcı' : c.customerRole === 'SELLER' ? 'Satıcı' : 'Her İkisi'}</span>
+                      <StatusPill status={c.status} />
                       {c.hasOverdueInvoices && <span className="pill neg">RİSKLİ</span>}
                     </div>
                   </td>
+>>>>>>> 4d9e0d6fa9f85968517b07b7b5908424dc533f64
                   <td>
                     <div className="row gap-4">
                       <button className="tb-icon-btn" onClick={e => { e.stopPropagation(); setDrawer({ mode: 'edit', c }); }}><Icon name="edit" size={14} /></button>
@@ -181,6 +218,16 @@ export default function CariPage() {
   );
 }
 
+function StatusPill({ status }) {
+  const map = {
+    ACTIVE: { cls: 'pos', l: 'Aktif' },
+    PASSIVE: { cls: '', l: 'Pasif' },
+    BLOCKED: { cls: 'neg', l: 'Bloke' },
+  };
+  const s = map[status] || { cls: '', l: status || 'Bilinmiyor' };
+  return <span className={`pill ${s.cls}`}><span className="dot" />{s.l}</span>;
+}
+
 const TR_CITIES = [
   'Adana','Adıyaman','Afyonkarahisar','Ağrı','Aksaray','Amasya','Ankara','Antalya','Ardahan',
   'Artvin','Aydın','Balıkesir','Bartın','Batman','Bayburt','Bilecik','Bingöl','Bitlis','Bolu',
@@ -197,7 +244,7 @@ function CustomerDrawer({ open, mode, customer, onClose, onSave }) {
   const [c, setC] = useState({
     name: '', email: '', phoneNumber: '', taxNumber: '', city: '', address: '', type: 'INDIVIDUAL',
     accountCode: '', openingBalance: '', openingBalanceDate: '', taxOffice: '', identityNumber: '',
-    iban: '', currency: 'TRY', creditLimit: '', customerRole: 'BOTH',
+    iban: '', currency: 'TRY', creditLimit: '', customerRole: 'BOTH', status: 'ACTIVE', customerGroup: '',
   });
 
   useEffect(() => {
@@ -209,9 +256,10 @@ function CustomerDrawer({ open, mode, customer, onClose, onSave }) {
             openingBalanceDate: customer.openingBalanceDate || '', taxOffice: customer.taxOffice || '',
             identityNumber: customer.identityNumber || '', iban: customer.iban || '',
             currency: customer.currency || 'TRY', creditLimit: customer.creditLimit || '',
-            customerRole: customer.customerRole || 'BOTH',
+            customerRole: customer.customerRole || 'BOTH', status: customer.status || 'ACTIVE',
+            customerGroup: customer.customerGroup || '',
           }
-        : { name: '', email: '', phoneNumber: '', taxNumber: '', city: '', address: '', type: 'INDIVIDUAL', accountCode: '', openingBalance: '', openingBalanceDate: '', taxOffice: '', identityNumber: '', iban: '', currency: 'TRY', creditLimit: '', customerRole: 'BOTH' }
+        : { name: '', email: '', phoneNumber: '', taxNumber: '', city: '', address: '', type: 'INDIVIDUAL', accountCode: '', openingBalance: '', openingBalanceDate: '', taxOffice: '', identityNumber: '', iban: '', currency: 'TRY', creditLimit: '', customerRole: 'BOTH', status: 'ACTIVE', customerGroup: '' }
     );
   }, [customer, open]);
 
@@ -269,7 +317,8 @@ function CustomerDrawer({ open, mode, customer, onClose, onSave }) {
               openingBalanceDate: c.openingBalanceDate || null, taxOffice: c.taxOffice?.trim() || null,
               identityNumber: c.identityNumber?.trim() || null, iban: c.iban?.trim() || null,
               currency: c.currency || 'TRY', creditLimit: c.creditLimit ? Number(c.creditLimit) : null,
-              customerRole: c.customerRole || 'BOTH',
+              customerRole: c.customerRole || 'BOTH', status: c.status || 'ACTIVE',
+              customerGroup: c.customerGroup?.trim() || null,
             })}
           >
             {mode === 'edit' ? 'Güncelle' : 'Kaydet'}
@@ -383,6 +432,21 @@ function CustomerDrawer({ open, mode, customer, onClose, onSave }) {
               {roleBtn('Satıcı', 'SELLER')}
               {roleBtn('Her İkisi', 'BOTH')}
             </div>
+          </div>
+        </div>
+
+        <div className="grid-2">
+          <div className="field">
+            <label>Kart Durumu</label>
+            <select className="input" value={c.status || 'ACTIVE'} onChange={e => setC({ ...c, status: e.target.value })}>
+              <option value="ACTIVE">Aktif</option>
+              <option value="PASSIVE">Pasif</option>
+              <option value="BLOCKED">Bloke</option>
+            </select>
+          </div>
+          <div className="field">
+            <label>Müşteri Grubu</label>
+            <input className="input" value={c.customerGroup || ''} onChange={e => setC({ ...c, customerGroup: e.target.value })} placeholder="örn: VIP, Riskli, Tedarikçi..." />
           </div>
         </div>
 
