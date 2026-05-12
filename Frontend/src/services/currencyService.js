@@ -13,15 +13,19 @@ const fetchList = async (list, sembol) => {
 
 const currencyService = {
   getRates: async () => {
-    const [doviz, altin] = await Promise.all([
-      fetchList('doviz', 'USD,EUR'),
-      fetchList('altin', 'GA'),
-    ]);
-    return {
-      USD: doviz.USD,
-      EUR: doviz.EUR,
-      GA: altin.GA,
-    };
+    try {
+      const [doviz, altin] = await Promise.all([
+        fetchList('doviz', 'USD,EUR'),
+        fetchList('altin', 'GA'),
+      ]);
+      return {
+        USD: doviz.USD,
+        EUR: doviz.EUR,
+        GA: altin.GA,
+      };
+    } catch {
+      return null;
+    }
   },
 };
 

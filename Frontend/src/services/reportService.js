@@ -8,5 +8,7 @@ const reportService = {
   download: (id)   => api.get(`${BASE}/${id}/download`, { responseType: 'blob' }).then(r => r.data),
   remove:   (id)   => api.delete(`${BASE}/${id}`).then(r => r.data),
   restore:  (id)   => api.put(`${BASE}/${id}/restore`).then(r => r.data),
+  getStatement: (customerId, startDate, endDate) => api.get(`${BASE}/statement/${customerId}`, { params: { startDate, endDate } }).then(r => r.data),
+  getReconciliation: (customerId, periodStart, periodEnd) => api.get(`${BASE}/reconciliation/${customerId}`, { params: { periodStart, periodEnd } }).then(r => r.data),
 };
 export default reportService;

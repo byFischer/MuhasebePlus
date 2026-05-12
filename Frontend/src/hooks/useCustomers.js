@@ -29,3 +29,10 @@ export function useDeleteCustomer() {
     onError: (e) => toast.err(e?.response?.data?.message || 'Silme başarısız'),
   });
 }
+export function useImportCustomers() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (file) => customerService.importFile(file),
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['customers'] }); },
+    onError: (e) => toast.err(e?.response?.data?.message || 'İçe aktarma başarısız'),
+  });
+}

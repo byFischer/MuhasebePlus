@@ -3,6 +3,7 @@ import AccountTab from './AccountTab';
 import PreferencesTab from './PreferencesTab';
 import NotificationsTab from './NotificationsTab';
 import LanguageTab from './LanguageTab';
+import AiTab from './AiTab';
 import Icon from '@/components/mp/Icon';
 import '@/styles/settings.css';
 
@@ -11,6 +12,7 @@ const TABS = {
   preferences: { label: 'Tercihler', icon: 'edit', component: PreferencesTab },
   notifications: { label: 'Bildirimler', icon: 'bell', component: NotificationsTab },
   language: { label: 'Dil', icon: 'globe', component: LanguageTab },
+  ai: { label: 'Yapay Zeka', icon: 'zap', component: AiTab },
 };
 
 export default function SettingsPage() {

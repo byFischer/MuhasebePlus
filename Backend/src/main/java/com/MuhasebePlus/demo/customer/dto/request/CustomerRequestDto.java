@@ -1,11 +1,16 @@
 package com.MuhasebePlus.demo.customer.dto.request;
 
+import com.MuhasebePlus.demo.customer.entity.CustomerRole;
 import com.MuhasebePlus.demo.customer.entity.CustomerType;
+import com.MuhasebePlus.demo.financial.entity.Currency;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
 
 public record CustomerRequestDto(
         @NotBlank(message = "Name is required")
@@ -30,6 +35,30 @@ public record CustomerRequestDto(
 
         @jakarta.validation.constraints.Email(message = "Email must be valid")
         @Size(max = 255)
-        String email
+        String email,
+
+        @NotBlank(message = "Account code is required")
+        @Size(max = 20)
+        String accountCode,
+
+        BigDecimal openingBalance,
+
+        LocalDate openingBalanceDate,
+
+        @Size(max = 100)
+        String taxOffice,
+
+        @Pattern(regexp = "\\d{11}", message = "Identity number must be 11 digits")
+        String identityNumber,
+
+        @Size(max = 34)
+        String iban,
+
+        Currency currency,
+
+        BigDecimal creditLimit,
+
+        @NotNull(message = "Customer role is required")
+        CustomerRole customerRole
 ) {
 }

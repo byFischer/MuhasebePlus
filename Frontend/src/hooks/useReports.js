@@ -54,3 +54,19 @@ export function useDeleteReport() {
     onError: () => toast.err('Rapor silinemedi'),
   });
 }
+
+export function useStatement(customerId, startDate, endDate, enabled = true) {
+  return useQuery({
+    queryKey: ['statement', customerId, startDate, endDate],
+    queryFn: () => reportService.getStatement(customerId, startDate, endDate),
+    enabled: enabled && !!customerId && !!startDate && !!endDate,
+  });
+}
+
+export function useReconciliation(customerId, periodStart, periodEnd, enabled = true) {
+  return useQuery({
+    queryKey: ['reconciliation', customerId, periodStart, periodEnd],
+    queryFn: () => reportService.getReconciliation(customerId, periodStart, periodEnd),
+    enabled: enabled && !!customerId && !!periodStart && !!periodEnd,
+  });
+}

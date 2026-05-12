@@ -5,11 +5,14 @@ HELP.md
 
 Muhasebe dashboard yeni/
 
+
 ### Proje Planları ###
 final test bolumu yok md.md
 Proje Onerisi vize md.md
 Frontend-Gelistirme-Plani.md
 muhasebe-dashboard-yeni-diye-distributed-crown.md
+ödemeplani.md.md
+stockhareketi.md.md
 
 ### Node ###
 node_modules/
@@ -33,15 +36,24 @@ desktop.ini
 .env
 .env.*
 !.env.example
+!Frontend/.env.electron
 **/application-*.properties
 !**/application-test.properties
+!**/application-desktop.properties
 
 ### Build ###
 build/
+!Electron/build/
 dist/
 *.jar
 *.war
 *.class
+
+### Desktop Dağıtım Artifacts ###
+jre/
+backend.jar
+Electron/frontend/
+Electron/package-lock.json
 
 ### Logs ###
 *.log

@@ -10,6 +10,8 @@ public record InvoiceLineItemResponseDto(
     Integer quantity,
     BigDecimal unitPrice,
     BigDecimal vatRate,
-    BigDecimal lineTotal
+    BigDecimal lineTotal,
+    BigDecimal discountRate,
+    BigDecimal withholdingTaxRate
 ) {
 }

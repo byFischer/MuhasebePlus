@@ -33,3 +33,43 @@ export function useConfirmInvoice() {
     onError: (e) => toast.err(e?.response?.data?.message || 'Onay başarısız'),
   });
 }
+export function useCancelInvoice() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: ({ id, reason }) => invoiceService.cancel(id, reason),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoices'] }); toast.ok('Fatura iptal edildi'); },
+    onError: (e) => toast.err(e?.response?.data?.message || 'İptal başarısız'),
+  });
+}
+export function useCreateReturnInvoice() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: ({ id, dto }) => invoiceService.createReturn(id, dto),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoices'] }); toast.ok('İade faturası oluşturuldu'); },
+    onError: (e) => toast.err(e?.response?.data?.message || 'İade başarısız'),
+  });
+}
+export function useInvoiceSeries() {
+  return useQuery({ queryKey: ['invoice-series'], queryFn: () => invoiceService.getSeries() });
+}
+export function useCreateInvoiceSeries() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (dto) => invoiceService.createSeries(dto),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoice-series'] }); toast.ok('Seri oluşturuldu'); },
+    onError: (e) => toast.err(e?.response?.data?.message || 'Seri oluşturulamadı'),
+  });
+}
+export function useNextInvoiceNumber() {
+  return useMutation({ mutationFn: ({ invoiceType, seriesCode }) => invoiceService.nextNumber(invoiceType, seriesCode) });
+}
+export function useLateFee(invoiceId) {
+  return useQuery({ queryKey: ['late-fee', invoiceId], queryFn: () => invoiceService.getLateFee(invoiceId), enabled: !!invoiceId });
+}
+export function useLateFeeConfig() {
+  return useQuery({ queryKey: ['late-fee-config'], queryFn: () => invoiceService.getLateFeeConfig() });
+}
+export function useUpdateLateFeeConfig() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: ({ monthlyRate, gracePeriodDays }) => invoiceService.updateLateFeeConfig(monthlyRate, gracePeriodDays),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['late-fee-config'] }); toast.ok('Faiz ayarı güncellendi'); },
+    onError: (e) => toast.err(e?.response?.data?.message || 'Güncelleme başarısız'),
+  });
+}

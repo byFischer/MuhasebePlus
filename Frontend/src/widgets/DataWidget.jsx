@@ -17,6 +17,41 @@ function getColor(colorKey) {
   return COLORS[colorKey] || COLORS.accent;
 }
 
+// Ham DB değerlerini Türkçe'ye çevirir (enum, boolean vb.)
+const VALUE_TR = {
+  // İşlem tipi
+  INCOME: 'Gelir', EXPENSE: 'Gider',
+  // Fatura tipi
+  sale: 'Satış', purchase: 'Alış',
+  SALE: 'Satış', PURCHASE: 'Alış',
+  // Ödeme durumu
+  paid: 'Ödendi', pending: 'Bekliyor', draft: 'Taslak', overdue: 'Vadesi Geçmiş',
+  PAID: 'Ödendi', PENDING: 'Bekliyor', DRAFT: 'Taslak', OVERDUE: 'Vadesi Geçmiş',
+  // Müşteri tipi
+  INDIVIDUAL: 'Bireysel', CORPORATE: 'Kurumsal',
+  // Para birimi
+  TRY: '₺ TL', USD: '$ Dolar', EUR: '€ Euro',
+  // Boolean
+  true: 'Evet', false: 'Hayır',
+  // Şablon tipi
+  INVOICE: 'Fatura', STOCK_ADJUSTMENT: 'Stok Düzeltme',
+  CUSTOMER_TRANSACTION: 'Müşteri İşlemi', BANK_TRANSFER: 'Banka Transferi',
+  // Rapor tipi
+  PROFIT_LOSS: 'Kar/Zarar', CASH_FLOW: 'Nakit Akışı', AR_AGING: 'Alacak Yaşlandırma',
+  VAT_PREP: 'KDV Hazırlık', STOCK_STATUS: 'Stok Durumu',
+  COLLECTION_PERFORMANCE: 'Tahsilat Performansı', SLOW_INVENTORY: 'Yavaş Stok',
+  BUDGET_VARIANCE: 'Bütçe Sapması', BANK_RECONCILIATION: 'Banka Mutabakatı',
+  EXECUTIVE_SUMMARY: 'Yönetici Özeti',
+  // Format
+  EXCEL: 'Excel',
+};
+
+function translateValue(value) {
+  if (value == null) return '-';
+  const str = String(value);
+  return VALUE_TR[str] ?? str;
+}
+
 function KpiRenderer({ data, config }) {
   const rows = data?.data || [];
   if (rows.length === 0) return <Empty />;
@@ -82,9 +117,13 @@ function BarChartRenderer({ data, config }) {
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={rows}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
-        <XAxis dataKey={xKey} tick={{ fontSize: 10, fill: 'var(--ink-3)' }} />
+        <XAxis dataKey={xKey} tickFormatter={translateValue} tick={{ fontSize: 10, fill: 'var(--ink-3)' }} />
         <YAxis tick={{ fontSize: 10, fill: 'var(--ink-3)' }} />
-        <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid var(--line)' }} />
+        <Tooltip
+          contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid var(--line)' }}
+          formatter={(v) => [TRY(v)]}
+          labelFormatter={translateValue}
+        />
         <Bar dataKey={yKey} fill={color} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
@@ -103,9 +142,13 @@ function LineChartRenderer({ data, config }) {
     <ResponsiveContainer width="100%" height={220}>
       <LineChart data={rows}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
-        <XAxis dataKey={xKey} tick={{ fontSize: 10, fill: 'var(--ink-3)' }} />
+        <XAxis dataKey={xKey} tickFormatter={translateValue} tick={{ fontSize: 10, fill: 'var(--ink-3)' }} />
         <YAxis tick={{ fontSize: 10, fill: 'var(--ink-3)' }} />
-        <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid var(--line)' }} />
+        <Tooltip
+          contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid var(--line)' }}
+          formatter={(v) => [TRY(v)]}
+          labelFormatter={translateValue}
+        />
         <Line type="monotone" dataKey={yKey} stroke={color} strokeWidth={2} dot={false} />
       </LineChart>
     </ResponsiveContainer>
@@ -119,12 +162,14 @@ function PieChartRenderer({ data, config }) {
   const nameKey = keys[0];
   const valueKey = keys[1];
   const palette = Object.values(COLORS);
+  // Pie için verinin name değerlerini de çeviriyoruz
+  const translatedRows = rows.map(r => ({ ...r, [nameKey]: translateValue(r[nameKey]) }));
 
   return (
     <ResponsiveContainer width="100%" height={220}>
       <PieChart>
         <Pie
-          data={rows}
+          data={translatedRows}
           dataKey={valueKey}
           nameKey={nameKey}
           cx="50%"
@@ -133,11 +178,14 @@ function PieChartRenderer({ data, config }) {
           outerRadius={80}
           paddingAngle={3}
         >
-          {rows.map((_, i) => (
+          {translatedRows.map((_, i) => (
             <Cell key={i} fill={palette[i % palette.length]} />
           ))}
         </Pie>
-        <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+        <Tooltip
+          contentStyle={{ fontSize: 12, borderRadius: 8 }}
+          formatter={(v) => [TRY(v)]}
+        />
         <Legend wrapperStyle={{ fontSize: 11 }} />
       </PieChart>
     </ResponsiveContainer>
@@ -172,9 +220,9 @@ function Empty() {
 
 function formatCell(value, type) {
   if (value == null) return '-';
-  if (type === 'MEASURE' && typeof value === 'number') return TRY(value);
+  if (type === 'MEASURE' && (typeof value === 'number' || !isNaN(Number(value)))) return TRY(Number(value));
   if (typeof value === 'object') return JSON.stringify(value);
-  return String(value);
+  return translateValue(value);
 }
 
 export default function DataWidget({ data, config, mode, variant }) {

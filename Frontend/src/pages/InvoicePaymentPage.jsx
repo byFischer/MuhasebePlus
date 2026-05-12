@@ -3,7 +3,8 @@ import Icon from '@/components/mp/Icon';
 import Pagination from '@/components/mp/Pagination';
 import { TRY } from '@/lib/format';
 import { useInvoices } from '@/hooks/useInvoices';
-import { useInvoicePayments, useCreateInvoicePayment, useDeleteInvoicePayment } from '@/hooks/useInvoicePayments';
+import { useInvoicePayments, useCreateInvoicePayment, useDeleteInvoicePayment, useInvoicePromises, useCreatePromise, useFulfillPromise } from '@/hooks/useInvoicePayments';
+import { useLateFee } from '@/hooks/useInvoices';
 import { useBankAccounts } from '@/hooks/useBankAccounts';
 
 function PaymentMethodPill({ method }) {
@@ -38,8 +39,12 @@ export default function InvoicePaymentPage() {
   const INVOICE_PAGE_SIZE = 10;
 
   const { data: payments = [] } = useInvoicePayments(selectedInvoiceId);
+  const { data: promises = [] } = useInvoicePromises(selectedInvoiceId);
+  const { data: lateFeeData } = useLateFee(selectedInvoiceId);
   const createMut = useCreateInvoicePayment(selectedInvoiceId);
   const deleteMut = useDeleteInvoicePayment(selectedInvoiceId);
+  const createPromiseMut = useCreatePromise(selectedInvoiceId);
+  const fulfillPromiseMut = useFulfillPromise(selectedInvoiceId);
 
   const filteredInvoices = useMemo(
     () => invoices.filter((i) => i.invoiceType === tab && i.paymentStatus !== 'draft' && i.paymentStatus !== 'paid'),
@@ -188,6 +193,12 @@ export default function InvoicePaymentPage() {
               <div className="muted" style={{ fontSize: 12 }}>Kalan</div>
               <div className="mono" style={{ fontWeight: 600, color: remaining > 0 ? 'var(--neg)' : 'var(--pos)' }}>{TRY(remaining)}</div>
             </div>
+            {lateFeeData?.lateFee > 0 && (
+              <div className="card" style={{ flex: 1, minWidth: 180 }}>
+                <div className="muted" style={{ fontSize: 12 }}>Gecikme Faizi</div>
+                <div className="mono" style={{ fontWeight: 600, color: 'var(--neg)' }}>{TRY(lateFeeData.lateFee)}</div>
+              </div>
+            )}
             <div className="card" style={{ flex: 1, minWidth: 140 }}>
               <div className="muted" style={{ fontSize: 12 }}>Durum</div>
               <StatusPill status={selectedInvoice.paymentStatus} />
@@ -253,6 +264,30 @@ export default function InvoicePaymentPage() {
               </table>
             </div>
             <Pagination page={page} totalPages={paymentTotalPages} setPage={setPage} pageStart={paymentPageStart} pageEnd={paymentPageEnd} total={payments.length} />
+          </div>
+
+          <div className="card" style={{ marginTop: 16 }}>
+            <div className="toolbar">
+              <div style={{ fontSize: 13, fontWeight: 600 }}>Tahsilat Sözleri</div>
+            </div>
+            <div className="table-wrap">
+              <table className="table">
+                <thead><tr><th>Söz Tarihi</th><th className="num">Tutar</th><th>Not</th><th>Durum</th><th></th></tr></thead>
+                <tbody>
+                  {promises.map(p => (
+                    <tr key={p.promiseId}>
+                      <td>{p.promisedDate}</td>
+                      <td className="num mono tnum">{TRY(p.promisedAmount)}</td>
+                      <td className="muted">{p.notes || '—'}</td>
+                      <td>{p.fulfilled ? <span className="pill pos">✅ Gerçekleşti</span> : <span className="pill warn">⏳ Bekliyor</span>}</td>
+                      <td>{!p.fulfilled && <button className="btn ghost sm" onClick={() => fulfillPromiseMut.mutate(p.promiseId)}>Gerçekleştir</button>}</td>
+                    </tr>
+                  ))}
+                  {promises.length === 0 && <tr><td colSpan="5" className="empty">Henüz tahsilat sözü yok</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            <PromiseForm invoiceId={selectedInvoiceId} />
           </div>
         </>
       )}
@@ -399,6 +434,46 @@ function InlinePaymentForm({ invoice, remaining, invoiceType, onCancel, onSucces
 
       <div style={{ marginTop: 8, fontSize: 12, color: 'var(--ink-3)' }}>
         Kalan: <span className="mono" style={{ color: 'var(--neg)' }}>{TRY(remaining)}</span>
+      </div>
+    </div>
+  );
+}
+
+function PromiseForm({ invoiceId }) {
+  const createMut = useCreatePromise(invoiceId);
+  const [show, setShow] = useState(false);
+  const [promisedDate, setPromisedDate] = useState('');
+  const [promisedAmount, setPromisedAmount] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const save = () => {
+    if (!promisedDate || !promisedAmount) return;
+    createMut.mutate({
+      promisedDate,
+      promisedAmount: Number(promisedAmount),
+      notes: notes?.trim() || null,
+    }, { onSuccess: () => { setShow(false); setPromisedDate(''); setPromisedAmount(''); setNotes(''); } });
+  };
+
+  if (!show) return <button className="btn ghost sm" style={{ marginTop: 8 }} onClick={() => setShow(true)}><Icon name="plus" size={12} /> Yeni Tahsilat Sözü</button>;
+
+  return (
+    <div className="col gap-8" style={{ marginTop: 8, padding: '8px 0' }}>
+      <div className="row gap-8" style={{ alignItems: 'flex-end' }}>
+        <div className="field" style={{ minWidth: 140 }}>
+          <label style={{ fontSize: 11 }}>Söz Tarihi</label>
+          <input className="input" type="date" value={promisedDate} onChange={e => setPromisedDate(e.target.value)} />
+        </div>
+        <div className="field" style={{ minWidth: 120 }}>
+          <label style={{ fontSize: 11 }}>Tutar</label>
+          <input className="input mono" type="number" min="0" value={promisedAmount} onChange={e => setPromisedAmount(e.target.value)} placeholder="0.00" />
+        </div>
+        <div className="field" style={{ flex: 1 }}>
+          <label style={{ fontSize: 11 }}>Not</label>
+          <input className="input" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Opsiyonel..." />
+        </div>
+        <button className="btn ghost sm" onClick={() => setShow(false)}>Vazgeç</button>
+        <button className="btn primary sm" disabled={!promisedDate || !promisedAmount || createMut.isPending} onClick={save}>Kaydet</button>
       </div>
     </div>
   );

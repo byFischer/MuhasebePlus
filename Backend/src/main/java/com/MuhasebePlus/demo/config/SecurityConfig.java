@@ -1,4 +1,8 @@
 package com.MuhasebePlus.demo.config;
+import com.MuhasebePlus.demo.common.filter.SecurityHeadersFilter;
+import com.MuhasebePlus.demo.common.idempotency.IdempotencyFilter;
+import com.MuhasebePlus.demo.common.ratelimit.RateLimitFilter;
+import com.MuhasebePlus.demo.common.sanitizer.XssFilter;
 import com.MuhasebePlus.demo.security.filter.JwtAuthenticationFilter;
 import com.MuhasebePlus.demo.security.service.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +33,10 @@ import org.springframework.http.HttpStatus;
 public class SecurityConfig {
     
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final IdempotencyFilter idempotencyFilter;
+    private final RateLimitFilter rateLimitFilter;
+    private final SecurityHeadersFilter securityHeadersFilter;
+    private final XssFilter xssFilter;
     private final CustomUserDetailsService customUserDetailsService;
 
     @Bean
@@ -40,6 +48,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/users/register").permitAll()
+                .requestMatchers("/api/system/features").permitAll()
+                .requestMatchers("/api/system/initialize").permitAll()
+                .requestMatchers("/actuator/health").permitAll()
                 .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated()
             )
@@ -48,7 +59,11 @@ public class SecurityConfig {
                 .accessDeniedHandler(new AccessDeniedHandlerImpl())
             )
             .authenticationProvider(authenticationProvider())
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(securityHeadersFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(xssFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(idempotencyFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 

@@ -11,6 +11,7 @@ public record InvoiceResponseDto(
     Long customerId,
     String customerName,
     String invoiceType,
+    LocalDate invoiceDate,
     LocalDate dueDate,
     String paymentStatus,
     BigDecimal subtotal,
@@ -19,6 +20,19 @@ public record InvoiceResponseDto(
     List<InvoiceLineItemResponseDto> lineItems,
     LocalDateTime createdAt,
     LocalDateTime updatedAt,
-    boolean isDeleted
+    boolean isDeleted,
+    String currency,
+    BigDecimal exchangeRate,
+    BigDecimal totalAmountTry,
+    String discountType,
+    BigDecimal discountAmount,
+    BigDecimal withholdingTaxAmount,
+    String description,
+    String deliveryAddress,
+    boolean cancelled,
+    String cancellationReason,
+    Long referenceInvoiceId,
+    String seriesCode,
+    Long sequenceNumber
 ) {
 }

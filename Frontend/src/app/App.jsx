@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
+const Router = import.meta.env.VITE_ROUTER === 'hash' ? HashRouter : BrowserRouter;
 import { Provider } from "@/components/ui/provider";
 import { Toaster } from "@/components/ui/toaster";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -31,7 +32,7 @@ export default function App() {
   return (
     <Provider>
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
+        <Router>
           <AuthProvider>
             <Toaster />
             <Routes>
@@ -57,8 +58,9 @@ export default function App() {
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </AuthProvider>
-        </BrowserRouter>
+        </Router>
       </QueryClientProvider>
     </Provider>
   );
 }
+

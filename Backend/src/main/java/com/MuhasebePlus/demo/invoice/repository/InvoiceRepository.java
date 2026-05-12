@@ -6,6 +6,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -75,22 +77,65 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpec
         @Param("purchaseType") InvoiceType purchaseType,
         @Param("paidStatus") PaymentStatus paidStatus);
 
+    @Query(value = "SELECT DISTINCT i FROM Invoice i LEFT JOIN FETCH i.customer " +
+           "WHERE i.company.companyId = :companyId AND i.isDeleted = false",
+           countQuery = "SELECT COUNT(i) FROM Invoice i WHERE i.company.companyId = :companyId AND i.isDeleted = false")
+    Page<Invoice> findAllActiveWithCustomerPage(@Param("companyId") Long companyId, Pageable pageable);
+
     @Query("SELECT DISTINCT i FROM Invoice i LEFT JOIN FETCH i.customer " +
            "WHERE i.company.companyId = :companyId AND i.isDeleted = false")
     List<Invoice> findAllActiveWithCustomer(@Param("companyId") Long companyId);
 
+    @Query(value = "SELECT DISTINCT i FROM Invoice i LEFT JOIN FETCH i.customer " +
+           "WHERE i.customerId = :customerId AND i.company.companyId = :companyId AND i.isDeleted = false",
+           countQuery = "SELECT COUNT(i) FROM Invoice i WHERE i.customerId = :customerId AND i.company.companyId = :companyId AND i.isDeleted = false")
+    Page<Invoice> findByCustomerIdWithCustomerPage(@Param("customerId") Long customerId,
+                                                    @Param("companyId") Long companyId,
+                                                    Pageable pageable);
+
     @Query("SELECT DISTINCT i FROM Invoice i LEFT JOIN FETCH i.customer " +
            "WHERE i.customerId = :customerId AND i.company.companyId = :companyId AND i.isDeleted = false")
     List<Invoice> findByCustomerIdWithCustomer(@Param("customerId") Long customerId,
-                                               @Param("companyId") Long companyId);
+                                                @Param("companyId") Long companyId);
+
+    @Query(value = "SELECT DISTINCT i FROM Invoice i LEFT JOIN FETCH i.customer " +
+           "WHERE i.company.companyId = :companyId AND i.isDeleted = false " +
+           "AND (:status IS NULL OR i.paymentStatus = :status) " +
+           "AND (:type IS NULL OR i.invoiceType = :type) " +
+           "AND (CAST(:startDate AS DATE) IS NULL OR i.invoiceDate >= :startDate) " +
+           "AND (CAST(:endDate AS DATE) IS NULL OR i.invoiceDate <= :endDate)",
+           countQuery = "SELECT COUNT(i) FROM Invoice i " +
+           "WHERE i.company.companyId = :companyId AND i.isDeleted = false " +
+           "AND (:status IS NULL OR i.paymentStatus = :status) " +
+           "AND (:type IS NULL OR i.invoiceType = :type) " +
+           "AND (CAST(:startDate AS DATE) IS NULL OR i.invoiceDate >= :startDate) " +
+           "AND (CAST(:endDate AS DATE) IS NULL OR i.invoiceDate <= :endDate)")
+    Page<Invoice> findByFiltersWithCustomerPage(@Param("companyId") Long companyId,
+                                                 @Param("status") PaymentStatus status,
+                                                 @Param("type") InvoiceType type,
+                                                 @Param("startDate") LocalDate startDate,
+                                                 @Param("endDate") LocalDate endDate,
+                                                 Pageable pageable);
 
     @Query("SELECT DISTINCT i FROM Invoice i LEFT JOIN FETCH i.customer " +
            "WHERE i.company.companyId = :companyId AND i.isDeleted = false " +
            "AND (:status IS NULL OR i.paymentStatus = :status) " +
            "AND (:type IS NULL OR i.invoiceType = :type)")
     List<Invoice> findByFiltersWithCustomer(@Param("companyId") Long companyId,
-                                            @Param("status") PaymentStatus status,
-                                            @Param("type") InvoiceType type);
+                                             @Param("status") PaymentStatus status,
+                                             @Param("type") InvoiceType type);
+
+    @Query(value = "SELECT DISTINCT i FROM Invoice i LEFT JOIN FETCH i.customer " +
+           "WHERE i.company.companyId = :companyId AND i.isDeleted = false " +
+           "AND (LOWER(i.invoiceNumber) LIKE LOWER(CONCAT('%', :q, '%')) " +
+           "OR LOWER(i.description) LIKE LOWER(CONCAT('%', :q, '%')))",
+           countQuery = "SELECT COUNT(i) FROM Invoice i " +
+           "WHERE i.company.companyId = :companyId AND i.isDeleted = false " +
+           "AND (LOWER(i.invoiceNumber) LIKE LOWER(CONCAT('%', :q, '%')) " +
+           "OR LOWER(i.description) LIKE LOWER(CONCAT('%', :q, '%')))")
+    Page<Invoice> searchInvoices(@Param("companyId") Long companyId,
+                                  @Param("q") String query,
+                                  Pageable pageable);
 
     @Query("SELECT COALESCE(SUM(i.totalAmount), 0) FROM Invoice i " +
            "WHERE i.invoiceType = :type " +

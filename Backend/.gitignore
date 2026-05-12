@@ -38,3 +38,4 @@ build/
 ### Sensitive Configuration ###
 **/application-*.properties
 !**/application-test.properties
+!**/application-desktop.properties

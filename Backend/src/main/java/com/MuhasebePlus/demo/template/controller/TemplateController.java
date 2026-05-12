@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,6 +26,7 @@ public class TemplateController {
     private TemplateApplicationService templateApplicationService;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public ResponseEntity<List<TemplateResponseDto>> getTemplates(
             @RequestParam(required = false) String type) {
         if (type != null && !type.isBlank()) {
@@ -34,17 +36,20 @@ public class TemplateController {
     }
 
     @GetMapping("/{templateId}")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public ResponseEntity<TemplateResponseDto> getTemplateById(@PathVariable Long templateId) {
         return ResponseEntity.ok(templateService.getTemplateById(templateId));
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public ResponseEntity<TemplateResponseDto> createTemplate(
             @Valid @RequestBody TemplateRequestDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(templateService.createTemplate(dto));
     }
 
     @PutMapping("/{templateId}")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public ResponseEntity<TemplateResponseDto> updateTemplate(
             @PathVariable Long templateId,
             @Valid @RequestBody TemplateRequestDto dto) {
@@ -52,17 +57,20 @@ public class TemplateController {
     }
 
     @DeleteMapping("/{templateId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteTemplate(@PathVariable Long templateId) {
         templateService.softDeleteTemplate(templateId);
         return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{templateId}/restore")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<TemplateResponseDto> restoreTemplate(@PathVariable Long templateId) {
         return ResponseEntity.ok(templateService.restoreTemplate(templateId));
     }
 
     @PostMapping("/{templateId}/apply")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public ResponseEntity<TemplateApplyResponseDto> applyTemplate(
             @PathVariable Long templateId,
             @RequestBody(required = false) TemplateApplyRequestDto dto) {

@@ -33,6 +33,7 @@ import TemplateQuickWidget from '@/widgets/TemplateQuickWidget';
 import DataWidget from '@/widgets/DataWidget';
 import WidgetConfigModal from '@/widgets/shell/WidgetConfigModal';
 import { useWidgetData } from '@/hooks/useWidgetData';
+import AiWidgetChatPanel from '@/components/ai/AiWidgetChatPanel';
 
 const WIDGET_COMPONENTS = {
   kpis:       KpisWidget,
@@ -60,6 +61,7 @@ export default function DashboardPage() {
   const { data: txns = [] } = useTransactions();
   const { data: templates = [] } = useTemplates();
   const { user } = useAuth();
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
 
   // Widget configs (id -> object)
   const [configs, setConfigs] = useState(() => {
@@ -397,7 +399,10 @@ export default function DashboardPage() {
             <Icon name="folder" size={14} /> Widgetlarım
           </button>
           <button className="btn ghost" onClick={() => onNav('/widget-builder')}>
-            <Icon name="sparkle" size={14} /> Widget Oluştur
+            <Icon name="grid" size={14} /> Widget Oluştur
+          </button>
+          <button className="btn primary" onClick={() => setAiPanelOpen(true)}>
+            <Icon name="sparkle" size={14} /> AI ile Oluştur
           </button>
         </div>
       </div>
@@ -491,6 +496,11 @@ export default function DashboardPage() {
           onSave={(next) => { applyConfig(configOpen, next); setConfigOpen(null); }}
           onClose={() => setConfigOpen(null)}
         />
+      )}
+
+      {/* AI Widget Chat Panel */}
+      {aiPanelOpen && (
+        <AiWidgetChatPanel onClose={() => setAiPanelOpen(false)} />
       )}
     </div>
   );

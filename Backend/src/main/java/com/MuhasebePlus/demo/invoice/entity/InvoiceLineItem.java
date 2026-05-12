@@ -64,6 +64,12 @@ public class InvoiceLineItem extends BaseEntity {
     @Column(name = "line_total", precision = 15, scale = 2, nullable = false)
     private BigDecimal lineTotal;
 
+    @Column(name = "discount_rate", precision = 5, scale = 2)
+    private BigDecimal discountRate;
+
+    @Column(name = "withholding_tax_rate", precision = 5, scale = 2)
+    private BigDecimal withholdingTaxRate;
+
     @Column(name = "is_deleted")
     private boolean isDeleted;
 }

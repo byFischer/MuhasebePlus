@@ -1,5 +1,7 @@
 package com.MuhasebePlus.demo.customer.dto.response;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public record CustomerResponseDto(
@@ -11,10 +13,19 @@ public record CustomerResponseDto(
     String city,
     String phoneNumber,
     String type,
-    java.math.BigDecimal currentBalance,
+    BigDecimal currentBalance,
     boolean hasOverdueInvoices,
     boolean isDeleted,
     LocalDateTime createdAt,
-    LocalDateTime updatedAt
+    LocalDateTime updatedAt,
+    String accountCode,
+    BigDecimal openingBalance,
+    LocalDate openingBalanceDate,
+    String taxOffice,
+    String identityNumber,
+    String iban,
+    String currency,
+    BigDecimal creditLimit,
+    String customerRole
 ) {
 }

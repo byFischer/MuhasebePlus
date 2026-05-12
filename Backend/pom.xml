@@ -82,6 +82,13 @@
 			<version>5.2.5</version>
 		</dependency>
 
+		<!-- Apache PDFBox - PDF invoice generation -->
+		<dependency>
+			<groupId>org.apache.pdfbox</groupId>
+			<artifactId>pdfbox</artifactId>
+			<version>3.0.3</version>
+		</dependency>
+
 		<!-- JWT -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
@@ -111,6 +118,18 @@
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
+		</dependency>
+
+		<!-- Embedded Postgres — desktop profile için -->
+		<dependency>
+			<groupId>io.zonky.test</groupId>
+			<artifactId>embedded-postgres</artifactId>
+			<version>2.0.7</version>
+		</dependency>
+		<dependency>
+			<groupId>io.zonky.test.postgres</groupId>
+			<artifactId>embedded-postgres-binaries-windows-amd64</artifactId>
+			<version>16.2.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.projectlombok</groupId>

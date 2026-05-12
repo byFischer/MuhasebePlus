@@ -20,7 +20,7 @@ public class CompanyController {
     private final CompanyService companyService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CompanyResponseDto> createCompany(@Valid @RequestBody CompanyRequestDto requestDto) {
         CompanyResponseDto response = companyService.createCompany(requestDto);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
@@ -34,7 +34,7 @@ public class CompanyController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<CompanyResponseDto>> getAllCompanies() {
         List<CompanyResponseDto> response = companyService.getAllCompanies();
         return ResponseEntity.ok(response);
@@ -50,7 +50,7 @@ public class CompanyController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteCompany(@PathVariable Long id) {
         companyService.deleteCompany(id);
         return ResponseEntity.noContent().build();

@@ -43,6 +43,72 @@ public class DynamicQueryService {
             "REPORT", Report.class
     );
 
+    private static final Map<String, String> FIELD_LABELS;
+    static {
+        FIELD_LABELS = new java.util.HashMap<>();
+        // INVOICE
+        FIELD_LABELS.put("invoiceNumber",         "Fatura No");
+        FIELD_LABELS.put("invoiceType",           "Fatura Tipi");
+        FIELD_LABELS.put("paymentStatus",         "Ödeme Durumu");
+        FIELD_LABELS.put("dueDate",               "Vade Tarihi");
+        FIELD_LABELS.put("totalAmount",           "Toplam Tutar");
+        FIELD_LABELS.put("subtotal",              "Ara Toplam");
+        FIELD_LABELS.put("vatAmount",             "KDV Tutarı");
+        FIELD_LABELS.put("customer.name",         "Müşteri Adı");
+        FIELD_LABELS.put("customer.city",         "Müşteri Şehir");
+        // TRANSACTION
+        FIELD_LABELS.put("transactionType",       "İşlem Tipi");
+        FIELD_LABELS.put("amount",                "Tutar");
+        FIELD_LABELS.put("transactionDate",       "İşlem Tarihi");
+        FIELD_LABELS.put("category",              "Kategori");
+        FIELD_LABELS.put("account.bankName",      "Banka Adı");
+        FIELD_LABELS.put("isRecurring",           "Tekrarlayan");
+        // CUSTOMER
+        FIELD_LABELS.put("name",                  "Ad");
+        FIELD_LABELS.put("email",                 "E-posta");
+        FIELD_LABELS.put("taxNumber",             "Vergi No");
+        FIELD_LABELS.put("city",                  "Şehir");
+        FIELD_LABELS.put("type",                  "Tür");
+        FIELD_LABELS.put("phoneNumber",           "Telefon");
+        // PRODUCT
+        FIELD_LABELS.put("barcode",               "Barkod");
+        FIELD_LABELS.put("unit",                  "Birim");
+        FIELD_LABELS.put("salePrice",             "Satış Fiyatı");
+        FIELD_LABELS.put("costPrice",             "Maliyet Fiyatı");
+        FIELD_LABELS.put("vatRate",               "KDV Oranı");
+        // STOCK
+        FIELD_LABELS.put("product.name",          "Ürün Adı");
+        FIELD_LABELS.put("product.barcode",       "Ürün Barkodu");
+        FIELD_LABELS.put("quantity",              "Miktar");
+        FIELD_LABELS.put("minQuantity",           "Kritik Seviye");
+        FIELD_LABELS.put("lastCountDate",         "Son Sayım Tarihi");
+        // BANK_ACCOUNT
+        FIELD_LABELS.put("bankName",              "Banka Adı");
+        FIELD_LABELS.put("iban",                  "IBAN");
+        FIELD_LABELS.put("currency",              "Para Birimi");
+        // INVOICE_LINE_ITEM
+        FIELD_LABELS.put("invoice.invoiceNumber", "Fatura No");
+        FIELD_LABELS.put("invoice.invoiceType",   "Fatura Tipi");
+        FIELD_LABELS.put("invoice.paymentStatus", "Ödeme Durumu");
+        FIELD_LABELS.put("unitPrice",             "Birim Fiyat");
+        FIELD_LABELS.put("lineTotal",             "Satır Toplamı");
+        // TEMPLATE
+        FIELD_LABELS.put("templateCode",          "Şablon Kodu");
+        FIELD_LABELS.put("templateName",          "Şablon Adı");
+        FIELD_LABELS.put("templateType",          "Şablon Tipi");
+        FIELD_LABELS.put("period",                "Dönem");
+        // REPORT
+        FIELD_LABELS.put("reportType",            "Rapor Tipi");
+        FIELD_LABELS.put("startDate",             "Başlangıç Tarihi");
+        FIELD_LABELS.put("endDate",               "Bitiş Tarihi");
+        FIELD_LABELS.put("format",                "Format");
+        FIELD_LABELS.put("fileSize",              "Dosya Boyutu");
+        // Common
+        FIELD_LABELS.put("createdAt",             "Oluşturma Tarihi");
+        FIELD_LABELS.put("value",                 "Değer");
+        FIELD_LABELS.put("count",                 "Adet");
+    }
+
     public QueryResult executeQuery(QueryConfigDto config, Long companyId) {
         Class<?> entityClass = ENTITY_MAP.get(config.dataSource());
         if (entityClass == null) {
@@ -242,11 +308,14 @@ public class DynamicQueryService {
     private List<ColumnMeta> buildColumnMeta(List<GroupByClause> groupByList, AggregateClause aggregate, String aggregateAlias) {
         List<ColumnMeta> cols = new ArrayList<>();
         for (GroupByClause gb : groupByList) {
-            cols.add(new ColumnMeta(gb.field(), gb.field(), "DIMENSION"));
+            String turkishLabel = FIELD_LABELS.getOrDefault(gb.field(), gb.field());
+            cols.add(new ColumnMeta(gb.field(), turkishLabel, "DIMENSION"));
         }
         if (aggregate != null) {
-            String label = aggregate.alias() != null ? aggregate.alias() : aggregateAlias;
-            cols.add(new ColumnMeta(aggregateAlias, label, "MEASURE"));
+            String aliasKey = aggregate.alias() != null ? aggregate.alias() : aggregateAlias;
+            String turkishLabel = FIELD_LABELS.getOrDefault(aliasKey,
+                    aggregate.function() != null ? aggregate.function().name() : aliasKey);
+            cols.add(new ColumnMeta(aggregateAlias, turkishLabel, "MEASURE"));
         }
         return cols;
     }

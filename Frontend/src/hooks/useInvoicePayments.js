@@ -35,3 +35,36 @@ export function useDeleteInvoicePayment(invoiceId) {
     onError: (e) => toast.err(e?.message || e?.response?.data?.message || 'Silme başarısız'),
   });
 }
+
+export function useInvoicePromises(invoiceId) {
+  return useQuery({
+    queryKey: ['invoice-promises', invoiceId],
+    queryFn: () => invoicePaymentService.getPromises(invoiceId),
+    enabled: !!invoiceId,
+  });
+}
+
+export function useCreatePromise(invoiceId) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (dto) => invoicePaymentService.createPromise(invoiceId, dto),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoice-promises', invoiceId] });
+      toast.ok('Tahsilat sözü kaydedildi');
+    },
+    onError: (e) => toast.err(e?.response?.data?.message || 'Söz kaydedilemedi'),
+  });
+}
+
+export function useFulfillPromise(invoiceId) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (promiseId) => invoicePaymentService.fulfillPromise(invoiceId, promiseId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoice-promises', invoiceId] });
+      qc.invalidateQueries({ queryKey: ['invoices'] });
+      toast.ok('Tahsilat sözü gerçekleştirildi');
+    },
+    onError: (e) => toast.err(e?.response?.data?.message || 'Gerçekleştirme başarısız'),
+  });
+}

@@ -81,7 +81,17 @@ export const dashboardService = {
   previewQuery: async (queryConfig) => {
     const response = await api.post('/api/widget-definitions/preview', { queryConfig });
     return response.data;
-  }
+  },
+
+  aiWidgetChat: async ({ messages }) => {
+    const response = await api.post('/api/ai/widgets/chat', { messages });
+    return response.data;
+  },
+
+  getAiQuota: async () => {
+    const response = await api.get('/api/ai/quota');
+    return response.data;
+  },
 };
 
 export default dashboardService;

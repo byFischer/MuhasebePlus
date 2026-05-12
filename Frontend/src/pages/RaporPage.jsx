@@ -16,7 +16,10 @@ import {
   useGenerateReport,
   useDownloadReport,
   useDeleteReport,
+  useStatement,
+  useReconciliation,
 } from '@/hooks/useReports';
+import { useCustomers } from '@/hooks/useCustomers';
 
 const REPORT_TYPES = [
   { value: 'PROFIT_LOSS',  label: 'Kar-Zarar' },
@@ -29,6 +32,8 @@ const REPORT_TYPES = [
   { value: "BUDGET_VARIANCE", label: "Bütçe-Gerçekleşen Sapma" },
   { value: "BANK_RECONCILIATION", label: "Banka/Kasa Mutabakat" },
   { value: "EXECUTIVE_SUMMARY", label: "Yönetici Finans Sağlığı Özeti" },
+  { value: "STATEMENT", label: "Cari Hesap Ekstresi" },
+  { value: "RECONCILIATION", label: "Cari Mutabakat Mektubu" },
 ];
 
 const PERIODS = ['Bugün', 'Bu hafta', 'Bu ay', 'Bu çeyrek', 'Bu yıl', 'Özel'];
@@ -40,6 +45,7 @@ const TYPE_LABELS = REPORT_TYPES.reduce((acc, t) => {
 
 // Anlık (date-bağımsız) raporlar — UI'da tarih kontrolleri pasif görünür
 const SNAPSHOT_TYPES = new Set(['AR_AGING', 'STOCK_STATUS']);
+const CUSTOMER_TYPES = new Set(['STATEMENT', 'RECONCILIATION']);
 
 function deriveReportName(reportType, startDate, endDate) {
   const base = TYPE_LABELS[reportType] || reportType || 'Rapor';
@@ -160,6 +166,10 @@ export default function RaporPage() {
   const initial = useMemo(() => computeRange('Bu ay'), []);
   const [startDate, setStartDate] = useState(initial.startDate);
   const [endDate, setEndDate] = useState(initial.endDate);
+  const [customerId, setCustomerId] = useState('');
+  const { data: customers = [] } = useCustomers();
+
+  const showCustomer = CUSTOMER_TYPES.has(reportType);
 
   useEffect(() => {
     if (period === 'Özel') return;
@@ -174,7 +184,18 @@ export default function RaporPage() {
   );
 
   const { data: reports = [], isLoading: reportsLoading, isError: reportsError, refetch: refetchReports } = useReports();
-  const { data: preview, isLoading: previewLoading, isError: previewError, refetch: refetchPreview } = useReportPreview(previewDto);
+  const { data: preview, isLoading: previewLoading, isError: previewError, refetch: refetchPreview } =
+    CUSTOMER_TYPES.has(reportType) ? { data: null, isLoading: false, isError: false, refetch: () => {} }
+    : useReportPreview(previewDto);
+
+  const { data: statementData, isLoading: statementLoading } = useStatement(
+    customerId, startDate, endDate,
+    reportType === 'STATEMENT' && !!customerId
+  );
+  const { data: reconciliationData, isLoading: reconciliationLoading } = useReconciliation(
+    customerId, startDate, endDate,
+    reportType === 'RECONCILIATION' && !!customerId
+  );
   const generateMut = useGenerateReport();
   const downloadMut = useDownloadReport();
   const deleteMut = useDeleteReport();
@@ -283,6 +304,16 @@ export default function RaporPage() {
               </div>
             </div>
 
+            {showCustomer && (
+              <div className="field">
+                <label>Müşteri *</label>
+                <select className="select" value={customerId} onChange={e => setCustomerId(e.target.value)}>
+                  <option value="">Müşteri seçin...</option>
+                  {customers.map(c => <option key={c.customerId} value={c.customerId}>{c.name} ({c.accountCode || c.taxNumber})</option>)}
+                </select>
+              </div>
+            )}
+
             <button
               className="btn primary"
               onClick={onGenerate}
@@ -298,11 +329,25 @@ export default function RaporPage() {
           <div className="card-h">
             <div>
               <h3>{previewTitle}</h3>
-              <div className="sub">{previewSub}</div>
+              <div className="sub">{showCustomer ? (customerId ? customers.find(c => c.customerId === Number(customerId))?.name || 'Bilinmeyen' : 'Müşteri seçin') : previewSub}</div>
             </div>
-            <span className="pill info">Otomatik güncel</span>
+            {!showCustomer && <span className="pill info">Otomatik güncel</span>}
           </div>
           <div className="card-b col gap-12">
+            {reportType === 'STATEMENT' && statementData && (
+              <StatementPreview data={statementData} loading={statementLoading} />
+            )}
+            {reportType === 'STATEMENT' && !statementData && !statementLoading && (
+              <div className="empty">{customerId ? 'Veri alınamadı' : 'Önizleme için müşteri seçin'}</div>
+            )}
+            {reportType === 'RECONCILIATION' && reconciliationData && (
+              <ReconciliationPreview data={reconciliationData} loading={reconciliationLoading} />
+            )}
+            {reportType === 'RECONCILIATION' && !reconciliationData && !reconciliationLoading && (
+              <div className="empty">{customerId ? 'Veri alınamadı' : 'Önizleme için müşteri seçin'}</div>
+            )}
+
+            {!CUSTOMER_TYPES.has(reportType) && (<>
             {previewError ? (
               <div className="empty">
                 Önizleme alınamadı{' '}
@@ -329,6 +374,7 @@ export default function RaporPage() {
                 loading={previewLoading}
               />
             )}
+            </>)}
           </div>
         </div>
       </div>

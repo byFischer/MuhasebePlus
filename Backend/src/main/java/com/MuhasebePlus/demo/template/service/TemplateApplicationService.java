@@ -190,7 +190,7 @@ public class TemplateApplicationService {
             Integer productId = extractIntFromMap(item, "productId");
             Integer quantity = extractIntFromMap(item, "quantity");
             if (productId != null && quantity != null && quantity > 0) {
-                lineItems.add(new InvoiceLineItemRequestDto(productId, quantity, null));
+                lineItems.add(new InvoiceLineItemRequestDto(productId, quantity, null, null, null));
             }
         }
 
@@ -199,7 +199,8 @@ public class TemplateApplicationService {
         }
 
         InvoiceRequestDto dto = new InvoiceRequestDto(
-                invoiceNumber, customerId, invoiceType, dueDate, lineItems);
+                invoiceNumber, customerId, invoiceType, java.time.LocalDate.now(), dueDate, lineItems,
+                null, null, null, null, null, null);
 
         InvoiceResponseDto response = invoiceService.createInvoice(dto);
         return response.invoiceId();

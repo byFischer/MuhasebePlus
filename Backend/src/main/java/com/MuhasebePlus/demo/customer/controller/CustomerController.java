@@ -3,6 +3,9 @@ package com.MuhasebePlus.demo.customer.controller;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -15,11 +18,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.MuhasebePlus.demo.customer.dto.request.CustomerNoteRequestDto;
 import com.MuhasebePlus.demo.customer.dto.request.CustomerRequestDto;
 import com.MuhasebePlus.demo.customer.dto.response.CustomerNoteResponseDto;
 import com.MuhasebePlus.demo.customer.dto.response.CustomerResponseDto;
+import com.MuhasebePlus.demo.customer.dto.response.ImportResultDto;
 import com.MuhasebePlus.demo.customer.service.CustomerService;
 
 import jakarta.validation.Valid;
@@ -41,16 +46,17 @@ public class CustomerController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
-    public ResponseEntity<List<CustomerResponseDto>> getAllCustomers(
+    public ResponseEntity<Page<CustomerResponseDto>> getAllCustomers(
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) String type) {
+            @RequestParam(required = false) String type,
+            @PageableDefault(size = 20, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
         if (search != null && !search.isBlank()) {
-            return ResponseEntity.ok(customerService.searchCustomers(search));
+            return ResponseEntity.ok(customerService.searchCustomersPaged(search, pageable));
         }
         if (type != null && !type.isBlank()) {
-            return ResponseEntity.ok(customerService.getCustomersByType(type));
+            return ResponseEntity.ok(customerService.getCustomersByTypePaged(type, pageable));
         }
-        return ResponseEntity.ok(customerService.getAllCustomers());
+        return ResponseEntity.ok(customerService.getAllCustomersPaged(pageable));
     }
 
     @GetMapping("/{customerId}")
@@ -112,5 +118,11 @@ public class CustomerController {
             @PathVariable Long noteId) {
         customerService.deleteNote(noteId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/import")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<ImportResultDto> importCustomers(@RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(customerService.importCustomers(file));
     }
 }

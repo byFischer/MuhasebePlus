@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import Icon from '@/components/mp/Icon';
 import { ROUTE_META } from '@/lib/routes';
 import { useColorMode } from '@/components/ui/color-mode';
+import { AnimatedList } from '@/components/ui/animated-list';
 import api from '@/services/api';
 
 function formatNotifDate(value) {
@@ -73,16 +74,18 @@ export default function Topbar() {
               <div className="empty">Henüz bildirim yok</div>
             ) : (
               <div style={{ maxHeight: 320, overflowY: 'auto' }}>
-                {notifications.map(n => (
-                  <div key={n.notificationId} onClick={() => handleNotifClick(n)}
-                    style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)', cursor: 'pointer', background: n.read ? 'transparent' : 'var(--bg-2)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600 }}>{n.subject}</span>
-                      <span className="muted" style={{ fontSize: 11 }}>{formatNotifDate(n.sentAt)}</span>
+                <AnimatedList delay={80} key={notifOpen ? 'open' : 'closed'}>
+                  {notifications.map(n => (
+                    <div key={n.notificationId} onClick={() => handleNotifClick(n)}
+                      style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)', cursor: 'pointer', background: n.read ? 'transparent' : 'var(--bg-2)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>{n.subject}</span>
+                        <span className="muted" style={{ fontSize: 11 }}>{formatNotifDate(n.sentAt)}</span>
+                      </div>
+                      <div className="muted" style={{ fontSize: 12 }}>{n.message}</div>
                     </div>
-                    <div className="muted" style={{ fontSize: 12 }}>{n.message}</div>
-                  </div>
-                ))}
+                  ))}
+                </AnimatedList>
               </div>
             )}
           </div>
