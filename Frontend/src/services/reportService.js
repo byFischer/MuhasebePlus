@@ -10,5 +10,6 @@ const reportService = {
   restore:  (id)   => api.put(`${BASE}/${id}/restore`).then(r => r.data),
   getStatement: (customerId, startDate, endDate) => api.get(`${BASE}/statement/${customerId}`, { params: { startDate, endDate } }).then(r => r.data),
   getReconciliation: (customerId, periodStart, periodEnd) => api.get(`${BASE}/reconciliation/${customerId}`, { params: { periodStart, periodEnd } }).then(r => r.data),
+  downloadStatementPdf: (customerId, startDate, endDate) => api.get(`${BASE}/statement/${customerId}/pdf`, { params: { startDate, endDate }, responseType: 'blob' }).then(r => r.data),
 };
 export default reportService;

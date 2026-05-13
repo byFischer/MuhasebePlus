@@ -12,6 +12,13 @@ export function useInvoice(id) {
     enabled: id != null,
   });
 }
+export function useInvoicesByCustomer(customerId) {
+  return useQuery({
+    queryKey: ['invoices', 'byCustomer', customerId],
+    queryFn: () => invoiceService.byCustomer(customerId),
+    enabled: customerId != null,
+  });
+}
 export function useCreateInvoice() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (dto) => invoiceService.create(dto),

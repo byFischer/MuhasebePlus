@@ -5,9 +5,11 @@ import Drawer from '@/components/mp/Drawer';
 import { DropdownFilter, CityFilter } from '@/components/mp/DropdownFilter';
 import { TRY } from '@/lib/format';
 import { validateEmail, validateTaxNumberByType } from '@/lib/validators';
-import { useCustomers, useCreateCustomer, useUpdateCustomer, useDeleteCustomer, useImportCustomers } from '@/hooks/useCustomers';
+import { useCustomers, useCreateCustomer, useUpdateCustomer, useDeleteCustomer, useImportCustomers, useCustomerActivity } from '@/hooks/useCustomers';
+import { useInvoicesByCustomer } from '@/hooks/useInvoices';
 import { toast } from '@/lib/toast';
 import customerService from '@/services/customerService';
+import reportService from '@/services/reportService';
 
 export default function CariPage() {
   const emptyForm = {
@@ -36,6 +38,20 @@ export default function CariPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState(null);
   const [importResult, setImportResult] = useState(null);
+
+  const [selCustomerId, setSelCustomerId] = useState(null);
+  const [detailTab, setDetailTab] = useState('activity');
+  const now = new Date();
+  const [detailStart, setDetailStart] = useState(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10));
+  const [detailEnd, setDetailEnd] = useState(now.toISOString().slice(0, 10));
+
+  const { data: customerDetail } = useCustomers();
+  const selCustomer = useMemo(() => list.find(c => c.customerId === selCustomerId), [list, selCustomerId]);
+  const { data: activity = [], isLoading: actLoading } = useCustomerActivity(selCustomerId, detailStart, detailEnd);
+  const { data: customerInvoices = [] } = useInvoicesByCustomer(selCustomerId);
+
+  const openInvoices = useMemo(() => customerInvoices.filter(i => i.paymentStatus !== 'paid' && !i.cancelled), [customerInvoices]);
+  const overdueCount = useMemo(() => openInvoices.filter(i => i.paymentStatus === 'overdue').length, [openInvoices]);
   const PAGE_SIZE = 15;
 
   const cities = useMemo(() => ['hepsi', ...Array.from(new Set(list.map(c => c.city).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'tr'))], [list]);
@@ -136,7 +152,7 @@ export default function CariPage() {
             <thead><tr><th>Hesap Kodu</th><th>Müşteri</th><th>VKN/TCKN</th><th>Şehir</th><th>Bakiye</th><th>Grup</th><th>Durum</th><th></th></tr></thead>
             <tbody>
               {paged.map(c => (
-                <tr key={c.customerId} className={sel === c.customerId ? 'sel' : ''} onClick={() => setSel(c.customerId)}>
+                <tr key={c.customerId} className={selCustomerId === c.customerId ? 'sel' : ''} onClick={() => setSelCustomerId(c.customerId)}>
                   <td className="mono">{c.accountCode || '-'}</td>
                   <td><b>{c.name}</b>{c.email && <div className="muted" style={{ fontSize: 11 }}>{c.email}</div>}</td>
                   <td className="mono">{c.taxNumber}</td>
@@ -149,7 +165,6 @@ export default function CariPage() {
                       {c.hasOverdueInvoices && <span className="pill neg">RİSKLİ</span>}
                     </div>
                   </td>
->>>>>>> 4d9e0d6fa9f85968517b07b7b5908424dc533f64
                   <td>
                     <div className="row gap-4">
                       <button className="tb-icon-btn" onClick={e => { e.stopPropagation(); setDrawer({ mode: 'edit', c }); }}><Icon name="edit" size={14} /></button>
@@ -214,6 +229,24 @@ export default function CariPage() {
           </div>
         </div>
       )}
+
+      {selCustomerId && selCustomer && (
+        <CustomerDetailDrawer
+          customer={selCustomer}
+          activity={activity}
+          actLoading={actLoading}
+          openInvoices={openInvoices}
+          overdueCount={overdueCount}
+          detailTab={detailTab}
+          setDetailTab={setDetailTab}
+          detailStart={detailStart}
+          setDetailStart={setDetailStart}
+          detailEnd={detailEnd}
+          setDetailEnd={setDetailEnd}
+          onClose={() => { setSelCustomerId(null); setDetailTab('activity'); }}
+          onEdit={() => setDrawer({ mode: 'edit', c: selCustomer })}
+        />
+      )}
     </div>
   );
 }
@@ -226,6 +259,130 @@ function StatusPill({ status }) {
   };
   const s = map[status] || { cls: '', l: status || 'Bilinmiyor' };
   return <span className={`pill ${s.cls}`}><span className="dot" />{s.l}</span>;
+}
+
+function CustomerDetailDrawer({ customer, activity, actLoading, openInvoices, overdueCount, detailTab, setDetailTab, detailStart, setDetailStart, detailEnd, setDetailEnd, onClose, onEdit }) {
+  const tabs = [
+    { key: 'activity', label: 'Hareketler' },
+    { key: 'invoices', label: `Açık Faturalar (${openInvoices.length})` },
+    { key: 'notes', label: 'Notlar' },
+  ];
+
+  const handleDownloadPdf = async () => {
+    try {
+      const blob = await reportService.downloadStatementPdf(customer.customerId, detailStart, detailEnd);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (e) {
+      toast.err('PDF indirilemedi');
+    }
+  };
+
+  const totalDebit = activity.reduce((s, a) => s + (Number(a.debit) || 0), 0);
+  const totalCredit = activity.reduce((s, a) => s + (Number(a.credit) || 0), 0);
+
+  return (
+    <Drawer open={true} onClose={onClose} title={`${customer.name} — Hesap Kodu: ${customer.accountCode || '—'}`} width={700}>
+      <div className="col gap-12">
+        <div className="grid-4" style={{ gap: 10 }}>
+          <div className="card" style={{ padding: 10, textAlign: 'center' }}>
+            <div className="muted" style={{ fontSize: 11 }}>Bakiye</div>
+            <div className="mono tnum" style={{ fontWeight: 600, fontSize: 16, color: (customer.currentBalance || 0) < 0 ? 'var(--neg)' : 'var(--pos)' }}>{TRY(customer.currentBalance)}</div>
+          </div>
+          <div className="card" style={{ padding: 10, textAlign: 'center' }}>
+            <div className="muted" style={{ fontSize: 11 }}>Kredi Limiti</div>
+            <div className="mono tnum" style={{ fontWeight: 600, fontSize: 16 }}>{TRY(customer.creditLimit || 0)}</div>
+          </div>
+          <div className="card" style={{ padding: 10, textAlign: 'center' }}>
+            <div className="muted" style={{ fontSize: 11 }}>Açık Fatura</div>
+            <div className="mono tnum" style={{ fontWeight: 600, fontSize: 16 }}>{openInvoices.length} adet</div>
+          </div>
+          <div className="card" style={{ padding: 10, textAlign: 'center' }}>
+            <div className="muted" style={{ fontSize: 11 }}>Vd. Geçmiş</div>
+            <div className="mono tnum" style={{ fontWeight: 600, fontSize: 16, color: overdueCount > 0 ? 'var(--neg)' : 'var(--pos)' }}>{overdueCount} adet</div>
+          </div>
+        </div>
+
+        <div className="row gap-8" style={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <div className="seg">
+            {tabs.map(t => (
+              <button key={t.key} className={detailTab === t.key ? 'on' : ''} onClick={() => setDetailTab(t.key)}>{t.label}</button>
+            ))}
+          </div>
+          <div className="row gap-8" style={{ alignItems: 'center' }}>
+            {detailTab !== 'notes' && (
+              <>
+                <input className="input" type="date" value={detailStart} onChange={e => setDetailStart(e.target.value)} style={{ width: 130, fontSize: 12 }} />
+                <span className="muted" style={{ fontSize: 12 }}>—</span>
+                <input className="input" type="date" value={detailEnd} onChange={e => setDetailEnd(e.target.value)} style={{ width: 130, fontSize: 12 }} />
+              </>
+            )}
+            <button className="btn ghost sm" onClick={onEdit}><Icon name="edit" size={12} /> Düzenle</button>
+            <button className="btn ghost sm" onClick={handleDownloadPdf}><Icon name="download" size={12} /> PDF Ekstre</button>
+          </div>
+        </div>
+
+        {detailTab === 'activity' && (
+          actLoading ? <div className="empty">Yükleniyor...</div> :
+          <div>
+            <div className="table-wrap">
+              <table className="table">
+                <thead><tr><th>Tarih</th><th>Açıklama</th><th>Belge No</th><th className="num">Borç</th><th className="num">Alacak</th><th className="num">Bakiye</th></tr></thead>
+                <tbody>
+                  {activity.map((a, i) => (
+                    <tr key={i}>
+                      <td className="muted" style={{ fontSize: 12 }}>{a.date}</td>
+                      <td style={{ fontSize: 12 }}>{a.type === 'FATURA' ? <span className="pill">{a.description}</span> : a.description}</td>
+                      <td className="mono" style={{ fontSize: 11 }}>{a.documentNo}</td>
+                      <td className="num mono tnum" style={{ fontSize: 12, color: a.debit > 0 ? 'var(--neg)' : undefined }}>{a.debit > 0 ? TRY(a.debit) : ''}</td>
+                      <td className="num mono tnum" style={{ fontSize: 12, color: a.credit > 0 ? 'var(--pos)' : undefined }}>{a.credit > 0 ? TRY(a.credit) : ''}</td>
+                      <td className="num mono tnum" style={{ fontSize: 12, fontWeight: 600, color: a.balance < 0 ? 'var(--neg)' : 'var(--pos)' }}>{TRY(a.balance)}</td>
+                    </tr>
+                  ))}
+                  {activity.length === 0 && <tr><td colSpan="6" className="empty">Bu dönemde hareket yok</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            <div className="row" style={{ justifyContent: 'flex-end', gap: 24, marginTop: 8, fontSize: 12 }}>
+              <span className="muted">Toplam Borç: <span className="mono tnum" style={{ color: 'var(--neg)' }}>{TRY(totalDebit)}</span></span>
+              <span className="muted">Toplam Alacak: <span className="mono tnum" style={{ color: 'var(--pos)' }}>{TRY(totalCredit)}</span></span>
+              <span className="muted">Net: <span className="mono tnum" style={{ fontWeight: 600 }}>{TRY(totalDebit - totalCredit)}</span></span>
+            </div>
+          </div>
+        )}
+
+        {detailTab === 'invoices' && (
+          <div>
+            <div className="table-wrap">
+              <table className="table">
+                <thead><tr><th>Fatura No</th><th>Tarih</th><th>Vade</th><th className="num">Tutar</th><th>Durum</th><th>Gecikme</th></tr></thead>
+                <tbody>
+                  {openInvoices.map(inv => {
+                    const days = inv.dueDate ? Math.floor((new Date() - new Date(inv.dueDate)) / 86400000) : 0;
+                    return (
+                      <tr key={inv.invoiceId}>
+                        <td className="mono">{inv.invoiceNumber}</td>
+                        <td className="muted" style={{ fontSize: 12 }}>{inv.invoiceDate || inv.dueDate}</td>
+                        <td className="muted" style={{ fontSize: 12 }}>{inv.dueDate}</td>
+                        <td className="num mono tnum">{TRY(inv.totalAmount)}</td>
+                        <td><span className={`pill ${inv.paymentStatus === 'overdue' ? 'neg' : 'warn'}`}>{inv.paymentStatus === 'overdue' ? 'Gecikmiş' : 'Beklemede'}</span></td>
+                        <td>{days > 0 ? <span className="pill neg">{days} gün</span> : <span className="pill pos">Vadesi gelmedi</span>}</td>
+                      </tr>
+                    );
+                  })}
+                  {openInvoices.length === 0 && <tr><td colSpan="6" className="empty">Açık fatura yok</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {detailTab === 'notes' && (
+          <div className="empty">Notlar yakında...</div>
+        )}
+      </div>
+    </Drawer>
+  );
 }
 
 const TR_CITIES = [

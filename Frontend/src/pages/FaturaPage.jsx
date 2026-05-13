@@ -3,7 +3,7 @@ import Icon from '@/components/mp/Icon';
 import Pagination from '@/components/mp/Pagination';
 import Drawer from '@/components/mp/Drawer';
 import { TRY } from '@/lib/format';
-import { useInvoices, useInvoice, useCreateInvoice, useDeleteInvoice, useConfirmInvoice, useCancelInvoice, useCreateReturnInvoice, useInvoiceSeries, useNextInvoiceNumber } from '@/hooks/useInvoices';
+import { useInvoices, useInvoice, useCreateInvoice, useDeleteInvoice, useConfirmInvoice, useCancelInvoice, useCreateReturnInvoice, useInvoiceSeries, useCreateInvoiceSeries, useNextInvoiceNumber } from '@/hooks/useInvoices';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useProducts } from '@/hooks/useProducts';
 import { useStockMovements } from '@/hooks/useStock';
@@ -33,12 +33,14 @@ export default function FaturaPage() {
   const confirmMut = useConfirmInvoice();
   const cancelMut = useCancelInvoice();
   const { data: seriesList = [] } = useInvoiceSeries();
+  const createSeriesMut = useCreateInvoiceSeries();
   const [q, setQ] = useState('');
   const [tab, setTab] = useState('hepsi');
   const [page, setPage] = useState(1);
   const [drawer, setDrawer] = useState(false);
   const [returnDrawer, setReturnDrawer] = useState(null);
   const [gibOpen, setGibOpen] = useState(false);
+  const [seriesOpen, setSeriesOpen] = useState(false);
   const [detailInvoiceId, setDetailInvoiceId] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const PAGE_SIZE = 15;
@@ -124,6 +126,7 @@ export default function FaturaPage() {
       <div className="page-head">
         <div><h1 className="page-title">Fatura Yönetimi</h1><p className="page-sub">{list.length} fatura</p></div>
         <div className="page-actions">
+          <button className="btn ghost" onClick={() => setSeriesOpen(true)}><Icon name="grip" size={14} /> Seriler</button>
           <button className="btn ghost" onClick={() => setGibOpen(true)}><Icon name="globe" size={14} /> GİB</button>
           <button className="btn primary" onClick={() => setDrawer(true)}><Icon name="plus" /> Yeni Fatura</button>
         </div>
@@ -202,6 +205,7 @@ export default function FaturaPage() {
         <ReturnInvoiceDrawer original={returnDrawer} customers={customers} onClose={() => setReturnDrawer(null)} />
       )}
       {gibOpen && <GibProfileModal onClose={() => setGibOpen(false)} />}
+      {seriesOpen && <SeriesModal seriesList={seriesList} createMut={createSeriesMut} onClose={() => setSeriesOpen(false)} />}
     </div>
   );
 }
@@ -674,6 +678,76 @@ function GibProfileModal({ onClose }) {
           <button className="btn primary" disabled={loading || !alias.trim() || !password.trim()} onClick={save}>
             {loading ? 'Kaydediliyor...' : 'Kaydet'}
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SeriesModal({ seriesList, createMut, onClose }) {
+  const [code, setCode] = useState('');
+  const [type, setType] = useState('sale');
+  const [prefix, setPrefix] = useState('');
+
+  const save = () => {
+    if (!code.trim()) return;
+    createMut.mutate({
+      seriesCode: code.trim().toUpperCase(),
+      invoiceType: type,
+      prefix: prefix.trim() || null,
+      year: new Date().getFullYear(),
+      isActive: true,
+    }, { onSuccess: onClose });
+  };
+
+  return (
+    <div className="drawer-scrim" onClick={onClose}>
+      <div className="drawer" style={{ maxWidth: 480, height: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div className="drawer-head">
+          <h2>Fatura Serileri</h2>
+          <button className="tb-icon-btn" onClick={onClose}><Icon name="x" /></button>
+        </div>
+        <div className="drawer-body col gap-12">
+          {(seriesList || []).length > 0 && (
+            <div className="table-wrap">
+              <table className="table">
+                <thead><tr><th>Kod</th><th>Tür</th><th>Son Sıra</th><th>Durum</th></tr></thead>
+                <tbody>
+                  {seriesList.map(s => (
+                    <tr key={s.seriesId}>
+                      <td className="mono"><b>{s.seriesCode}</b>{s.prefix && <span className="muted" style={{ fontSize: 10, marginLeft: 4 }}>({s.prefix})</span>}</td>
+                      <td><span className="pill">{s.invoiceType === 'sale' ? 'Satış' : 'Alış'}</span></td>
+                      <td className="mono">{s.lastSequenceNumber}</td>
+                      <td><span className={`pill ${s.isActive ? 'pos' : ''}`}>{s.isActive ? 'Aktif' : 'Pasif'}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
+            <label style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, display: 'block' }}>Yeni Seri Ekle</label>
+            <div className="row gap-8" style={{ alignItems: 'flex-end' }}>
+              <div className="field" style={{ width: 100 }}>
+                <label style={{ fontSize: 11 }}>Kod *</label>
+                <input className="input mono" value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="A" maxLength={10} />
+              </div>
+              <div className="field" style={{ width: 100 }}>
+                <label style={{ fontSize: 11 }}>Tür</label>
+                <select className="input" value={type} onChange={e => setType(e.target.value)}>
+                  <option value="sale">Satış</option>
+                  <option value="purchase">Alış</option>
+                </select>
+              </div>
+              <div className="field" style={{ width: 100 }}>
+                <label style={{ fontSize: 11 }}>Önek</label>
+                <input className="input mono" value={prefix} onChange={e => setPrefix(e.target.value)} placeholder="ops." maxLength={20} />
+              </div>
+              <button className="btn primary sm" disabled={!code.trim() || createMut.isPending} onClick={save}>
+                {createMut.isPending ? '...' : 'Ekle'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

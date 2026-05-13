@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import customerService from '@/services/customerService';
+import api from '@/services/api';
 import { toast } from '@/lib/toast';
 
 export function useCustomers(params) {
@@ -34,5 +35,12 @@ export function useImportCustomers() {
   return useMutation({ mutationFn: (file) => customerService.importFile(file),
     onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['customers'] }); },
     onError: (e) => toast.err(e?.response?.data?.message || 'İçe aktarma başarısız'),
+  });
+}
+export function useCustomerActivity(customerId, startDate, endDate) {
+  return useQuery({
+    queryKey: ['customer-activity', customerId, startDate, endDate],
+    queryFn: () => api.get(`/api/customers/${customerId}/activity`, { params: { startDate, endDate } }).then(r => r.data),
+    enabled: !!customerId && !!startDate && !!endDate,
   });
 }
