@@ -22,6 +22,8 @@ import com.MuhasebePlus.demo.financial.repository.TransactionRepository;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceRepository;
 import com.MuhasebePlus.demo.log.entity.LogLevel;
 import com.MuhasebePlus.demo.log.service.SystemLogService;
+import com.MuhasebePlus.demo.period.service.AccountingPeriodGuard;
+import com.MuhasebePlus.demo.accounting.service.JournalEntryService;
 
 @Service
 @Transactional
@@ -45,11 +47,18 @@ public class TransactionService implements HardDeletable {
     @Autowired
     private CompanyRepository companyRepository;
 
+    @Autowired
+    private AccountingPeriodGuard periodGuard;
+
+    @Autowired
+    private JournalEntryService journalEntryService;
+
 
     // PUBLIC METOTLAR
 
     public TransactionResponseDto createTransaction(TransactionRequestDto dto) {
         Long companyId = companyContext.getCurrentCompanyId();
+        periodGuard.assertOpen(dto.transactionDate());
 
         BankAccount account = validateAccount(dto.accountId(), companyId);
         validateInvoice(dto.invoiceId(), companyId);
@@ -71,6 +80,9 @@ public class TransactionService implements HardDeletable {
         tx.setDeleted(false);
 
         Transaction saved = transactionRepository.save(tx);
+        if (saved.getInvoiceId() == null) {
+            journalEntryService.createForTransaction(saved);
+        }
         systemLogService.log(LogLevel.INFO,
                 "İşlem kaydedildi: " + saved.getTransactionType() + " " + saved.getAmount() + " TL (hesap=" + saved.getAccountId() + ")");
         return toResponseDto(saved);
@@ -126,6 +138,8 @@ public class TransactionService implements HardDeletable {
     public TransactionResponseDto updateTransaction(Long transactionId, TransactionRequestDto dto) {
         Long companyId = companyContext.getCurrentCompanyId();
         Transaction tx = findActiveTransactionById(transactionId, companyId);
+        periodGuard.assertOpen(tx.getTransactionDate());
+        if (dto.transactionDate() != null) periodGuard.assertOpen(dto.transactionDate());
 
         BankAccount account = validateAccount(dto.accountId(), companyId);
         validateInvoice(dto.invoiceId(), companyId);
@@ -149,15 +163,24 @@ public class TransactionService implements HardDeletable {
         tx.setRecurring(Boolean.TRUE.equals(dto.isRecurring()));
 
         Transaction updated = transactionRepository.save(tx);
+        if (updated.getInvoiceId() == null) {
+            Long companyId2 = updated.getCompany().getCompanyId();
+            journalEntryService.reverseForTransaction(companyId2, transactionId, "Güncelleme");
+            journalEntryService.createForTransaction(updated);
+        }
         return toResponseDto(updated);
     }
 
     public void softDeleteTransaction(Long transactionId) {
         Long companyId = companyContext.getCurrentCompanyId();
         Transaction tx = findActiveTransactionById(transactionId, companyId);
+        periodGuard.assertOpen(tx.getTransactionDate());
         tx.setDeleted(true);
         tx.setDeletedAt(LocalDateTime.now());
         transactionRepository.save(tx);
+        if (tx.getInvoiceId() == null) {
+            journalEntryService.reverseForTransaction(companyId, transactionId, "İşlem silindi");
+        }
     }
 
     public TransactionResponseDto restoreTransaction(Long transactionId) {

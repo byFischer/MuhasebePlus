@@ -41,6 +41,11 @@ import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
 import com.MuhasebePlus.demo.invoice.entity.PaymentStatus;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceRepository;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceLineItemRepository;
+import com.MuhasebePlus.demo.accounting.dto.response.JournalEntryLineResponseDto;
+import com.MuhasebePlus.demo.accounting.dto.response.JournalEntryResponseDto;
+import com.MuhasebePlus.demo.accounting.dto.response.TrialBalanceRowDto;
+import com.MuhasebePlus.demo.accounting.entity.AccountType;
+import com.MuhasebePlus.demo.accounting.service.JournalEntryService;
 import com.MuhasebePlus.demo.report.entity.ReportType;
 import com.MuhasebePlus.demo.stock.entity.Product;
 import com.MuhasebePlus.demo.stock.entity.Stock;
@@ -74,6 +79,9 @@ public class ReportExcelBuilder {
     @Autowired
     private BankAccountRepository bankAccountRepository;
 
+    @Autowired
+    private JournalEntryService journalEntryService;
+
     public void build(ReportType type, Long companyId, LocalDate start, LocalDate end, OutputStream out) throws IOException {
         try (Workbook wb = new XSSFWorkbook()) {
             switch (type) {
@@ -89,6 +97,10 @@ public class ReportExcelBuilder {
                 case BUDGET_VARIANCE    -> buildBudgetVariance(wb, companyId, start, end);
                 case BANK_RECONCILIATION -> buildBankReconciliation(wb, companyId, start, end);
                 case EXECUTIVE_SUMMARY  -> buildExecutiveSummary(wb, companyId, start, end);
+                case TRIAL_BALANCE      -> buildTrialBalance(wb, start, end);
+                case INCOME_STATEMENT   -> buildIncomeStatement(wb, start, end);
+                case BALANCE_SHEET      -> buildBalanceSheet(wb, start, end);
+                case JOURNAL_LISTING    -> buildJournalListing(wb, start, end);
             }
             wb.write(out);
         }
@@ -887,6 +899,198 @@ public class ReportExcelBuilder {
             row.createCell(2).setCellValue((int) item[2]);
         }
         autoSize(prodSheet, 3);
+    }
+
+
+    // MİZAN (Trial Balance)
+
+    private void buildTrialBalance(Workbook wb, LocalDate start, LocalDate end) {
+        List<TrialBalanceRowDto> rows = journalEntryService.getTrialBalance(start, end);
+        CellStyle bold = boldStyle(wb);
+
+        Sheet sheet = wb.createSheet("Mizan");
+        writeRow(sheet, 0, "Tarih Aralığı:", start + " - " + end);
+        writeHeaderRow(sheet, 2, bold, "Hesap Kodu", "Hesap Adı", "Tür", "Borç Toplamı", "Alacak Toplamı", "Bakiye");
+
+        int r = 3;
+        BigDecimal totalDebit = BigDecimal.ZERO;
+        BigDecimal totalCredit = BigDecimal.ZERO;
+        for (TrialBalanceRowDto row : rows) {
+            Row exRow = sheet.createRow(r++);
+            exRow.createCell(0).setCellValue(safeStr(row.accountCode()));
+            exRow.createCell(1).setCellValue(safeStr(row.accountName()));
+            exRow.createCell(2).setCellValue(row.accountType() != null ? row.accountType().name() : "");
+            exRow.createCell(3).setCellValue(row.totalDebit().doubleValue());
+            exRow.createCell(4).setCellValue(row.totalCredit().doubleValue());
+            exRow.createCell(5).setCellValue(row.balance().doubleValue());
+            totalDebit = totalDebit.add(row.totalDebit());
+            totalCredit = totalCredit.add(row.totalCredit());
+        }
+        r++;
+        Row totalsRow = sheet.createRow(r);
+        Cell tc = totalsRow.createCell(0); tc.setCellValue("TOPLAM"); tc.setCellStyle(bold);
+        Cell td = totalsRow.createCell(3); td.setCellValue(totalDebit.doubleValue()); td.setCellStyle(bold);
+        Cell tc2 = totalsRow.createCell(4); tc2.setCellValue(totalCredit.doubleValue()); tc2.setCellStyle(bold);
+        BigDecimal diff = totalDebit.subtract(totalCredit);
+        Cell tbal = totalsRow.createCell(5); tbal.setCellValue(diff.doubleValue()); tbal.setCellStyle(bold);
+        autoSize(sheet, 6);
+    }
+
+
+    // GELİR TABLOSU (Income Statement)
+
+    private void buildIncomeStatement(Workbook wb, LocalDate start, LocalDate end) {
+        List<TrialBalanceRowDto> rows = journalEntryService.getTrialBalance(start, end);
+        CellStyle bold = boldStyle(wb);
+
+        List<TrialBalanceRowDto> incomeRows = rows.stream()
+                .filter(r -> r.accountType() == AccountType.INCOME).toList();
+        List<TrialBalanceRowDto> expenseRows = rows.stream()
+                .filter(r -> r.accountType() == AccountType.EXPENSE || r.accountType() == AccountType.COST).toList();
+
+        BigDecimal totalIncome = incomeRows.stream()
+                .map(r -> r.balance().negate()).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalExpense = expenseRows.stream()
+                .map(TrialBalanceRowDto::balance).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal netProfit = totalIncome.subtract(totalExpense);
+
+        Sheet sheet = wb.createSheet("Gelir Tablosu");
+        writeRow(sheet, 0, "Tarih Aralığı:", start + " - " + end);
+
+        int r = 2;
+        Row h1 = sheet.createRow(r++); Cell hc1 = h1.createCell(0); hc1.setCellValue("GELİRLER"); hc1.setCellStyle(bold);
+        writeHeaderRow(sheet, r++, bold, "Hesap Kodu", "Hesap Adı", "Tutar");
+        for (TrialBalanceRowDto row : incomeRows) {
+            Row exRow = sheet.createRow(r++);
+            exRow.createCell(0).setCellValue(safeStr(row.accountCode()));
+            exRow.createCell(1).setCellValue(safeStr(row.accountName()));
+            exRow.createCell(2).setCellValue(row.balance().negate().doubleValue());
+        }
+        Row incTotalRow = sheet.createRow(r++);
+        Cell itc = incTotalRow.createCell(1); itc.setCellValue("Toplam Gelir"); itc.setCellStyle(bold);
+        Cell itv = incTotalRow.createCell(2); itv.setCellValue(totalIncome.doubleValue()); itv.setCellStyle(bold);
+
+        r++;
+        Row h2 = sheet.createRow(r++); Cell hc2 = h2.createCell(0); hc2.setCellValue("GİDERLER / MALİYETLER"); hc2.setCellStyle(bold);
+        writeHeaderRow(sheet, r++, bold, "Hesap Kodu", "Hesap Adı", "Tutar");
+        for (TrialBalanceRowDto row : expenseRows) {
+            Row exRow = sheet.createRow(r++);
+            exRow.createCell(0).setCellValue(safeStr(row.accountCode()));
+            exRow.createCell(1).setCellValue(safeStr(row.accountName()));
+            exRow.createCell(2).setCellValue(row.balance().doubleValue());
+        }
+        Row expTotalRow = sheet.createRow(r++);
+        Cell etc = expTotalRow.createCell(1); etc.setCellValue("Toplam Gider"); etc.setCellStyle(bold);
+        Cell etv = expTotalRow.createCell(2); etv.setCellValue(totalExpense.doubleValue()); etv.setCellStyle(bold);
+
+        r++;
+        Row netRow = sheet.createRow(r);
+        Cell nc = netRow.createCell(1); nc.setCellValue("NET KÂR / ZARAR"); nc.setCellStyle(bold);
+        Cell nv = netRow.createCell(2); nv.setCellValue(netProfit.doubleValue()); nv.setCellStyle(bold);
+        autoSize(sheet, 3);
+    }
+
+
+    // BİLANÇO (Balance Sheet)
+
+    private void buildBalanceSheet(Workbook wb, LocalDate start, LocalDate end) {
+        List<TrialBalanceRowDto> rows = journalEntryService.getTrialBalance(start, end);
+        CellStyle bold = boldStyle(wb);
+
+        List<TrialBalanceRowDto> assetRows = rows.stream()
+                .filter(r -> r.accountType() == AccountType.ASSET).toList();
+        List<TrialBalanceRowDto> liabilityRows = rows.stream()
+                .filter(r -> r.accountType() == AccountType.LIABILITY).toList();
+        List<TrialBalanceRowDto> equityRows = rows.stream()
+                .filter(r -> r.accountType() == AccountType.EQUITY).toList();
+
+        BigDecimal totalAssets = assetRows.stream().map(TrialBalanceRowDto::balance).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalLiabilities = liabilityRows.stream().map(r -> r.balance().negate()).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalEquity = equityRows.stream().map(r -> r.balance().negate()).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        Sheet sheet = wb.createSheet("Bilanço");
+        writeRow(sheet, 0, "Tarih Aralığı:", start + " - " + end);
+
+        int r = 2;
+        Row ah = sheet.createRow(r++); Cell ahc = ah.createCell(0); ahc.setCellValue("AKTİF (Varlıklar)"); ahc.setCellStyle(bold);
+        writeHeaderRow(sheet, r++, bold, "Hesap Kodu", "Hesap Adı", "Tutar");
+        for (TrialBalanceRowDto row : assetRows) {
+            Row exRow = sheet.createRow(r++);
+            exRow.createCell(0).setCellValue(safeStr(row.accountCode()));
+            exRow.createCell(1).setCellValue(safeStr(row.accountName()));
+            exRow.createCell(2).setCellValue(row.balance().doubleValue());
+        }
+        Row atRow = sheet.createRow(r++);
+        Cell atc = atRow.createCell(1); atc.setCellValue("Toplam Aktif"); atc.setCellStyle(bold);
+        Cell atv = atRow.createCell(2); atv.setCellValue(totalAssets.doubleValue()); atv.setCellStyle(bold);
+
+        r++;
+        Row ph = sheet.createRow(r++); Cell phc = ph.createCell(0); phc.setCellValue("PASİF (Yabancı Kaynaklar)"); phc.setCellStyle(bold);
+        writeHeaderRow(sheet, r++, bold, "Hesap Kodu", "Hesap Adı", "Tutar");
+        for (TrialBalanceRowDto row : liabilityRows) {
+            Row exRow = sheet.createRow(r++);
+            exRow.createCell(0).setCellValue(safeStr(row.accountCode()));
+            exRow.createCell(1).setCellValue(safeStr(row.accountName()));
+            exRow.createCell(2).setCellValue(row.balance().negate().doubleValue());
+        }
+        Row ltRow = sheet.createRow(r++);
+        Cell ltc = ltRow.createCell(1); ltc.setCellValue("Toplam Yabancı Kaynaklar"); ltc.setCellStyle(bold);
+        Cell ltv = ltRow.createCell(2); ltv.setCellValue(totalLiabilities.doubleValue()); ltv.setCellStyle(bold);
+
+        r++;
+        Row eqh = sheet.createRow(r++); Cell eqhc = eqh.createCell(0); eqhc.setCellValue("ÖZ KAYNAKLAR"); eqhc.setCellStyle(bold);
+        writeHeaderRow(sheet, r++, bold, "Hesap Kodu", "Hesap Adı", "Tutar");
+        for (TrialBalanceRowDto row : equityRows) {
+            Row exRow = sheet.createRow(r++);
+            exRow.createCell(0).setCellValue(safeStr(row.accountCode()));
+            exRow.createCell(1).setCellValue(safeStr(row.accountName()));
+            exRow.createCell(2).setCellValue(row.balance().negate().doubleValue());
+        }
+        Row eqtRow = sheet.createRow(r++);
+        Cell eqtc = eqtRow.createCell(1); eqtc.setCellValue("Toplam Öz Kaynaklar"); eqtc.setCellStyle(bold);
+        Cell eqtv = eqtRow.createCell(2); eqtv.setCellValue(totalEquity.doubleValue()); eqtv.setCellStyle(bold);
+
+        r++;
+        Row summaryRow = sheet.createRow(r++);
+        Cell sc1 = summaryRow.createCell(0); sc1.setCellValue("AKTİF TOPLAMI"); sc1.setCellStyle(bold);
+        Cell sv1 = summaryRow.createCell(2); sv1.setCellValue(totalAssets.doubleValue()); sv1.setCellStyle(bold);
+        Row summaryRow2 = sheet.createRow(r);
+        Cell sc2 = summaryRow2.createCell(0); sc2.setCellValue("PASİF TOPLAMI (YK + ÖK)"); sc2.setCellStyle(bold);
+        Cell sv2 = summaryRow2.createCell(2); sv2.setCellValue(totalLiabilities.add(totalEquity).doubleValue()); sv2.setCellStyle(bold);
+        autoSize(sheet, 3);
+    }
+
+
+    // YEVMİYE DÖKÜMü (Journal Listing)
+
+    private void buildJournalListing(Workbook wb, LocalDate start, LocalDate end) {
+        List<JournalEntryResponseDto> entries = journalEntryService
+                .list(org.springframework.data.domain.PageRequest.of(0, 10000))
+                .getContent()
+                .stream()
+                .filter(e -> e.entryDate() != null && !e.entryDate().isBefore(start) && !e.entryDate().isAfter(end))
+                .toList();
+
+        CellStyle bold = boldStyle(wb);
+        Sheet sheet = wb.createSheet("Yevmiye Dökümü");
+        writeRow(sheet, 0, "Tarih Aralığı:", start + " - " + end);
+        writeHeaderRow(sheet, 2, bold, "Fiş No", "Tarih", "Kaynak", "Hesap Kodu", "Hesap Adı", "Borç", "Alacak", "Açıklama");
+
+        int r = 3;
+        for (JournalEntryResponseDto entry : entries) {
+            for (JournalEntryLineResponseDto line : entry.lines()) {
+                Row row = sheet.createRow(r++);
+                row.createCell(0).setCellValue(safeStr(entry.entryNumber()));
+                row.createCell(1).setCellValue(entry.entryDate() != null ? entry.entryDate().toString() : "");
+                row.createCell(2).setCellValue(entry.sourceType() != null ? entry.sourceType().name() : "MANUAL");
+                row.createCell(3).setCellValue(safeStr(line.accountCode()));
+                row.createCell(4).setCellValue(safeStr(line.accountName()));
+                row.createCell(5).setCellValue(line.debitAmount() != null ? line.debitAmount().doubleValue() : 0);
+                row.createCell(6).setCellValue(line.creditAmount() != null ? line.creditAmount().doubleValue() : 0);
+                row.createCell(7).setCellValue(safeStr(line.description()));
+            }
+        }
+        autoSize(sheet, 8);
     }
 
 

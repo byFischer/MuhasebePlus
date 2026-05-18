@@ -23,6 +23,10 @@ import LogPage from "@/pages/LogPage";
 import WidgetBuilderPage from "@/pages/WidgetBuilderPage";
 import WidgetManagerPage from "@/pages/WidgetManagerPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
+import ChekPage from "@/pages/ChekPage";
+import HesapPlaniPage from "@/pages/HesapPlaniPage";
+import YevmiyePage from "@/pages/YevmiyePage";
+import DonemPage from "@/pages/DonemPage";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false, staleTime: 30_000 } },
@@ -53,6 +57,10 @@ export default function App() {
                 <Route path="/widget-builder" element={<WidgetBuilderPage />} />
                 <Route path="/widgets" element={<WidgetManagerPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/cek"         element={<ChekPage />} />
+                <Route path="/hesap-plani" element={<HesapPlaniPage />} />
+                <Route path="/yevmiye"     element={<YevmiyePage />} />
+                <Route path="/donem"       element={<DonemPage />} />
                 <Route index element={<Navigate to="/dashboard" replace />} />
               </Route>
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

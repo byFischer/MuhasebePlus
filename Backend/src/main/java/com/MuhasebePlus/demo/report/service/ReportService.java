@@ -24,6 +24,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.MuhasebePlus.demo.accounting.dto.response.TrialBalanceRowDto;
+import com.MuhasebePlus.demo.accounting.entity.AccountType;
+import com.MuhasebePlus.demo.accounting.service.JournalEntryService;
 import com.MuhasebePlus.demo.common.scheduler.HardDeletable;
 import com.MuhasebePlus.demo.common.service.CompanyContext;
 import com.MuhasebePlus.demo.company.repository.CompanyRepository;
@@ -58,6 +61,8 @@ import com.MuhasebePlus.demo.stock.entity.Stock;
 import com.MuhasebePlus.demo.stock.repository.ProductRepository;
 import com.MuhasebePlus.demo.stock.repository.StockRepository;
 import com.MuhasebePlus.demo.user.repository.UserRepository;
+
+import java.util.LinkedHashMap;
 
 @Service
 @Transactional
@@ -101,6 +106,9 @@ public class ReportService implements HardDeletable {
 
     @Autowired
     private BankAccountRepository bankAccountRepository;
+
+    @Autowired
+    private JournalEntryService journalEntryService;
 
     @Value("${app.report.storage-path:./reports/}")
     private String storagePath;
@@ -208,6 +216,10 @@ public class ReportService implements HardDeletable {
             case BUDGET_VARIANCE -> previewBudgetVariance(companyId, dto.startDate(), dto.endDate());
             case BANK_RECONCILIATION -> previewBankReconciliation(companyId, dto.startDate(), dto.endDate());
             case EXECUTIVE_SUMMARY -> previewExecutiveSummary(companyId, dto.startDate(), dto.endDate());
+            case TRIAL_BALANCE -> previewTrialBalance(dto.startDate(), dto.endDate());
+            case INCOME_STATEMENT -> previewIncomeStatement(dto.startDate(), dto.endDate());
+            case BALANCE_SHEET -> previewBalanceSheet(dto.startDate(), dto.endDate());
+            case JOURNAL_LISTING -> notImplementedSection(ReportType.JOURNAL_LISTING);
         };
     }
 
@@ -818,6 +830,111 @@ public class ReportService implements HardDeletable {
                 new PreviewSection("Stok", stockKpis, null, null, null, stockBuckets)
         );
         return new ReportPreviewResponseDto(sections);
+    }
+
+
+    // MİZAN (Trial Balance)
+
+    private ReportPreviewResponseDto previewTrialBalance(LocalDate start, LocalDate end) {
+        List<TrialBalanceRowDto> rows = journalEntryService.getTrialBalance(start, end);
+        BigDecimal totalDebit = rows.stream().map(TrialBalanceRowDto::totalDebit).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalCredit = rows.stream().map(TrialBalanceRowDto::totalCredit).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal difference = totalDebit.subtract(totalCredit).abs();
+
+        List<KpiItem> kpis = List.of(
+                new KpiItem("Hesap Sayısı",   BigDecimal.valueOf(rows.size()), "count",    "neutral"),
+                new KpiItem("Toplam Borç",    totalDebit,                      "currency", "neutral"),
+                new KpiItem("Toplam Alacak",  totalCredit,                     "currency", "neutral"),
+                new KpiItem("Fark",           difference,                      "currency", difference.signum() == 0 ? "pos" : "neg")
+        );
+
+        Map<String, BigDecimal> byType = new LinkedHashMap<>();
+        for (TrialBalanceRowDto row : rows) {
+            String key = row.accountType() != null ? row.accountType().name() : "DİĞER";
+            byType.merge(key, row.balance().abs(), BigDecimal::add);
+        }
+        List<BucketPoint> buckets = byType.entrySet().stream()
+                .map(e -> new BucketPoint(e.getKey(), e.getValue()))
+                .sorted((a, b) -> b.value().compareTo(a.value()))
+                .toList();
+
+        BigDecimal balancePct = difference.signum() == 0 ? BigDecimal.valueOf(100) : BigDecimal.ZERO;
+        return single(kpis, balancePct, "Denge %", null, buckets.isEmpty() ? null : buckets);
+    }
+
+
+    // GELİR TABLOSU (Income Statement)
+
+    private ReportPreviewResponseDto previewIncomeStatement(LocalDate start, LocalDate end) {
+        List<TrialBalanceRowDto> rows = journalEntryService.getTrialBalance(start, end);
+
+        BigDecimal totalIncome = rows.stream()
+                .filter(r -> r.accountType() == AccountType.INCOME)
+                .map(r -> r.balance().negate())  // credit-normal: credit>debit → negative balance → negate to get positive revenue
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalExpense = rows.stream()
+                .filter(r -> r.accountType() == AccountType.EXPENSE || r.accountType() == AccountType.COST)
+                .map(TrialBalanceRowDto::balance)  // debit-normal: positive balance = expense
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal netProfit = totalIncome.subtract(totalExpense);
+        BigDecimal margin = totalIncome.signum() > 0
+                ? netProfit.multiply(BigDecimal.valueOf(100)).divide(totalIncome, 1, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
+        List<KpiItem> kpis = List.of(
+                new KpiItem("Toplam Gelir",  totalIncome,  "currency", "pos"),
+                new KpiItem("Toplam Gider",  totalExpense, "currency", "neg"),
+                new KpiItem("Net Kâr/Zarar", netProfit,    "currency", netProfit.signum() >= 0 ? "pos" : "neg")
+        );
+
+        List<BucketPoint> buckets = new ArrayList<>();
+        rows.stream()
+                .filter(r -> r.accountType() == AccountType.INCOME)
+                .forEach(r -> buckets.add(new BucketPoint(r.accountCode() + " " + r.accountName(), r.balance().negate().max(BigDecimal.ZERO))));
+        rows.stream()
+                .filter(r -> r.accountType() == AccountType.EXPENSE || r.accountType() == AccountType.COST)
+                .forEach(r -> buckets.add(new BucketPoint(r.accountCode() + " " + r.accountName(), r.balance().max(BigDecimal.ZERO))));
+
+        return single(kpis, margin, "Kâr Marjı %", null, buckets.isEmpty() ? null : buckets);
+    }
+
+
+    // BİLANÇO (Balance Sheet)
+
+    private ReportPreviewResponseDto previewBalanceSheet(LocalDate start, LocalDate end) {
+        List<TrialBalanceRowDto> rows = journalEntryService.getTrialBalance(start, end);
+
+        BigDecimal totalAssets = rows.stream()
+                .filter(r -> r.accountType() == AccountType.ASSET)
+                .map(TrialBalanceRowDto::balance)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalLiabilities = rows.stream()
+                .filter(r -> r.accountType() == AccountType.LIABILITY)
+                .map(r -> r.balance().negate())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalEquity = rows.stream()
+                .filter(r -> r.accountType() == AccountType.EQUITY)
+                .map(r -> r.balance().negate())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal passiveTotal = totalLiabilities.add(totalEquity);
+        BigDecimal difference = totalAssets.subtract(passiveTotal).abs();
+
+        List<KpiItem> kpis = List.of(
+                new KpiItem("Toplam Aktif",  totalAssets,     "currency", "neutral"),
+                new KpiItem("Toplam Pasif",  passiveTotal,    "currency", "neutral"),
+                new KpiItem("Öz Kaynak",     totalEquity,     "currency", totalEquity.signum() >= 0 ? "pos" : "neg"),
+                new KpiItem("Denge Farkı",   difference,      "currency", difference.signum() == 0 ? "pos" : "neg")
+        );
+
+        List<BucketPoint> buckets = List.of(
+                new BucketPoint("Dönen Varlıklar (1xx)",  rows.stream().filter(r -> r.accountType() == AccountType.ASSET && r.accountCode().startsWith("1")).map(TrialBalanceRowDto::balance).reduce(BigDecimal.ZERO, BigDecimal::add)),
+                new BucketPoint("Duran Varlıklar (2xx)",  rows.stream().filter(r -> r.accountType() == AccountType.ASSET && r.accountCode().startsWith("2")).map(TrialBalanceRowDto::balance).reduce(BigDecimal.ZERO, BigDecimal::add)),
+                new BucketPoint("K.V. Yabancı Kay. (3xx)", rows.stream().filter(r -> r.accountType() == AccountType.LIABILITY && r.accountCode().startsWith("3")).map(r -> r.balance().negate()).reduce(BigDecimal.ZERO, BigDecimal::add)),
+                new BucketPoint("U.V. Yabancı Kay. (4xx)", rows.stream().filter(r -> r.accountType() == AccountType.LIABILITY && r.accountCode().startsWith("4")).map(r -> r.balance().negate()).reduce(BigDecimal.ZERO, BigDecimal::add)),
+                new BucketPoint("Öz Kaynaklar (5xx)",     totalEquity)
+        );
+
+        return single(kpis, null, null, null, buckets);
     }
 
 

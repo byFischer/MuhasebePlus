@@ -3,6 +3,7 @@ package com.MuhasebePlus.demo.invoice.dto.request;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import com.MuhasebePlus.demo.cheque.dto.request.ChequeDetailsDto;
 import com.MuhasebePlus.demo.invoice.entity.PaymentMethod;
 
 import jakarta.validation.constraints.NotNull;
@@ -24,6 +25,9 @@ public record InvoicePaymentRequestDto(
     @NotNull(message = "Bank account ID cannot be null")
     Long bankAccountId,
 
-    String notes
+    String notes,
+
+    // Yalnızca paymentMethod=check ise doldurulur
+    ChequeDetailsDto chequeDetails
 ) {
 }

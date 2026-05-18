@@ -34,6 +34,10 @@ const REPORT_TYPES = [
   { value: "EXECUTIVE_SUMMARY", label: "Yönetici Finans Sağlığı Özeti" },
   { value: "STATEMENT", label: "Cari Hesap Ekstresi" },
   { value: "RECONCILIATION", label: "Cari Mutabakat Mektubu" },
+  { value: "TRIAL_BALANCE",    label: "Mizan" },
+  { value: "INCOME_STATEMENT", label: "Gelir Tablosu" },
+  { value: "BALANCE_SHEET",    label: "Bilanço" },
+  { value: "JOURNAL_LISTING",  label: "Yevmiye Dökümü" },
 ];
 
 const PERIODS = ['Bugün', 'Bu hafta', 'Bu ay', 'Bu çeyrek', 'Bu yıl', 'Özel'];

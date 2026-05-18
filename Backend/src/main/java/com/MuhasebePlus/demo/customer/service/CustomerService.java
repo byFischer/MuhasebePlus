@@ -52,6 +52,8 @@ import com.MuhasebePlus.demo.invoice.repository.InvoicePaymentRepository;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceRepository;
 import com.MuhasebePlus.demo.log.entity.LogLevel;
 import com.MuhasebePlus.demo.log.service.SystemLogService;
+import com.MuhasebePlus.demo.accounting.entity.AccountType;
+import com.MuhasebePlus.demo.accounting.service.ChartOfAccountService;
 
 @Service
 @Transactional
@@ -78,6 +80,8 @@ public class CustomerService implements HardDeletable {
     @Autowired
     private SystemLogService systemLogService;
 
+    @Autowired
+    private ChartOfAccountService chartOfAccountService;
 
     // PUBLIC METOTLAR
 
@@ -116,6 +120,18 @@ public class CustomerService implements HardDeletable {
         customer.setCustomerGroup(dto.customerGroup());
 
         Customer saved = customerRepository.save(customer);
+
+        // Auto-generate chart-of-accounts leaf if accounting is set up and no code provided
+        if ((saved.getAccountCode() == null || saved.getAccountCode().isBlank())
+                && chartOfAccountService.isAccountingSetup(companyId)) {
+            boolean isVendor = saved.getCustomerRole() == CustomerRole.SELLER;
+            String parentCode = isVendor ? "320" : "120";
+            AccountType accountType = isVendor ? AccountType.LIABILITY : AccountType.ASSET;
+            String code = chartOfAccountService.getOrCreateLeafAccount(companyId, parentCode, saved.getName(), accountType);
+            saved.setAccountCode(code);
+            customerRepository.save(saved);
+        }
+
         systemLogService.log(LogLevel.INFO, "Müşteri oluşturuldu: " + saved.getName() + " (id=" + saved.getCustomerId() + ")");
         return toResponseDto(saved, BigDecimal.ZERO, false);
     }

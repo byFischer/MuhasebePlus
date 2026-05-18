@@ -29,6 +29,10 @@ import com.MuhasebePlus.demo.invoice.repository.InvoicePaymentRepository;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceRepository;
 import com.MuhasebePlus.demo.log.entity.LogLevel;
 import com.MuhasebePlus.demo.log.service.SystemLogService;
+import com.MuhasebePlus.demo.cheque.service.ChequeService;
+import com.MuhasebePlus.demo.invoice.entity.PaymentMethod;
+import com.MuhasebePlus.demo.period.service.AccountingPeriodGuard;
+import com.MuhasebePlus.demo.accounting.service.JournalEntryService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -44,9 +48,13 @@ public class InvoicePaymentService implements HardDeletable {
     private final CompanyContext companyContext;
     private final CompanyRepository companyRepository;
     private final SystemLogService systemLogService;
+    private final AccountingPeriodGuard periodGuard;
+    private final ChequeService chequeService;
+    private final JournalEntryService journalEntryService;
 
     public InvoicePaymentResponseDto createPayment(Long invoiceId, InvoicePaymentRequestDto dto) {
         Long companyId = companyContext.getCurrentCompanyId();
+        periodGuard.assertOpen(dto.paymentDate());
 
         Invoice invoice = findActiveInvoice(invoiceId, companyId);
 
@@ -66,6 +74,32 @@ public class InvoicePaymentService implements HardDeletable {
 
         if (dto.amount().compareTo(kalan) > 0) {
             throw new BusinessException("Ödeme tutarı kalan bakiyeyi aşıyor. Kalan: " + kalan);
+        }
+
+        // Çek ile ödeme: Transaction üretilmez, çek portföye girer
+        if (dto.paymentMethod() == PaymentMethod.check) {
+            if (dto.chequeDetails() == null) {
+                throw new BusinessException("Çek ile ödeme için chequeDetails alanı zorunludur");
+            }
+
+            InvoicePayment payment = InvoicePayment.builder()
+                    .company(companyRepository.getReferenceById(companyId))
+                    .invoiceId(invoiceId)
+                    .amount(dto.amount())
+                    .paymentDate(dto.paymentDate())
+                    .paymentMethod(dto.paymentMethod())
+                    .bankAccountId(dto.bankAccountId())
+                    .transactionId(null)
+                    .notes(dto.notes())
+                    .build();
+            payment.setDeleted(false);
+            InvoicePayment savedPayment = invoicePaymentRepository.save(payment);
+
+            chequeService.registerFromPayment(savedPayment, dto.chequeDetails(), invoice.getCustomerId());
+            recalculateInvoiceStatus(invoiceId, companyId);
+            systemLogService.log(LogLevel.INFO, "Çek ile fatura ödemesi portföye eklendi: "
+                    + invoice.getInvoiceNumber() + " - " + dto.amount());
+            return toResponseDto(savedPayment, bankAccount.getBankName());
         }
 
         Transaction transaction = new Transaction();
@@ -95,6 +129,7 @@ public class InvoicePaymentService implements HardDeletable {
         payment.setDeleted(false);
 
         InvoicePayment savedPayment = invoicePaymentRepository.save(payment);
+        journalEntryService.createForPayment(savedPayment, savedTransaction);
 
         recalculateInvoiceStatus(invoiceId, companyId);
 
@@ -133,6 +168,8 @@ public class InvoicePaymentService implements HardDeletable {
                 .findByPaymentIdAndCompanyCompanyId(paymentId, companyId)
                 .orElseThrow(() -> new BusinessException("Ödeme kaydı bulunamadı"));
 
+        periodGuard.assertOpen(payment.getPaymentDate());
+
         if (payment.isDeleted()) {
             throw new BusinessException("Ödeme kaydı zaten silinmiş");
         }
@@ -140,6 +177,7 @@ public class InvoicePaymentService implements HardDeletable {
         payment.setDeleted(true);
         payment.setDeletedAt(LocalDateTime.now());
         invoicePaymentRepository.save(payment);
+        journalEntryService.reverseForPayment(companyId, paymentId, "Ödeme silindi");
 
         if (payment.getTransactionId() != null) {
             transactionRepository.findById(payment.getTransactionId()).ifPresent(transaction -> {

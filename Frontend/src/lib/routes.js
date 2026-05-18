@@ -11,6 +11,10 @@ export const ROUTE_META = {
   '/rapor':       { crumbs: ['Otomasyon', 'Raporlar'],       icon: 'chart',     label: 'Raporlar',        shortcut: 'r' },
   '/butce':       { crumbs: ['Otomasyon', 'Bütçe'],         icon: 'flash',    label: 'Bütçe',           shortcut: 'u' },
   '/log':         { crumbs: ['Sistem', 'Loglar'],             icon: 'log',       label: 'Sistem Logları',  shortcut: 'l' },
+  '/cek':         { crumbs: ['İşlemler', 'Çek / Senet'],     icon: 'cheque',    label: 'Çek / Senet',     shortcut: 'k' },
+  '/hesap-plani': { crumbs: ['Muhasebe', 'Hesap Planı'],     icon: 'accounting',label: 'Hesap Planı' },
+  '/yevmiye':     { crumbs: ['Muhasebe', 'Yevmiye Defteri'], icon: 'journal',   label: 'Yevmiye Defteri' },
+  '/donem':       { crumbs: ['Muhasebe', 'Muhasebe Dönemi'], icon: 'calendar',  label: 'Muhasebe Dönemi' },
 };
 
 export const NAV = [
@@ -25,6 +29,11 @@ export const NAV = [
   { to: '/stok',        label: 'Stok',            icon: 'box' },
   { to: '/gelir-gider', label: 'Gelir / Gider',   icon: 'swap' },
   { to: '/banka',       label: 'Banka & Kasa',    icon: 'bank' },
+  { to: '/cek',         label: 'Çek / Senet',     icon: 'cheque' },
+  { section: 'MUHASEBE' },
+  { to: '/hesap-plani', label: 'Hesap Planı',      icon: 'accounting' },
+  { to: '/yevmiye',     label: 'Yevmiye Defteri',  icon: 'journal' },
+  { to: '/donem',       label: 'Muhasebe Dönemi',  icon: 'calendar' },
   { section: 'OTOMASYON' },
   { to: '/sablon', label: 'Şablonlar', icon: 'template' },
   { to: '/rapor',  label: 'Raporlar',  icon: 'chart' },

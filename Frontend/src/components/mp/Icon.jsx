@@ -59,6 +59,9 @@ const PATHS = {
   payment: 'M3 10h18 M3 6h18 M3 14h12 M3 18h8 M17 14l4 4-4 4 M21 18h-4 M21 22h-4',
   building: 'M3 21h18 M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16 M9 7h2 M13 7h2 M9 11h2 M13 11h2 M9 15h6',
   logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9',
+  cheque: 'M2 7h20v14H2z M6 11h4 M6 15h8 M16 11h2',
+  accounting: 'M2 3h20v4H2z M4 7v14 M20 7v14 M4 12h16 M8 3v4 M16 3v4',
+  journal: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z M8 7h8 M8 11h8 M8 15h4',
 };
 
 export default function Icon({ name, size = 16, ...rest }) {

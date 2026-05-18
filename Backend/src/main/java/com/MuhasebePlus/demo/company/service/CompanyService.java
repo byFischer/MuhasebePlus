@@ -5,6 +5,8 @@ import com.MuhasebePlus.demo.company.dto.request.CompanyRequestDto;
 import com.MuhasebePlus.demo.company.dto.response.CompanyResponseDto;
 import com.MuhasebePlus.demo.company.entity.Company;
 import com.MuhasebePlus.demo.company.repository.CompanyRepository;
+import com.MuhasebePlus.demo.period.service.AccountingPeriodService;
+import com.MuhasebePlus.demo.accounting.service.ChartOfAccountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +20,8 @@ public class CompanyService {
 
     private final CompanyRepository companyRepository;
     private final CompanyContext companyContext;
+    private final AccountingPeriodService accountingPeriodService;
+    private final ChartOfAccountService chartOfAccountService;
 
     @Transactional
     public CompanyResponseDto createCompany(CompanyRequestDto dto) {
@@ -37,6 +41,8 @@ public class CompanyService {
                 .build();
 
         Company savedCompany = companyRepository.save(company);
+        accountingPeriodService.initializePeriodsForCompany(savedCompany.getCompanyId());
+        chartOfAccountService.copyTdhpForCompany(savedCompany.getCompanyId());
         return mapToResponseDto(savedCompany);
     }
 

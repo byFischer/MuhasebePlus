@@ -57,6 +57,9 @@ public class BankAccount extends SoftDeletableEntity {
     @Column(name = "currency", length = 10)
     private Currency currency;
 
+    @Column(name = "account_code", length = 20)
+    private String accountCode;
+
     @Transient
     private BigDecimal currentBalance;
 }

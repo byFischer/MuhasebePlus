@@ -53,6 +53,8 @@ import com.MuhasebePlus.demo.stock.entity.Product;
 import com.MuhasebePlus.demo.stock.repository.ProductRepository;
 import com.MuhasebePlus.demo.stock.service.StockMovementService;
 import com.MuhasebePlus.demo.stock.service.ProductService;
+import com.MuhasebePlus.demo.period.service.AccountingPeriodGuard;
+import com.MuhasebePlus.demo.accounting.service.JournalEntryService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -72,12 +74,15 @@ public class InvoiceService implements HardDeletable {
     private final SystemLogService systemLogService;
     private final InvoiceSeriesRepository seriesRepository;
     private final CollectionPromiseRepository promiseRepository;
+    private final AccountingPeriodGuard periodGuard;
+    private final JournalEntryService journalEntryService;
 
 
     // PUBLIC METODLAR - INVOICE CRUD
 
     public InvoiceResponseDto createInvoice(InvoiceRequestDto dto) {
         Long companyId = companyContext.getCurrentCompanyId();
+        periodGuard.assertOpen(dto.invoiceDate() != null ? dto.invoiceDate() : LocalDate.now());
 
         if (invoiceRepository.existsByInvoiceNumberAndCompanyCompanyId(dto.invoiceNumber(), companyId)) {
             throw new RuntimeException("This invoice number is already used in your company: " + dto.invoiceNumber());
@@ -111,6 +116,7 @@ public class InvoiceService implements HardDeletable {
         Invoice finalInvoice = invoiceRepository.save(savedInvoice);
 
         recordStockMovements(dto.lineItems(), savedInvoice, productMap);
+        journalEntryService.createForInvoice(finalInvoice);
 
         systemLogService.log(LogLevel.INFO, "Fatura oluşturuldu: " + dto.invoiceNumber());
         return toResponseDto(finalInvoice, customer, savedLineItems, productMap);
@@ -119,6 +125,7 @@ public class InvoiceService implements HardDeletable {
     public InvoiceResponseDto confirmInvoice(Long invoiceId) {
         Invoice invoice = findActiveInvoiceById(invoiceId);
         Long companyId = companyContext.getCurrentCompanyId();
+        periodGuard.assertOpen(invoice.getInvoiceDate());
 
         if (invoice.getPaymentStatus() != PaymentStatus.draft) {
             throw new RuntimeException("Only draft invoices can be confirmed. Current status: "
@@ -139,6 +146,7 @@ public class InvoiceService implements HardDeletable {
 
         invoice.setPaymentStatus(PaymentStatus.pending);
         Invoice confirmed = invoiceRepository.save(invoice);
+        journalEntryService.createForInvoice(confirmed);
 
         systemLogService.log(LogLevel.INFO, "Taslak fatura onaylandı: " + invoice.getInvoiceNumber());
         Map<Integer, Product> productMap = batchLoadProducts(List.of(lineItems), companyId);
@@ -168,6 +176,8 @@ public class InvoiceService implements HardDeletable {
     public InvoiceResponseDto updateInvoice(Long invoiceId, InvoiceRequestDto dto) {
         Invoice invoice = findActiveInvoiceById(invoiceId);
         Long companyId = companyContext.getCurrentCompanyId();
+        periodGuard.assertOpen(invoice.getInvoiceDate());
+        if (dto.invoiceDate() != null) periodGuard.assertOpen(dto.invoiceDate());
 
         if (invoice.getPaymentStatus() == PaymentStatus.paid) {
             throw new RuntimeException("Paid invoices cannot be updated: " + invoiceId);
@@ -193,11 +203,14 @@ public class InvoiceService implements HardDeletable {
         invoice.setDeliveryAddress(dto.deliveryAddress());
 
         Invoice updated = invoiceRepository.save(invoice);
+        journalEntryService.reverseForInvoice(companyId, invoiceId, "Güncelleme");
+        journalEntryService.createForInvoice(updated);
         return toResponseDtoWithLines(updated);
     }
 
     public void deleteInvoice(Long invoiceId) {
         Invoice invoice = findActiveInvoiceById(invoiceId);
+        periodGuard.assertOpen(invoice.getInvoiceDate());
 
         if (invoice.getPaymentStatus() == PaymentStatus.paid) {
             throw new RuntimeException("Paid invoices cannot be deleted: " + invoiceId);
@@ -217,6 +230,7 @@ public class InvoiceService implements HardDeletable {
         invoice.setDeleted(true);
         invoice.setDeletedAt(LocalDateTime.now());
         invoiceRepository.save(invoice);
+        journalEntryService.reverseForInvoice(companyId, invoiceId, "Fatura silindi");
 
         systemLogService.log(LogLevel.WARNING, "Fatura silindi: " + invoice.getInvoiceNumber());
     }
@@ -236,6 +250,7 @@ public class InvoiceService implements HardDeletable {
 
     public InvoiceResponseDto cancelInvoice(Long invoiceId, String reason) {
         Invoice invoice = findActiveInvoiceById(invoiceId);
+        periodGuard.assertOpen(invoice.getInvoiceDate());
 
         if (invoice.isCancelled()) {
             throw new BusinessException("Fatura zaten iptal edilmiş: " + invoiceId);
@@ -257,6 +272,7 @@ public class InvoiceService implements HardDeletable {
         lineItemRepository.saveAll(lineItems);
 
         Invoice cancelled = invoiceRepository.save(invoice);
+        journalEntryService.reverseForInvoice(companyId, invoiceId, "İptal: " + reason);
         systemLogService.log(LogLevel.WARNING, "Fatura iptal edildi: " + cancelled.getInvoiceNumber() + " Sebep: " + reason);
 
         Map<Integer, Product> productMap = batchLoadProducts(List.of(lineItems), companyId);
@@ -321,6 +337,7 @@ public class InvoiceService implements HardDeletable {
 
         applyTotals(saved, returnLines);
         Invoice finalInvoice = invoiceRepository.save(saved);
+        journalEntryService.createForInvoice(finalInvoice);
 
         systemLogService.log(LogLevel.INFO, "İade faturası oluşturuldu: " + finalInvoice.getInvoiceNumber());
         Customer customer = customerRepository.findByCustomerIdAndCompanyCompanyId(finalInvoice.getCustomerId(), companyId).orElse(null);

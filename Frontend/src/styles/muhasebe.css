@@ -1475,6 +1475,106 @@ button.filter:hover {
   font-weight: 600;
 }
 
+/* ============ BADGES (content chips) ============ */
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px; font-weight: 500;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.badge.pos    { background: var(--pos-soft);  border-color: transparent; color: var(--pos); }
+.badge.neg    { background: var(--neg-soft);  border-color: transparent; color: var(--neg); }
+.badge.warn   { background: var(--warn-soft); border-color: transparent; color: var(--warn); }
+.badge.info   { background: var(--info-soft); border-color: transparent; color: var(--info); }
+.badge.accent { background: var(--accent-soft); border-color: transparent; color: var(--accent-ink); }
+
+/* ============ TABLE UTILITIES ============ */
+.table .table-group-row td {
+  font-size: 10.5px; font-weight: 600;
+  color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--line);
+  padding-top: 16px;
+}
+.table .table-total-row td {
+  border-top: 2px solid var(--line-2);
+  font-weight: 600;
+  background: var(--bg-elev);
+}
+.table tbody tr.row-warn td { background: color-mix(in oklab, var(--warn-soft) 60%, transparent); }
+.table tbody tr.row-warn:hover td { background: color-mix(in oklab, var(--warn-soft) 90%, transparent); }
+.table tbody tr.row-dimmed { opacity: 0.5; }
+
+/* ============ DETAIL GRID (dl / dt / dd) ============ */
+.detail-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 16px;
+  margin: 0;
+  align-items: baseline;
+}
+.detail-grid dt {
+  font-size: 11px; color: var(--ink-3); font-weight: 500;
+  white-space: nowrap;
+}
+.detail-grid dd {
+  margin: 0;
+  font-size: 12.5px; color: var(--ink);
+}
+
+/* ============ PERIOD GRID ============ */
+.period-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+@media (max-width: 900px) { .period-grid { grid-template-columns: repeat(2, 1fr); } }
+.period-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 16px;
+  display: flex; flex-direction: column; gap: 4px;
+  box-shadow: var(--shadow-1);
+}
+.period-card.closed { background: var(--bg-elev); opacity: 0.85; }
+.period-card.open   { border-left: 3px solid var(--pos); }
+.period-month { font-size: 16px; font-weight: 600; }
+.period-year  { font-size: 12px; color: var(--ink-3); }
+.period-meta  { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+.period-actions { margin-top: 10px; }
+
+/* ============ ICON BUTTON DANGER ============ */
+.tb-icon-btn.danger { color: var(--neg); }
+.tb-icon-btn.danger:hover { background: var(--neg-soft); }
+
+/* ============ DROPDOWN MENU ============ */
+.dropdown {
+  position: absolute; right: 0; top: calc(100% + 4px);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-2);
+  min-width: 160px;
+  z-index: 40;
+  padding: 4px;
+}
+.dd-item {
+  display: block;
+  padding: 7px 10px;
+  font-size: 12.5px; color: var(--ink);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.dd-item:hover { background: var(--accent-soft); color: var(--accent-ink); }
+.dd-item.danger { color: var(--neg); }
+.dd-item.danger:hover { background: var(--neg-soft); color: var(--neg); }
+
 /* View Transitions API — animated theme toggle */
 ::view-transition-old(root),
 ::view-transition-new(root) {
