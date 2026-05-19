@@ -47,6 +47,9 @@ import com.MuhasebePlus.demo.accounting.dto.response.TrialBalanceRowDto;
 import com.MuhasebePlus.demo.accounting.entity.AccountType;
 import com.MuhasebePlus.demo.accounting.service.JournalEntryService;
 import com.MuhasebePlus.demo.report.entity.ReportType;
+import com.MuhasebePlus.demo.report.service.excel.builders.ExpenseExcelBuilder;
+import com.MuhasebePlus.demo.report.service.excel.builders.IncomeExcelBuilder;
+import com.MuhasebePlus.demo.report.service.excel.builders.ProfitLossExcelBuilder;
 import com.MuhasebePlus.demo.report.service.excel.data.ReportDataFetcher;
 import com.MuhasebePlus.demo.report.service.excel.util.ExcelAggregationUtils;
 import com.MuhasebePlus.demo.report.service.excel.util.ExcelStyleUtils;
@@ -69,13 +72,16 @@ public class ReportExcelBuilder {
     private final BankAccountRepository bankAccountRepository;
     private final JournalEntryService journalEntryService;
     private final ReportDataFetcher fetcher;
+    private final ProfitLossExcelBuilder profitLossBuilder;
+    private final IncomeExcelBuilder incomeBuilder;
+    private final ExpenseExcelBuilder expenseBuilder;
 
     public void build(ReportType type, Long companyId, LocalDate start, LocalDate end, OutputStream out) throws IOException {
         try (Workbook wb = new XSSFWorkbook()) {
             switch (type) {
-                case PROFIT_LOSS            -> buildProfitLoss(wb, companyId, start, end);
-                case INCOME                 -> buildIncome(wb, companyId, start, end);
-                case EXPENSE                -> buildExpense(wb, companyId, start, end);
+                case PROFIT_LOSS            -> profitLossBuilder.build(wb, companyId, start, end);
+                case INCOME                 -> incomeBuilder.build(wb, companyId, start, end);
+                case EXPENSE                -> expenseBuilder.build(wb, companyId, start, end);
                 case CASH_FLOW              -> buildCashFlow(wb, companyId, start, end);
                 case AR_AGING               -> buildArAging(wb, companyId);
                 case VAT_PREP               -> buildVatPrep(wb, companyId, start, end);
@@ -95,64 +101,6 @@ public class ReportExcelBuilder {
     }
 
 
-
-
-    // PROFIT/LOSS
-
-    private void buildProfitLoss(Workbook wb, Long companyId, LocalDate start, LocalDate end) {
-        List<Invoice> paidSales = fetcher.fetchPaidInvoices(companyId, InvoiceType.sale, start, end);
-        List<Invoice> paidPurchases = fetcher.fetchPaidInvoices(companyId, InvoiceType.purchase, start, end);
-        List<Transaction> incomes = fetcher.fetchTransactions(companyId, TransactionType.INCOME, start, end);
-        List<Transaction> expenses = fetcher.fetchTransactions(companyId, TransactionType.EXPENSE, start, end);
-
-        BigDecimal totalRevenue = ExcelAggregationUtils.sumInvoices(paidSales).add(ExcelAggregationUtils.sumTransactions(incomes));
-        BigDecimal totalExpense = ExcelAggregationUtils.sumInvoices(paidPurchases).add(ExcelAggregationUtils.sumTransactions(expenses));
-        BigDecimal netProfit = totalRevenue.subtract(totalExpense);
-
-        Sheet summary = wb.createSheet("Özet");
-        CellStyle bold = ExcelStyleUtils.boldStyle(wb);
-        ExcelStyleUtils.writeRow(summary, 0, "Tarih Aralığı:", start + " - " + end);
-        ExcelStyleUtils.writeRow(summary, 2, "Toplam Gelir", totalRevenue.toPlainString());
-        ExcelStyleUtils.writeRow(summary, 3, "Toplam Gider", totalExpense.toPlainString());
-        Row netRow = summary.createRow(5);
-        Cell c0 = netRow.createCell(0); c0.setCellValue("Net Kâr/Zarar"); c0.setCellStyle(bold);
-        Cell c1 = netRow.createCell(1); c1.setCellValue(netProfit.toPlainString()); c1.setCellStyle(bold);
-        ExcelStyleUtils.autoSize(summary, 2);
-
-        Sheet incomeSheet = wb.createSheet("Gelirler");
-        writeIncomeSheet(incomeSheet, paidSales, incomes, bold);
-
-        Sheet expenseSheet = wb.createSheet("Giderler");
-        writeExpenseSheet(expenseSheet, paidPurchases, expenses, bold);
-    }
-
-
-    // INCOME ONLY
-
-    private void buildIncome(Workbook wb, Long companyId, LocalDate start, LocalDate end) {
-        List<Invoice> paidSales = fetcher.fetchPaidInvoices(companyId, InvoiceType.sale, start, end);
-        List<Transaction> incomes = fetcher.fetchTransactions(companyId, TransactionType.INCOME, start, end);
-
-        Sheet sheet = wb.createSheet("Gelir Raporu");
-        CellStyle bold = ExcelStyleUtils.boldStyle(wb);
-        ExcelStyleUtils.writeRow(sheet, 0, "Tarih Aralığı:", start + " - " + end);
-        writeIncomeSheetAt(sheet, 2, paidSales, incomes, bold);
-        ExcelStyleUtils.autoSize(sheet, 5);
-    }
-
-
-    // EXPENSE ONLY
-
-    private void buildExpense(Workbook wb, Long companyId, LocalDate start, LocalDate end) {
-        List<Invoice> paidPurchases = fetcher.fetchPaidInvoices(companyId, InvoiceType.purchase, start, end);
-        List<Transaction> expenses = fetcher.fetchTransactions(companyId, TransactionType.EXPENSE, start, end);
-
-        Sheet sheet = wb.createSheet("Gider Raporu");
-        CellStyle bold = ExcelStyleUtils.boldStyle(wb);
-        ExcelStyleUtils.writeRow(sheet, 0, "Tarih Aralığı:", start + " - " + end);
-        writeExpenseSheetAt(sheet, 2, paidPurchases, expenses, bold);
-        ExcelStyleUtils.autoSize(sheet, 5);
-    }
 
 
     // CASH FLOW (Nakit Akış)
@@ -1124,90 +1072,6 @@ public class ReportExcelBuilder {
         ExcelStyleUtils.autoSize(sheet, 9);
     }
 
-
-    // SHEET WRITERS
-
-    private void writeIncomeSheet(Sheet sheet, List<Invoice> sales, List<Transaction> incomes, CellStyle bold) {
-        writeIncomeSheetAt(sheet, 0, sales, incomes, bold);
-        ExcelStyleUtils.autoSize(sheet, 5);
-    }
-
-    private void writeIncomeSheetAt(Sheet sheet, int startRow, List<Invoice> sales, List<Transaction> incomes, CellStyle bold) {
-        int r = startRow;
-
-        Row title1 = sheet.createRow(r++);
-        Cell t1 = title1.createCell(0); t1.setCellValue("FATURALAR (Satış - Ödenmiş)"); t1.setCellStyle(bold);
-        ExcelStyleUtils.writeHeaderRow(sheet, r++, bold, "Fatura No", "Müşteri ID", "Vade Tarihi", "Tutar", "Durum");
-        for (Invoice inv : sales) {
-            Row row = sheet.createRow(r++);
-            row.createCell(0).setCellValue(ExcelStyleUtils.safeStr(inv.getInvoiceNumber()));
-            row.createCell(1).setCellValue(inv.getCustomerId() != null ? inv.getCustomerId() : 0);
-            row.createCell(2).setCellValue(inv.getDueDate() != null ? inv.getDueDate().toString() : "");
-            row.createCell(3).setCellValue(inv.getTotalAmount() != null ? inv.getTotalAmount().doubleValue() : 0);
-            row.createCell(4).setCellValue(inv.getPaymentStatus() != null ? inv.getPaymentStatus().name() : "");
-        }
-        Row salesTotal = sheet.createRow(r++);
-        Cell s0 = salesTotal.createCell(0); s0.setCellValue("Toplam"); s0.setCellStyle(bold);
-        Cell s1 = salesTotal.createCell(3); s1.setCellValue(ExcelAggregationUtils.sumInvoices(sales).doubleValue()); s1.setCellStyle(bold);
-
-        r++;
-
-        Row title2 = sheet.createRow(r++);
-        Cell t2 = title2.createCell(0); t2.setCellValue("İŞLEMLER (INCOME)"); t2.setCellStyle(bold);
-        ExcelStyleUtils.writeHeaderRow(sheet, r++, bold, "Tarih", "Hesap ID", "Tutar", "Açıklama", "Kategori");
-        for (Transaction tx : incomes) {
-            Row row = sheet.createRow(r++);
-            row.createCell(0).setCellValue(tx.getTransactionDate() != null ? tx.getTransactionDate().toString() : "");
-            row.createCell(1).setCellValue(tx.getAccountId() != null ? tx.getAccountId() : 0);
-            row.createCell(2).setCellValue(tx.getAmount() != null ? tx.getAmount().doubleValue() : 0);
-            row.createCell(3).setCellValue(ExcelStyleUtils.safeStr(tx.getDescription()));
-            row.createCell(4).setCellValue(ExcelStyleUtils.safeStr(tx.getCategory()));
-        }
-        Row txTotal = sheet.createRow(r++);
-        Cell tt0 = txTotal.createCell(0); tt0.setCellValue("Toplam"); tt0.setCellStyle(bold);
-        Cell tt1 = txTotal.createCell(2); tt1.setCellValue(ExcelAggregationUtils.sumTransactions(incomes).doubleValue()); tt1.setCellStyle(bold);
-    }
-
-    private void writeExpenseSheet(Sheet sheet, List<Invoice> purchases, List<Transaction> expenses, CellStyle bold) {
-        writeExpenseSheetAt(sheet, 0, purchases, expenses, bold);
-        ExcelStyleUtils.autoSize(sheet, 5);
-    }
-
-    private void writeExpenseSheetAt(Sheet sheet, int startRow, List<Invoice> purchases, List<Transaction> expenses, CellStyle bold) {
-        int r = startRow;
-
-        Row title1 = sheet.createRow(r++);
-        Cell t1 = title1.createCell(0); t1.setCellValue("FATURALAR (Alış - Ödenmiş)"); t1.setCellStyle(bold);
-        ExcelStyleUtils.writeHeaderRow(sheet, r++, bold, "Fatura No", "Tedarikçi ID", "Vade Tarihi", "Tutar", "Durum");
-        for (Invoice inv : purchases) {
-            Row row = sheet.createRow(r++);
-            row.createCell(0).setCellValue(ExcelStyleUtils.safeStr(inv.getInvoiceNumber()));
-            row.createCell(1).setCellValue(inv.getCustomerId() != null ? inv.getCustomerId() : 0);
-            row.createCell(2).setCellValue(inv.getDueDate() != null ? inv.getDueDate().toString() : "");
-            row.createCell(3).setCellValue(inv.getTotalAmount() != null ? inv.getTotalAmount().doubleValue() : 0);
-            row.createCell(4).setCellValue(inv.getPaymentStatus() != null ? inv.getPaymentStatus().name() : "");
-        }
-        Row purchaseTotal = sheet.createRow(r++);
-        Cell p0 = purchaseTotal.createCell(0); p0.setCellValue("Toplam"); p0.setCellStyle(bold);
-        Cell p1 = purchaseTotal.createCell(3); p1.setCellValue(ExcelAggregationUtils.sumInvoices(purchases).doubleValue()); p1.setCellStyle(bold);
-
-        r++;
-
-        Row title2 = sheet.createRow(r++);
-        Cell t2 = title2.createCell(0); t2.setCellValue("İŞLEMLER (EXPENSE)"); t2.setCellStyle(bold);
-        ExcelStyleUtils.writeHeaderRow(sheet, r++, bold, "Tarih", "Hesap ID", "Tutar", "Açıklama", "Kategori");
-        for (Transaction tx : expenses) {
-            Row row = sheet.createRow(r++);
-            row.createCell(0).setCellValue(tx.getTransactionDate() != null ? tx.getTransactionDate().toString() : "");
-            row.createCell(1).setCellValue(tx.getAccountId() != null ? tx.getAccountId() : 0);
-            row.createCell(2).setCellValue(tx.getAmount() != null ? tx.getAmount().doubleValue() : 0);
-            row.createCell(3).setCellValue(ExcelStyleUtils.safeStr(tx.getDescription()));
-            row.createCell(4).setCellValue(ExcelStyleUtils.safeStr(tx.getCategory()));
-        }
-        Row txTotal = sheet.createRow(r++);
-        Cell tt0 = txTotal.createCell(0); tt0.setCellValue("Toplam"); tt0.setCellStyle(bold);
-        Cell tt1 = txTotal.createCell(2); tt1.setCellValue(ExcelAggregationUtils.sumTransactions(expenses).doubleValue()); tt1.setCellStyle(bold);
-    }
 
 
 }
