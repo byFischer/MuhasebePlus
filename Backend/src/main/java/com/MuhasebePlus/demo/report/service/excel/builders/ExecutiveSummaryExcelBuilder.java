@@ -14,6 +14,8 @@ import com.MuhasebePlus.demo.report.service.excel.util.ExcelStyleUtils;
 import com.MuhasebePlus.demo.stock.entity.Product;
 import com.MuhasebePlus.demo.stock.entity.Stock;
 import com.MuhasebePlus.demo.stock.repository.StockRepository;
+import com.MuhasebePlus.demo.report.entity.ReportType;
+import com.MuhasebePlus.demo.report.service.excel.ReportExcelBuilder;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -33,7 +35,7 @@ import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
-public class ExecutiveSummaryExcelBuilder {
+public class ExecutiveSummaryExcelBuilder implements ReportExcelBuilder {
 
     private final ReportDataFetcher fetcher;
     private final InvoiceRepository invoiceRepository;
@@ -41,6 +43,10 @@ public class ExecutiveSummaryExcelBuilder {
     private final StockRepository stockRepository;
     private final CustomerRepository customerRepository;
 
+    @Override
+    public ReportType supports() { return ReportType.EXECUTIVE_SUMMARY; }
+
+    @Override
     @SuppressWarnings("null")
     public void build(Workbook wb, Long companyId, LocalDate start, LocalDate end) {
         LocalDate today = LocalDate.now();

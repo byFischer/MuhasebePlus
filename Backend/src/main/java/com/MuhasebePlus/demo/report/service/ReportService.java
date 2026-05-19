@@ -21,6 +21,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,6 +59,7 @@ import com.MuhasebePlus.demo.report.entity.Report;
 import com.MuhasebePlus.demo.report.entity.ReportFormat;
 import com.MuhasebePlus.demo.report.entity.ReportType;
 import com.MuhasebePlus.demo.report.repository.ReportRepository;
+import com.MuhasebePlus.demo.report.service.excel.ReportExcelBuilderRegistry;
 import com.MuhasebePlus.demo.stock.entity.Product;
 import com.MuhasebePlus.demo.stock.entity.Stock;
 import com.MuhasebePlus.demo.stock.repository.ProductRepository;
@@ -73,7 +76,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ReportService implements HardDeletable {
 
     private final ReportRepository reportRepository;
-    private final ReportExcelBuilder excelBuilder;
+    private final ReportExcelBuilderRegistry excelBuilderRegistry;
     private final CompanyContext companyContext;
     private final CompanyRepository companyRepository;
     private final UserRepository userRepository;
@@ -90,7 +93,7 @@ public class ReportService implements HardDeletable {
 
     public ReportService(
             ReportRepository reportRepository,
-            ReportExcelBuilder excelBuilder,
+            ReportExcelBuilderRegistry excelBuilderRegistry,
             CompanyContext companyContext,
             CompanyRepository companyRepository,
             UserRepository userRepository,
@@ -105,7 +108,7 @@ public class ReportService implements HardDeletable {
             JournalEntryService journalEntryService,
             @Value("${app.report.storage-path:./reports/}") String storagePath) {
         this.reportRepository = reportRepository;
-        this.excelBuilder = excelBuilder;
+        this.excelBuilderRegistry = excelBuilderRegistry;
         this.companyContext = companyContext;
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
@@ -146,8 +149,10 @@ public class ReportService implements HardDeletable {
         Path filePath = buildFilePath(companyId, saved.getReportId());
         try {
             Files.createDirectories(filePath.getParent());
-            try (OutputStream out = Files.newOutputStream(filePath)) {
-                excelBuilder.build(dto.reportType(), companyId, dto.startDate(), dto.endDate(), out);
+            try (OutputStream out = Files.newOutputStream(filePath);
+                 Workbook wb = new XSSFWorkbook()) {
+                excelBuilderRegistry.forType(dto.reportType()).build(wb, companyId, dto.startDate(), dto.endDate());
+                wb.write(out);
             }
             saved.setFilePath(filePath.toString());
             saved.setFileSize(Files.size(filePath));

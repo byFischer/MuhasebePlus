@@ -6,6 +6,8 @@ import com.MuhasebePlus.demo.report.service.excel.util.ExcelStyleUtils;
 import com.MuhasebePlus.demo.stock.entity.Product;
 import com.MuhasebePlus.demo.stock.entity.Stock;
 import com.MuhasebePlus.demo.stock.repository.StockRepository;
+import com.MuhasebePlus.demo.report.entity.ReportType;
+import com.MuhasebePlus.demo.report.service.excel.ReportExcelBuilder;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Row;
@@ -26,13 +28,17 @@ import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
-public class SlowInventoryExcelBuilder {
+public class SlowInventoryExcelBuilder implements ReportExcelBuilder {
 
     private final StockRepository stockRepository;
     private final InvoiceLineItemRepository invoiceLineItemRepository;
     private final ReportDataFetcher fetcher;
 
-    public void build(Workbook wb, Long companyId) {
+    @Override
+    public ReportType supports() { return ReportType.SLOW_INVENTORY; }
+
+    @Override
+    public void build(Workbook wb, Long companyId, LocalDate start, LocalDate end) {
         LocalDate today = LocalDate.now();
         LocalDateTime twelveMonthsAgo = today.minusMonths(12).atStartOfDay();
 

@@ -7,6 +7,8 @@ import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
 import com.MuhasebePlus.demo.report.service.excel.data.ReportDataFetcher;
 import com.MuhasebePlus.demo.report.service.excel.util.ExcelStyleUtils;
 import com.MuhasebePlus.demo.report.service.excel.util.IncomeExpenseSheetWriter;
+import com.MuhasebePlus.demo.report.entity.ReportType;
+import com.MuhasebePlus.demo.report.service.excel.ReportExcelBuilder;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -18,11 +20,15 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-public class ExpenseExcelBuilder {
+public class ExpenseExcelBuilder implements ReportExcelBuilder {
 
     private final ReportDataFetcher fetcher;
     private final IncomeExpenseSheetWriter sheetWriter;
 
+    @Override
+    public ReportType supports() { return ReportType.EXPENSE; }
+
+    @Override
     public void build(Workbook wb, Long companyId, LocalDate start, LocalDate end) {
         List<Invoice> paidPurchases = fetcher.fetchPaidInvoices(companyId, InvoiceType.purchase, start, end);
         List<Transaction> expenses = fetcher.fetchTransactions(companyId, TransactionType.EXPENSE, start, end);

@@ -6,6 +6,8 @@ import com.MuhasebePlus.demo.financial.entity.TransactionType;
 import com.MuhasebePlus.demo.financial.repository.BankAccountRepository;
 import com.MuhasebePlus.demo.financial.repository.TransactionRepository;
 import com.MuhasebePlus.demo.report.service.excel.util.ExcelStyleUtils;
+import com.MuhasebePlus.demo.report.entity.ReportType;
+import com.MuhasebePlus.demo.report.service.excel.ReportExcelBuilder;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Row;
@@ -22,11 +24,15 @@ import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
-public class BankReconciliationExcelBuilder {
+public class BankReconciliationExcelBuilder implements ReportExcelBuilder {
 
     private final TransactionRepository transactionRepository;
     private final BankAccountRepository bankAccountRepository;
 
+    @Override
+    public ReportType supports() { return ReportType.BANK_RECONCILIATION; }
+
+    @Override
     public void build(Workbook wb, Long companyId, LocalDate start, LocalDate end) {
         List<Transaction> allTx = transactionRepository
                 .findByTransactionDateBetweenAndCompanyCompanyIdAndIsDeletedFalseOrderByTransactionDateDesc(start, end, companyId);

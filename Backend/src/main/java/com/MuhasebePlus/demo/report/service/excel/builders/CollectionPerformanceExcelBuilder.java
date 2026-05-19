@@ -7,6 +7,8 @@ import com.MuhasebePlus.demo.invoice.entity.PaymentStatus;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceRepository;
 import com.MuhasebePlus.demo.report.service.excel.util.ExcelAggregationUtils;
 import com.MuhasebePlus.demo.report.service.excel.util.ExcelStyleUtils;
+import com.MuhasebePlus.demo.report.entity.ReportType;
+import com.MuhasebePlus.demo.report.service.excel.ReportExcelBuilder;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Row;
@@ -26,11 +28,15 @@ import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
-public class CollectionPerformanceExcelBuilder {
+public class CollectionPerformanceExcelBuilder implements ReportExcelBuilder {
 
     private final InvoiceRepository invoiceRepository;
     private final CustomerRepository customerRepository;
 
+    @Override
+    public ReportType supports() { return ReportType.COLLECTION_PERFORMANCE; }
+
+    @Override
     public void build(Workbook wb, Long companyId, LocalDate start, LocalDate end) {
         LocalDate today = LocalDate.now();
         long periodDays = Math.max(1, ChronoUnit.DAYS.between(start, end) + 1);

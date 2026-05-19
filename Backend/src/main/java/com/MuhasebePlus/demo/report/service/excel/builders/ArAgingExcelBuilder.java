@@ -5,6 +5,8 @@ import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
 import com.MuhasebePlus.demo.invoice.entity.PaymentStatus;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceRepository;
 import com.MuhasebePlus.demo.customer.repository.CustomerRepository;
+import com.MuhasebePlus.demo.report.entity.ReportType;
+import com.MuhasebePlus.demo.report.service.excel.ReportExcelBuilder;
 import com.MuhasebePlus.demo.report.service.excel.util.ExcelStyleUtils;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Cell;
@@ -24,13 +26,17 @@ import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
-public class ArAgingExcelBuilder {
+public class ArAgingExcelBuilder implements ReportExcelBuilder {
 
     private final InvoiceRepository invoiceRepository;
     private final CustomerRepository customerRepository;
 
+    @Override
+    public ReportType supports() { return ReportType.AR_AGING; }
+
+    @Override
     @SuppressWarnings("null")
-    public void build(Workbook wb, Long companyId) {
+    public void build(Workbook wb, Long companyId, LocalDate start, LocalDate end) {
         LocalDate today = LocalDate.now();
         List<Invoice> openInvoices = new ArrayList<>();
         openInvoices.addAll(invoiceRepository

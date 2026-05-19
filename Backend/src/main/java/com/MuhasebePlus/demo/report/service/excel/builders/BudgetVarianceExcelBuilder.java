@@ -5,6 +5,8 @@ import com.MuhasebePlus.demo.financial.entity.Transaction;
 import com.MuhasebePlus.demo.financial.repository.BudgetRepository;
 import com.MuhasebePlus.demo.financial.repository.TransactionRepository;
 import com.MuhasebePlus.demo.report.service.excel.util.ExcelStyleUtils;
+import com.MuhasebePlus.demo.report.entity.ReportType;
+import com.MuhasebePlus.demo.report.service.excel.ReportExcelBuilder;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Row;
@@ -23,11 +25,15 @@ import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
-public class BudgetVarianceExcelBuilder {
+public class BudgetVarianceExcelBuilder implements ReportExcelBuilder {
 
     private final BudgetRepository budgetRepository;
     private final TransactionRepository transactionRepository;
 
+    @Override
+    public ReportType supports() { return ReportType.BUDGET_VARIANCE; }
+
+    @Override
     public void build(Workbook wb, Long companyId, LocalDate start, LocalDate end) {
         List<Budget> allBudgets = budgetRepository.findByCompanyCompanyIdAndIsDeletedFalse(companyId);
         List<Budget> periodBudgets = allBudgets.stream()

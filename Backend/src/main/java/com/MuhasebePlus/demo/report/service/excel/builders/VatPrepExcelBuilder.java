@@ -5,6 +5,8 @@ import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
 import com.MuhasebePlus.demo.report.service.excel.data.ReportDataFetcher;
 import com.MuhasebePlus.demo.report.service.excel.util.ExcelAggregationUtils;
 import com.MuhasebePlus.demo.report.service.excel.util.ExcelStyleUtils;
+import com.MuhasebePlus.demo.report.entity.ReportType;
+import com.MuhasebePlus.demo.report.service.excel.ReportExcelBuilder;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -19,10 +21,14 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-public class VatPrepExcelBuilder {
+public class VatPrepExcelBuilder implements ReportExcelBuilder {
 
     private final ReportDataFetcher fetcher;
 
+    @Override
+    public ReportType supports() { return ReportType.VAT_PREP; }
+
+    @Override
     public void build(Workbook wb, Long companyId, LocalDate start, LocalDate end) {
         List<Invoice> sales = fetcher.fetchPaidInvoices(companyId, InvoiceType.sale, start, end);
         List<Invoice> purchases = fetcher.fetchPaidInvoices(companyId, InvoiceType.purchase, start, end);

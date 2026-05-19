@@ -3,6 +3,8 @@ package com.MuhasebePlus.demo.report.service.excel.builders;
 import com.MuhasebePlus.demo.accounting.dto.response.TrialBalanceRowDto;
 import com.MuhasebePlus.demo.accounting.service.JournalEntryService;
 import com.MuhasebePlus.demo.report.service.excel.util.ExcelStyleUtils;
+import com.MuhasebePlus.demo.report.entity.ReportType;
+import com.MuhasebePlus.demo.report.service.excel.ReportExcelBuilder;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -17,11 +19,15 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-public class TrialBalanceExcelBuilder {
+public class TrialBalanceExcelBuilder implements ReportExcelBuilder {
 
     private final JournalEntryService journalEntryService;
 
-    public void build(Workbook wb, LocalDate start, LocalDate end) {
+    @Override
+    public ReportType supports() { return ReportType.TRIAL_BALANCE; }
+
+    @Override
+    public void build(Workbook wb, Long companyId, LocalDate start, LocalDate end) {
         List<TrialBalanceRowDto> rows = journalEntryService.getTrialBalance(start, end);
         CellStyle bold = ExcelStyleUtils.boldStyle(wb);
 

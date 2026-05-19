@@ -4,6 +4,8 @@ import com.MuhasebePlus.demo.accounting.dto.response.JournalEntryLineResponseDto
 import com.MuhasebePlus.demo.accounting.dto.response.JournalEntryResponseDto;
 import com.MuhasebePlus.demo.accounting.service.JournalEntryService;
 import com.MuhasebePlus.demo.report.service.excel.util.ExcelStyleUtils;
+import com.MuhasebePlus.demo.report.entity.ReportType;
+import com.MuhasebePlus.demo.report.service.excel.ReportExcelBuilder;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Row;
@@ -16,11 +18,15 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-public class JournalListingExcelBuilder {
+public class JournalListingExcelBuilder implements ReportExcelBuilder {
 
     private final JournalEntryService journalEntryService;
 
-    public void build(Workbook wb, LocalDate start, LocalDate end) {
+    @Override
+    public ReportType supports() { return ReportType.JOURNAL_LISTING; }
+
+    @Override
+    public void build(Workbook wb, Long companyId, LocalDate start, LocalDate end) {
         List<JournalEntryResponseDto> entries = journalEntryService
                 .list(org.springframework.data.domain.PageRequest.of(0, 10000))
                 .getContent()

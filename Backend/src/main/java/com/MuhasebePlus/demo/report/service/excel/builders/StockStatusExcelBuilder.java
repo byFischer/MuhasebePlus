@@ -5,6 +5,8 @@ import com.MuhasebePlus.demo.report.service.excel.util.ExcelStyleUtils;
 import com.MuhasebePlus.demo.stock.entity.Product;
 import com.MuhasebePlus.demo.stock.entity.Stock;
 import com.MuhasebePlus.demo.stock.repository.StockRepository;
+import com.MuhasebePlus.demo.report.entity.ReportType;
+import com.MuhasebePlus.demo.report.service.excel.ReportExcelBuilder;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -14,17 +16,22 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
-public class StockStatusExcelBuilder {
+public class StockStatusExcelBuilder implements ReportExcelBuilder {
 
     private final StockRepository stockRepository;
     private final ReportDataFetcher fetcher;
 
-    public void build(Workbook wb, Long companyId) {
+    @Override
+    public ReportType supports() { return ReportType.STOCK_STATUS; }
+
+    @Override
+    public void build(Workbook wb, Long companyId, LocalDate start, LocalDate end) {
         List<Stock> stocks = stockRepository.findActiveStocks(companyId);
         Map<Integer, Product> productMap = fetcher.loadProductMap(companyId, stocks);
 

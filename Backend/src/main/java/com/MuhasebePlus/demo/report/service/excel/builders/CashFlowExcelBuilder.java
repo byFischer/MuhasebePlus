@@ -5,6 +5,8 @@ import com.MuhasebePlus.demo.financial.entity.TransactionType;
 import com.MuhasebePlus.demo.report.service.excel.data.ReportDataFetcher;
 import com.MuhasebePlus.demo.report.service.excel.util.ExcelAggregationUtils;
 import com.MuhasebePlus.demo.report.service.excel.util.ExcelStyleUtils;
+import com.MuhasebePlus.demo.report.entity.ReportType;
+import com.MuhasebePlus.demo.report.service.excel.ReportExcelBuilder;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -20,10 +22,14 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-public class CashFlowExcelBuilder {
+public class CashFlowExcelBuilder implements ReportExcelBuilder {
 
     private final ReportDataFetcher fetcher;
 
+    @Override
+    public ReportType supports() { return ReportType.CASH_FLOW; }
+
+    @Override
     public void build(Workbook wb, Long companyId, LocalDate start, LocalDate end) {
         List<Transaction> incomes = fetcher.fetchTransactions(companyId, TransactionType.INCOME, start, end);
         List<Transaction> expenses = fetcher.fetchTransactions(companyId, TransactionType.EXPENSE, start, end);
