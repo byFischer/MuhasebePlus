@@ -10,6 +10,7 @@ import com.MuhasebePlus.demo.user.repository.UserRepository;
 import com.MuhasebePlus.demo.company.repository.CompanyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,9 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final CompanyRepository companyRepository;
+
+    @Value("${app.security.max-login-attempts:5}")
+    private int maxLoginAttempts;
 
 
     public List<UserResponseDto> getAllUsers() {
@@ -150,7 +154,7 @@ public class UserService {
         User user = findUserByEmail(email);
         int attempts = user.getFailedLoginAttempts() + 1;
         user.setFailedLoginAttempts(attempts);
-        if (attempts >= 5) {
+        if (attempts >= maxLoginAttempts) {
             user.setLocked(true);
             log.warn("User account locked after {} failed attempts email={}", attempts, email);
         }

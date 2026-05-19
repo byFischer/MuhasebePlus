@@ -12,6 +12,7 @@ import com.MuhasebePlus.demo.stock.entity.Stock;
 import com.MuhasebePlus.demo.template.entity.Template;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import org.springframework.beans.factory.annotation.Value;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.criteria.*;
 import jakarta.persistence.metamodel.SingularAttribute;
@@ -30,6 +31,12 @@ public class DynamicQueryService {
 
     @PersistenceContext
     private EntityManager entityManager;
+
+    @Value("${app.dynamic-query.default-limit:100}")
+    private int defaultLimit;
+
+    @Value("${app.dynamic-query.max-limit:1000}")
+    private int maxLimit;
 
     private static final Map<String, Class<?>> ENTITY_MAP = Map.of(
             "INVOICE", Invoice.class,
@@ -158,8 +165,8 @@ public class DynamicQueryService {
         }
 
         var typedQuery = entityManager.createQuery(cq);
-        int limit = config.limit() != null ? config.limit() : 100;
-        typedQuery.setMaxResults(Math.min(limit, 1000));
+        int limit = config.limit() != null ? config.limit() : defaultLimit;
+        typedQuery.setMaxResults(Math.min(limit, maxLimit));
 
         List<Tuple> tuples = typedQuery.getResultList();
         List<Map<String, Object>> rows = tuples.stream()
