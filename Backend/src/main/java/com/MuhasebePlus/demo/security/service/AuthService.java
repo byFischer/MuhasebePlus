@@ -12,6 +12,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -26,6 +27,7 @@ import java.util.Date;
 import java.util.UUID;
 
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -44,9 +46,11 @@ public class AuthService {
             User user = (User) authentication.getPrincipal();
             userService.resetFailedLoginAttempts(user.getEmail());
             String token = jwtUtil.generateToken(user);
+            log.info("User logged in email={}", user.getEmail());
             return new LoginResponseDto(token);
         } catch (BadCredentialsException e) {
             userService.incrementFailedLoginAttempts(request.email());
+            log.warn("Failed login attempt email={}", request.email());
             throw e;
         }
     }

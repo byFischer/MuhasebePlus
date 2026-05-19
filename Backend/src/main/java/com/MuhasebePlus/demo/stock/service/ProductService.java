@@ -19,9 +19,11 @@ import com.MuhasebePlus.demo.stock.repository.StockRepository;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDateTime;
 
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -69,6 +71,7 @@ public class ProductService implements HardDeletable {
                     MovementType.OPENING_BALANCE, "INITIAL", null, dto.costPrice(), "Açılış bakiyesi");
         }
 
+        log.info("Product created id={} barcode={} companyId={}", saved.getProductId(), saved.getBarcode(), companyId);
         return saved;
     }
 
@@ -128,6 +131,7 @@ public class ProductService implements HardDeletable {
         product.setDeleted(true);
         product.setDeletedAt(LocalDateTime.now());
         productRepository.save(product);
+        log.warn("Product soft-deleted id={} companyId={}", id, companyId);
 
         // İlgili stok satırı varsa onu da soft-delete et (cascade)
         stockRepository.findByProductIdAndCompanyCompanyId(id, companyId).ifPresent(stock -> {

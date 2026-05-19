@@ -17,7 +17,9 @@ import com.MuhasebePlus.demo.stock.repository.StockRepository;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -52,6 +54,7 @@ public class StockService {
         stock.setLastCountDate(LocalDateTime.now());
 
         Stock saved = stockRepository.save(stock);
+        log.info("Stock created productId={} companyId={}", dto.productId(), companyId);
         return toResponseDto(saved);
     }
 
@@ -75,6 +78,7 @@ public class StockService {
 
         stock.setDeleted(true);
         stockRepository.save(stock);
+        log.warn("Stock soft-deleted productId={} companyId={}", productId, companyId);
     }
 
     public StockResponseDto restoreStock(Integer productId) {

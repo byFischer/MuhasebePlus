@@ -19,6 +19,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -55,6 +56,7 @@ import com.MuhasebePlus.demo.log.service.SystemLogService;
 import com.MuhasebePlus.demo.accounting.entity.AccountType;
 import com.MuhasebePlus.demo.accounting.service.ChartOfAccountService;
 
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -119,6 +121,7 @@ public class CustomerService implements HardDeletable {
         }
 
         systemLogService.log(LogLevel.INFO, "Müşteri oluşturuldu: " + saved.getName() + " (id=" + saved.getCustomerId() + ")");
+        log.info("Customer created id={} companyId={}", saved.getCustomerId(), companyId);
         return toResponseDto(saved, BigDecimal.ZERO, false);
     }
 

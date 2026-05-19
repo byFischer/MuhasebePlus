@@ -57,7 +57,9 @@ import com.MuhasebePlus.demo.period.service.AccountingPeriodGuard;
 import com.MuhasebePlus.demo.accounting.service.JournalEntryService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -119,6 +121,7 @@ public class InvoiceService implements HardDeletable {
         journalEntryService.createForInvoice(finalInvoice);
 
         systemLogService.log(LogLevel.INFO, "Fatura oluşturuldu: " + dto.invoiceNumber());
+        log.info("Invoice created id={} number={} companyId={}", finalInvoice.getInvoiceId(), dto.invoiceNumber(), companyId);
         return toResponseDto(finalInvoice, customer, savedLineItems, productMap);
     }
 

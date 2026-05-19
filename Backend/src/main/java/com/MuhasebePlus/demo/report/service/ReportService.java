@@ -65,7 +65,9 @@ import com.MuhasebePlus.demo.user.entity.User;
 import com.MuhasebePlus.demo.user.repository.UserRepository;
 
 import java.util.LinkedHashMap;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @Transactional
 public class ReportService implements HardDeletable {
@@ -154,6 +156,7 @@ public class ReportService implements HardDeletable {
             throw new RuntimeException("Rapor dosyası oluşturulamadı: " + e.getMessage(), e);
         }
 
+        log.info("Report generated id={} type={} companyId={}", saved.getReportId(), dto.reportType(), companyId);
         return toResponseDto(saved);
     }
 
