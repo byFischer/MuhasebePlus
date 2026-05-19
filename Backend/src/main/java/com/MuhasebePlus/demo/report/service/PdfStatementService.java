@@ -238,7 +238,9 @@ public class PdfStatementService {
         try {
             InputStream is = getClass().getResourceAsStream("/fonts/arial.ttf");
             if (is != null) return PDType0Font.load(doc, is);
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+            // Custom font not bundled in classpath — fall back to built-in Helvetica.
+        }
         return new org.apache.pdfbox.pdmodel.font.PDType1Font(Standard14Fonts.FontName.HELVETICA);
     }
 

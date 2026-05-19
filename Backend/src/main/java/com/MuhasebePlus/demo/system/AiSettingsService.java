@@ -27,8 +27,9 @@ public class AiSettingsService {
                 return dbKey;
             }
         } catch (EmptyResultDataAccessException ignored) {
+            // No row in app_settings yet — expected on first run before UI setup.
         } catch (Exception ignored) {
-            // Tablo henuz yoksa (startup oncesi) default'a don
+            // Table may not exist yet (startup before schema migration) — fall back to property default.
         }
         return defaultApiKey != null ? defaultApiKey : "";
     }

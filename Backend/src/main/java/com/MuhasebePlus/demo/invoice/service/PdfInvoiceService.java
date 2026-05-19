@@ -104,18 +104,24 @@ public class PdfInvoiceService {
         try {
             InputStream is = getClass().getResourceAsStream("/fonts/arial.ttf");
             if (is != null) return PDType0Font.load(doc, is);
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+            // Custom font not bundled in classpath — fall back to next candidate.
+        }
         try {
             InputStream is = getClass().getResourceAsStream("/fonts/segoeui.ttf");
             if (is != null) return PDType0Font.load(doc, is);
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+            // Custom font not bundled in classpath — fall back to built-in Helvetica.
+        }
         return new org.apache.pdfbox.pdmodel.font.PDType1Font(Standard14Fonts.FontName.HELVETICA);
     }
 
     private PDFont loadFontBold(PDDocument doc) throws Exception {
         try {
             return PDType0Font.load(doc, getClass().getResourceAsStream("/fonts/arial.ttf"));
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+            // Custom font not bundled in classpath — fall back to loadFont() for regular weight.
+        }
         return loadFont(doc);
     }
 
