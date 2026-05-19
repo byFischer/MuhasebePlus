@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,6 +15,7 @@ import com.MuhasebePlus.demo.financial.dto.response.BudgetResponseDto;
 import com.MuhasebePlus.demo.financial.entity.Budget;
 import com.MuhasebePlus.demo.financial.repository.BudgetRepository;
 
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -42,7 +44,9 @@ public class BudgetService {
         budget.setPlannedAmount(dto.plannedAmount());
         budget.setNotes(dto.notes());
         budget.setDeleted(false);
-        return toDto(budgetRepository.save(budget));
+        BudgetResponseDto result = toDto(budgetRepository.save(budget));
+        log.info("Budget created id={} year={} month={} companyId={}", result.budgetId(), dto.year(), dto.month(), companyId);
+        return result;
     }
 
     public BudgetResponseDto updateBudget(Long budgetId, BudgetRequestDto dto) {
@@ -56,7 +60,9 @@ public class BudgetService {
         budget.setTransactionType(dto.transactionType());
         budget.setPlannedAmount(dto.plannedAmount());
         budget.setNotes(dto.notes());
-        return toDto(budgetRepository.save(budget));
+        BudgetResponseDto result = toDto(budgetRepository.save(budget));
+        log.info("Budget updated id={} companyId={}", budgetId, companyId);
+        return result;
     }
 
     public void deleteBudget(Long budgetId) {
@@ -67,6 +73,7 @@ public class BudgetService {
         budget.setDeleted(true);
         budget.setDeletedAt(LocalDateTime.now());
         budgetRepository.save(budget);
+        log.warn("Budget soft-deleted id={} companyId={}", budgetId, companyId);
     }
 
     private BudgetResponseDto toDto(Budget b) {

@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,7 @@ import com.MuhasebePlus.demo.financial.repository.TransactionRepository;
 import com.MuhasebePlus.demo.log.entity.LogLevel;
 import com.MuhasebePlus.demo.log.service.SystemLogService;
 
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -54,6 +56,7 @@ public class BankAccountService implements HardDeletable {
 
         BankAccount saved = bankAccountRepository.save(account);
         systemLogService.log(LogLevel.INFO, "Banka hesabı oluşturuldu: " + saved.getBankName() + " - " + saved.getIban());
+        log.info("Bank account created id={} iban={} companyId={}", saved.getAccountId(), saved.getIban(), companyId);
         return toResponseDto(saved, BigDecimal.ZERO);
     }
 
@@ -86,6 +89,7 @@ public class BankAccountService implements HardDeletable {
         account.setCurrency(dto.currency());
 
         BankAccount updated = bankAccountRepository.save(account);
+        log.info("Bank account updated id={} companyId={}", accountId, companyId);
         return toResponseDto(updated, fetchBalance(accountId, companyId));
     }
 
@@ -100,6 +104,7 @@ public class BankAccountService implements HardDeletable {
         account.setDeleted(true);
         account.setDeletedAt(LocalDateTime.now());
         bankAccountRepository.save(account);
+        log.warn("Bank account soft-deleted id={} companyId={}", accountId, companyId);
     }
 
     public BankAccountResponseDto restoreBankAccount(Long accountId) {

@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +26,7 @@ import com.MuhasebePlus.demo.log.service.SystemLogService;
 import com.MuhasebePlus.demo.period.service.AccountingPeriodGuard;
 import com.MuhasebePlus.demo.accounting.service.JournalEntryService;
 
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -71,6 +73,7 @@ public class TransactionService implements HardDeletable {
         }
         systemLogService.log(LogLevel.INFO,
                 "İşlem kaydedildi: " + saved.getTransactionType() + " " + saved.getAmount() + " TL (hesap=" + saved.getAccountId() + ")");
+        log.info("Transaction created id={} type={} amount={} companyId={}", saved.getTransactionId(), saved.getTransactionType(), saved.getAmount(), companyId);
         return toResponseDto(saved);
     }
 
@@ -154,6 +157,7 @@ public class TransactionService implements HardDeletable {
             journalEntryService.reverseForTransaction(companyId2, transactionId, "Güncelleme");
             journalEntryService.createForTransaction(updated);
         }
+        log.info("Transaction updated id={} companyId={}", transactionId, companyId);
         return toResponseDto(updated);
     }
 
@@ -167,6 +171,7 @@ public class TransactionService implements HardDeletable {
         if (tx.getInvoiceId() == null) {
             journalEntryService.reverseForTransaction(companyId, transactionId, "İşlem silindi");
         }
+        log.warn("Transaction soft-deleted id={} companyId={}", transactionId, companyId);
     }
 
     public TransactionResponseDto restoreTransaction(Long transactionId) {
