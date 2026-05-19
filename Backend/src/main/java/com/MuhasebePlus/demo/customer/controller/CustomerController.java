@@ -3,7 +3,7 @@ package com.MuhasebePlus.demo.customer.controller;
 import java.time.LocalDate;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -40,16 +40,12 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/customers")
+@RequiredArgsConstructor
 public class CustomerController {
 
-    @Autowired
-    private CustomerService customerService;
-
-    @Autowired
-    private CustomerExcelService customerExcelService;
-
-    @Autowired
-    private CustomerPdfService customerPdfService;
+    private final CustomerService customerService;
+    private final CustomerExcelService customerExcelService;
+    private final CustomerPdfService customerPdfService;
 
     // CUSTOMER CRUD
 

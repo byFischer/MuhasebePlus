@@ -2,7 +2,7 @@ package com.MuhasebePlus.demo.stock.controller;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,10 +26,10 @@ import jakarta.validation.Valid;
 @RestController
 @RequestMapping("/api/stocks")
 @Validated
+@RequiredArgsConstructor
 public class StockController {
 
-    @Autowired
-    private StockService stockService;
+    private final StockService stockService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','USER')")

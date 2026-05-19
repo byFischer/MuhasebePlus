@@ -3,7 +3,7 @@ package com.MuhasebePlus.demo.financial.service;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,16 +16,12 @@ import com.MuhasebePlus.demo.financial.repository.BudgetRepository;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class BudgetService {
 
-    @Autowired
-    private BudgetRepository budgetRepository;
-
-    @Autowired
-    private CompanyContext companyContext;
-
-    @Autowired
-    private CompanyRepository companyRepository;
+    private final BudgetRepository budgetRepository;
+    private final CompanyContext companyContext;
+    private final CompanyRepository companyRepository;
 
     public List<BudgetResponseDto> getAllBudgets(Integer year) {
         Long companyId = companyContext.getCurrentCompanyId();

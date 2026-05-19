@@ -24,7 +24,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import com.MuhasebePlus.demo.customer.entity.Customer;
@@ -53,34 +53,18 @@ import com.MuhasebePlus.demo.stock.repository.ProductRepository;
 import com.MuhasebePlus.demo.stock.repository.StockRepository;
 
 @Component
+@RequiredArgsConstructor
 public class ReportExcelBuilder {
 
-    @Autowired
-    private InvoiceRepository invoiceRepository;
-
-    @Autowired
-    private TransactionRepository transactionRepository;
-
-    @Autowired
-    private CustomerRepository customerRepository;
-
-    @Autowired
-    private StockRepository stockRepository;
-
-    @Autowired
-    private ProductRepository productRepository;
-
-    @Autowired
-    private InvoiceLineItemRepository invoiceLineItemRepository;
-
-    @Autowired
-    private BudgetRepository budgetRepository;
-
-    @Autowired
-    private BankAccountRepository bankAccountRepository;
-
-    @Autowired
-    private JournalEntryService journalEntryService;
+    private final InvoiceRepository invoiceRepository;
+    private final TransactionRepository transactionRepository;
+    private final CustomerRepository customerRepository;
+    private final StockRepository stockRepository;
+    private final ProductRepository productRepository;
+    private final InvoiceLineItemRepository invoiceLineItemRepository;
+    private final BudgetRepository budgetRepository;
+    private final BankAccountRepository bankAccountRepository;
+    private final JournalEntryService journalEntryService;
 
     public void build(ReportType type, Long companyId, LocalDate start, LocalDate end, OutputStream out) throws IOException {
         try (Workbook wb = new XSSFWorkbook()) {

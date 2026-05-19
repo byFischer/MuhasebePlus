@@ -2,7 +2,7 @@ package com.MuhasebePlus.demo.system;
 
 import com.MuhasebePlus.demo.user.dto.request.UserRequestDto;
 import com.MuhasebePlus.demo.user.repository.UserRepository;
-import com.MuhasebePlus.demo.user.service.userService;
+import com.MuhasebePlus.demo.user.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,11 +17,11 @@ public class SystemController {
 
     private final AiSettingsService aiSettingsService;
     private final UserRepository userRepository;
-    private final userService userSvc;
+    private final UserService userSvc;
 
     public SystemController(AiSettingsService aiSettingsService,
                             UserRepository userRepository,
-                            userService userSvc) {
+                            UserService userSvc) {
         this.aiSettingsService = aiSettingsService;
         this.userRepository = userRepository;
         this.userSvc = userSvc;

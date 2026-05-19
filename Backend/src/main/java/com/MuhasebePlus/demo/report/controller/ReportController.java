@@ -2,7 +2,7 @@ package com.MuhasebePlus.demo.report.controller;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -28,10 +28,10 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/reports")
+@RequiredArgsConstructor
 public class ReportController {
 
-    @Autowired
-    private ReportService reportService;
+    private final ReportService reportService;
 
     @PostMapping("/generate")
     @PreAuthorize("hasAnyRole('ADMIN','USER')")

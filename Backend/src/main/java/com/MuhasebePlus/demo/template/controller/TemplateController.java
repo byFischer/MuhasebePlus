@@ -7,7 +7,7 @@ import com.MuhasebePlus.demo.template.dto.response.TemplateResponseDto;
 import com.MuhasebePlus.demo.template.service.TemplateApplicationService;
 import com.MuhasebePlus.demo.template.service.TemplateService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,13 +17,11 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/templates")
+@RequiredArgsConstructor
 public class TemplateController {
 
-    @Autowired
-    private TemplateService templateService;
-
-    @Autowired
-    private TemplateApplicationService templateApplicationService;
+    private final TemplateService templateService;
+    private final TemplateApplicationService templateApplicationService;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','USER')")

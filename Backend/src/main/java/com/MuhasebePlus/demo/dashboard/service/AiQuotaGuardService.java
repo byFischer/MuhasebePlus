@@ -4,7 +4,6 @@ import com.MuhasebePlus.demo.company.entity.Company;
 import com.MuhasebePlus.demo.company.repository.CompanyRepository;
 import com.MuhasebePlus.demo.dashboard.entity.AiQuota;
 import com.MuhasebePlus.demo.dashboard.repository.AiQuotaRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,11 +13,18 @@ import java.time.LocalDateTime;
 @Service
 public class AiQuotaGuardService {
 
-    @Autowired private AiQuotaRepository quotaRepository;
-    @Autowired private CompanyRepository companyRepository;
+    private final AiQuotaRepository quotaRepository;
+    private final CompanyRepository companyRepository;
+    private final int defaultMonthlyBudget;
 
-    @Value("${app.ai.monthly-token-budget:200000}")
-    private int defaultMonthlyBudget;
+    public AiQuotaGuardService(
+            AiQuotaRepository quotaRepository,
+            CompanyRepository companyRepository,
+            @Value("${app.ai.monthly-token-budget:200000}") int defaultMonthlyBudget) {
+        this.quotaRepository = quotaRepository;
+        this.companyRepository = companyRepository;
+        this.defaultMonthlyBudget = defaultMonthlyBudget;
+    }
 
     @Transactional(readOnly = true)
     public void check(Long companyId) {

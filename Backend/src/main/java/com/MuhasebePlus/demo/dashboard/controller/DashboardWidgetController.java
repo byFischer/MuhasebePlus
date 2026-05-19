@@ -5,7 +5,7 @@ import com.MuhasebePlus.demo.dashboard.dto.request.WidgetReorderRequestDto;
 import com.MuhasebePlus.demo.dashboard.dto.response.DashboardWidgetResponseDto;
 import com.MuhasebePlus.demo.dashboard.service.DashboardWidgetService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -15,9 +15,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/dashboard/layouts/{layoutId}/widgets")
+@RequiredArgsConstructor
 public class DashboardWidgetController {
 
-    @Autowired private DashboardWidgetService widgetService;
+    private final DashboardWidgetService widgetService;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','USER')")

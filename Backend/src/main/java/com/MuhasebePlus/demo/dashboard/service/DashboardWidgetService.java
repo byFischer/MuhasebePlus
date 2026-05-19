@@ -10,7 +10,7 @@ import com.MuhasebePlus.demo.dashboard.entity.WidgetDefinition;
 import com.MuhasebePlus.demo.dashboard.repository.DashboardLayoutRepository;
 import com.MuhasebePlus.demo.dashboard.repository.DashboardWidgetRepository;
 import com.MuhasebePlus.demo.dashboard.repository.WidgetDefinitionRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,12 +19,13 @@ import java.util.Map;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class DashboardWidgetService {
 
-    @Autowired private DashboardWidgetRepository widgetRepository;
-    @Autowired private DashboardLayoutRepository layoutRepository;
-    @Autowired private WidgetDefinitionRepository definitionRepository;
-    @Autowired private CompanyContext companyContext;
+    private final DashboardWidgetRepository widgetRepository;
+    private final DashboardLayoutRepository layoutRepository;
+    private final WidgetDefinitionRepository definitionRepository;
+    private final CompanyContext companyContext;
 
     public List<DashboardWidgetResponseDto> getWidgets(Long layoutId) {
         verifyLayoutOwnership(layoutId);

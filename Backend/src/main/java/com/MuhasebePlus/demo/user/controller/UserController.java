@@ -4,9 +4,9 @@ import com.MuhasebePlus.demo.user.dto.request.ChangePasswordRequestDto;
 import com.MuhasebePlus.demo.user.dto.request.UpdateProfileRequestDto;
 import com.MuhasebePlus.demo.user.dto.request.UserRequestDto;
 import com.MuhasebePlus.demo.user.dto.response.UserResponseDto;
-import com.MuhasebePlus.demo.user.service.userService;
+import com.MuhasebePlus.demo.user.service.UserService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,10 +18,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
+@RequiredArgsConstructor
 public class UserController {
 
-    @Autowired
-    private userService userService;
+    private final UserService userService;
 
     //  Admin Endpoints 
 

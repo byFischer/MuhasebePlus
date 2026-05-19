@@ -11,7 +11,7 @@ import com.MuhasebePlus.demo.dashboard.service.DynamicQueryService;
 import com.MuhasebePlus.demo.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,13 +26,14 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/widget-definitions")
+@RequiredArgsConstructor
 public class WidgetDefinitionController {
 
-    @Autowired private WidgetDefinitionRepository definitionRepository;
-    @Autowired private CompanyContext companyContext;
-    @Autowired private DynamicQueryService dynamicQueryService;
-    @Autowired private CompanyRepository companyRepository;
-    @Autowired private UserRepository userRepository;
+    private final WidgetDefinitionRepository definitionRepository;
+    private final CompanyContext companyContext;
+    private final DynamicQueryService dynamicQueryService;
+    private final CompanyRepository companyRepository;
+    private final UserRepository userRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @GetMapping

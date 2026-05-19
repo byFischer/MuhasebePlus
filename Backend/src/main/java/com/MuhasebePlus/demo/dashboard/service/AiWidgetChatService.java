@@ -16,7 +16,6 @@ import com.MuhasebePlus.demo.dashboard.repository.AiInsightLogRepository;
 import com.MuhasebePlus.demo.dashboard.repository.AiWidgetRecipeRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -27,19 +26,37 @@ import java.util.Map;
 @Service
 public class AiWidgetChatService {
 
-    @Autowired private GeminiService geminiService;
-    @Autowired private AiWidgetPromptBuilder promptBuilder;
-    @Autowired private AiQuotaGuardService quotaGuard;
-    @Autowired private DynamicQueryService dynamicQueryService;
-    @Autowired private AiWidgetRecipeRepository recipeRepository;
-    @Autowired private AiInsightLogRepository logRepository;
-    @Autowired private CompanyContext companyContext;
-    @Autowired private CompanyRepository companyRepository;
-
+    private final GeminiService geminiService;
+    private final AiWidgetPromptBuilder promptBuilder;
+    private final AiQuotaGuardService quotaGuard;
+    private final DynamicQueryService dynamicQueryService;
+    private final AiWidgetRecipeRepository recipeRepository;
+    private final AiInsightLogRepository logRepository;
+    private final CompanyContext companyContext;
+    private final CompanyRepository companyRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final String model;
 
-    @Value("${app.ai.gemini-model:gemini-2.5-flash}")
-    private String model;
+    public AiWidgetChatService(
+            GeminiService geminiService,
+            AiWidgetPromptBuilder promptBuilder,
+            AiQuotaGuardService quotaGuard,
+            DynamicQueryService dynamicQueryService,
+            AiWidgetRecipeRepository recipeRepository,
+            AiInsightLogRepository logRepository,
+            CompanyContext companyContext,
+            CompanyRepository companyRepository,
+            @Value("${app.ai.gemini-model:gemini-2.5-flash}") String model) {
+        this.geminiService = geminiService;
+        this.promptBuilder = promptBuilder;
+        this.quotaGuard = quotaGuard;
+        this.dynamicQueryService = dynamicQueryService;
+        this.recipeRepository = recipeRepository;
+        this.logRepository = logRepository;
+        this.companyContext = companyContext;
+        this.companyRepository = companyRepository;
+        this.model = model;
+    }
 
     public AiWidgetChatResponseDto chat(List<ChatMessage> messages) {
         Long companyId = companyContext.getCurrentCompanyId();

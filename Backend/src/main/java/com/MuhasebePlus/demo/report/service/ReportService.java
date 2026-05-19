@@ -21,7 +21,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -71,50 +70,54 @@ import java.util.LinkedHashMap;
 @Transactional
 public class ReportService implements HardDeletable {
 
-    @Autowired
-    private ReportRepository reportRepository;
+    private final ReportRepository reportRepository;
+    private final ReportExcelBuilder excelBuilder;
+    private final CompanyContext companyContext;
+    private final CompanyRepository companyRepository;
+    private final UserRepository userRepository;
+    private final TransactionRepository transactionRepository;
+    private final InvoiceRepository invoiceRepository;
+    private final InvoiceLineItemRepository invoiceLineItemRepository;
+    private final CustomerRepository customerRepository;
+    private final StockRepository stockRepository;
+    private final ProductRepository productRepository;
+    private final BudgetRepository budgetRepository;
+    private final BankAccountRepository bankAccountRepository;
+    private final JournalEntryService journalEntryService;
+    private final String storagePath;
 
-    @Autowired
-    private ReportExcelBuilder excelBuilder;
-
-    @Autowired
-    private CompanyContext companyContext;
-
-    @Autowired
-    private CompanyRepository companyRepository;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private TransactionRepository transactionRepository;
-
-    @Autowired
-    private InvoiceRepository invoiceRepository;
-
-    @Autowired
-    private InvoiceLineItemRepository invoiceLineItemRepository;
-
-    @Autowired
-    private CustomerRepository customerRepository;
-
-    @Autowired
-    private StockRepository stockRepository;
-
-    @Autowired
-    private ProductRepository productRepository;
-
-    @Autowired
-    private BudgetRepository budgetRepository;
-
-    @Autowired
-    private BankAccountRepository bankAccountRepository;
-
-    @Autowired
-    private JournalEntryService journalEntryService;
-
-    @Value("${app.report.storage-path:./reports/}")
-    private String storagePath;
+    public ReportService(
+            ReportRepository reportRepository,
+            ReportExcelBuilder excelBuilder,
+            CompanyContext companyContext,
+            CompanyRepository companyRepository,
+            UserRepository userRepository,
+            TransactionRepository transactionRepository,
+            InvoiceRepository invoiceRepository,
+            InvoiceLineItemRepository invoiceLineItemRepository,
+            CustomerRepository customerRepository,
+            StockRepository stockRepository,
+            ProductRepository productRepository,
+            BudgetRepository budgetRepository,
+            BankAccountRepository bankAccountRepository,
+            JournalEntryService journalEntryService,
+            @Value("${app.report.storage-path:./reports/}") String storagePath) {
+        this.reportRepository = reportRepository;
+        this.excelBuilder = excelBuilder;
+        this.companyContext = companyContext;
+        this.companyRepository = companyRepository;
+        this.userRepository = userRepository;
+        this.transactionRepository = transactionRepository;
+        this.invoiceRepository = invoiceRepository;
+        this.invoiceLineItemRepository = invoiceLineItemRepository;
+        this.customerRepository = customerRepository;
+        this.stockRepository = stockRepository;
+        this.productRepository = productRepository;
+        this.budgetRepository = budgetRepository;
+        this.bankAccountRepository = bankAccountRepository;
+        this.journalEntryService = journalEntryService;
+        this.storagePath = storagePath;
+    }
 
 
     // PUBLIC METOTLAR

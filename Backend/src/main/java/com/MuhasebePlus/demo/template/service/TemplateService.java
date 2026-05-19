@@ -9,7 +9,7 @@ import com.MuhasebePlus.demo.template.entity.TemplateType;
 import com.MuhasebePlus.demo.template.mapper.TemplateMapper;
 import com.MuhasebePlus.demo.template.repository.TemplateRepository;
 import com.MuhasebePlus.demo.template.repository.TemplateUsageLogRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,22 +20,14 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class TemplateService {
 
-    @Autowired
-    private TemplateRepository templateRepository;
-
-    @Autowired
-    private TemplateUsageLogRepository usageLogRepository;
-
-    @Autowired
-    private CompanyContext companyContext;
-
-    @Autowired
-    private CompanyRepository companyRepository;
-
-    @Autowired
-    private TemplateMapper templateMapper;
+    private final TemplateRepository templateRepository;
+    private final TemplateUsageLogRepository usageLogRepository;
+    private final CompanyContext companyContext;
+    private final CompanyRepository companyRepository;
+    private final TemplateMapper templateMapper;
 
     // ============================================================
     // CREATE

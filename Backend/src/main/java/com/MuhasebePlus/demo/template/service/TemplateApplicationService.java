@@ -23,7 +23,7 @@ import com.MuhasebePlus.demo.template.entity.TemplateType;
 import com.MuhasebePlus.demo.template.entity.TemplateUsageLog;
 import com.MuhasebePlus.demo.template.repository.TemplateRepository;
 import com.MuhasebePlus.demo.template.repository.TemplateUsageLogRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,28 +35,16 @@ import java.util.Map;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class TemplateApplicationService {
 
-    @Autowired
-    private TemplateRepository templateRepository;
-
-    @Autowired
-    private TemplateUsageLogRepository usageLogRepository;
-
-    @Autowired
-    private CompanyContext companyContext;
-
-    @Autowired
-    private TransactionService transactionService;
-
-    @Autowired
-    private BankAccountRepository bankAccountRepository;
-
-    @Autowired
-    private InvoiceService invoiceService;
-
-    @Autowired
-    private StockMovementService stockMovementService;
+    private final TemplateRepository templateRepository;
+    private final TemplateUsageLogRepository usageLogRepository;
+    private final CompanyContext companyContext;
+    private final TransactionService transactionService;
+    private final BankAccountRepository bankAccountRepository;
+    private final InvoiceService invoiceService;
+    private final StockMovementService stockMovementService;
 
     public TemplateApplyResponseDto applyTemplate(Long templateId, TemplateApplyRequestDto dto) {
         Long companyId = companyContext.getCurrentCompanyId();

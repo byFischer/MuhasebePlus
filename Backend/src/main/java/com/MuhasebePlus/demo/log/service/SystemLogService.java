@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -27,16 +27,12 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class SystemLogService {
 
-    @Autowired
-    private SystemLogRepository systemLogRepository;
-
-    @Autowired
-    private CompanyContext companyContext;
-
-    @Autowired
-    private CompanyRepository companyRepository;
+    private final SystemLogRepository systemLogRepository;
+    private final CompanyContext companyContext;
+    private final CompanyRepository companyRepository;
 
 
     // PUBLIC METOTLAR

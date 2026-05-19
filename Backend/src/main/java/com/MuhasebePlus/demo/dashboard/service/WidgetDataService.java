@@ -9,7 +9,7 @@ import com.MuhasebePlus.demo.dashboard.service.provider.BuiltInWidgetDataProvide
 import com.MuhasebePlus.demo.dashboard.service.provider.DataQueryProvider;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,14 +18,14 @@ import java.util.Map;
 
 @Service
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class WidgetDataService {
 
-    @Autowired private DashboardWidgetRepository widgetRepository;
-    @Autowired private DashboardLayoutRepository layoutRepository;
-    @Autowired private CompanyContext companyContext;
-    @Autowired private BuiltInWidgetDataProvider builtInProvider;
-    @Autowired private DataQueryProvider dataQueryProvider;
-
+    private final DashboardWidgetRepository widgetRepository;
+    private final DashboardLayoutRepository layoutRepository;
+    private final CompanyContext companyContext;
+    private final BuiltInWidgetDataProvider builtInProvider;
+    private final DataQueryProvider dataQueryProvider;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public Map<String, Object> getWidgetData(Long layoutId, Long widgetId) {

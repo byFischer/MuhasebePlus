@@ -3,7 +3,7 @@ package com.MuhasebePlus.demo.financial.service;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,16 +18,12 @@ import com.MuhasebePlus.demo.financial.repository.TransactionTemplateRepository;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class TransactionTemplateService implements HardDeletable {
 
-    @Autowired
-    private TransactionTemplateRepository templateRepository;
-
-    @Autowired
-    private CompanyContext companyContext;
-
-    @Autowired
-    private CompanyRepository companyRepository;
+    private final TransactionTemplateRepository templateRepository;
+    private final CompanyContext companyContext;
+    private final CompanyRepository companyRepository;
 
 
     // PUBLIC METOTLAR

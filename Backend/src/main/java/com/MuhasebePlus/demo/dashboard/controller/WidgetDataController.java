@@ -2,7 +2,7 @@ package com.MuhasebePlus.demo.dashboard.controller;
 
 import com.MuhasebePlus.demo.dashboard.entity.WidgetType;
 import com.MuhasebePlus.demo.dashboard.service.WidgetDataService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -11,9 +11,10 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/dashboard")
+@RequiredArgsConstructor
 public class WidgetDataController {
 
-    @Autowired private WidgetDataService widgetDataService;
+    private final WidgetDataService widgetDataService;
 
     @GetMapping("/layouts/{layoutId}/widgets/{widgetId}/data")
     @PreAuthorize("hasAnyRole('ADMIN','USER')")

@@ -18,7 +18,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -57,31 +57,17 @@ import com.MuhasebePlus.demo.accounting.service.ChartOfAccountService;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class CustomerService implements HardDeletable {
 
-    @Autowired
-    private CustomerRepository customerRepository;
-
-    @Autowired
-    private CustomerNoteRepository customerNoteRepository;
-
-    @Autowired
-    private CompanyContext companyContext;
-
-    @Autowired
-    private CompanyRepository companyRepository;
-
-    @Autowired
-    private InvoiceRepository invoiceRepository;
-
-    @Autowired
-    private InvoicePaymentRepository invoicePaymentRepository;
-
-    @Autowired
-    private SystemLogService systemLogService;
-
-    @Autowired
-    private ChartOfAccountService chartOfAccountService;
+    private final CustomerRepository customerRepository;
+    private final CustomerNoteRepository customerNoteRepository;
+    private final CompanyContext companyContext;
+    private final CompanyRepository companyRepository;
+    private final InvoiceRepository invoiceRepository;
+    private final InvoicePaymentRepository invoicePaymentRepository;
+    private final SystemLogService systemLogService;
+    private final ChartOfAccountService chartOfAccountService;
 
     // PUBLIC METOTLAR
 

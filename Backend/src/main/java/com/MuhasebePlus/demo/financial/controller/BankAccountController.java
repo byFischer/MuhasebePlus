@@ -2,7 +2,7 @@ package com.MuhasebePlus.demo.financial.controller;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -24,10 +24,10 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/bank-accounts")
+@RequiredArgsConstructor
 public class BankAccountController {
 
-    @Autowired
-    private BankAccountService bankAccountService;
+    private final BankAccountService bankAccountService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','USER')")

@@ -6,7 +6,7 @@ import com.MuhasebePlus.demo.security.dto.response.LoginResponseDto;
 import com.MuhasebePlus.demo.security.dto.response.PasswordResetResponseDto;
 import com.MuhasebePlus.demo.security.util.JwtUtil;
 import com.MuhasebePlus.demo.user.entity.User;
-import com.MuhasebePlus.demo.user.service.userService;
+import com.MuhasebePlus.demo.user.service.UserService;
 import jakarta.mail.Message;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.InternetAddress;
@@ -32,7 +32,7 @@ public class AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
-    private final userService userService;
+    private final UserService userService;
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
     private final Environment environment;
 

@@ -9,7 +9,7 @@ import com.MuhasebePlus.demo.dashboard.dto.response.DashboardWidgetResponseDto;
 import com.MuhasebePlus.demo.dashboard.entity.DashboardLayout;
 import com.MuhasebePlus.demo.dashboard.entity.DashboardWidget;
 import com.MuhasebePlus.demo.dashboard.repository.DashboardLayoutRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,11 +18,12 @@ import java.util.List;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class DashboardLayoutService {
 
-    @Autowired private DashboardLayoutRepository layoutRepository;
-    @Autowired private CompanyContext companyContext;
-    @Autowired private CompanyRepository companyRepository;
+    private final DashboardLayoutRepository layoutRepository;
+    private final CompanyContext companyContext;
+    private final CompanyRepository companyRepository;
 
     public List<DashboardLayoutResponseDto> getLayouts() {
         Long companyId = companyContext.getCurrentCompanyId();

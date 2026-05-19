@@ -7,7 +7,6 @@ import com.MuhasebePlus.demo.dashboard.repository.AiInsightLogRepository;
 import com.MuhasebePlus.demo.dashboard.repository.AiWidgetRecipeRepository;
 import com.MuhasebePlus.demo.company.repository.CompanyRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,17 +42,31 @@ public class AiWidgetGeneratorService {
         Sadece geçerli JSON döndür, başka metin ekleme. JSON'dan önce veya sonra açıklama yapma.
         """;
 
-    @Autowired private GeminiService geminiService;
-    @Autowired private AiWidgetRecipeRepository recipeRepository;
-    @Autowired private AiInsightLogRepository logRepository;
-    @Autowired private AiQuotaGuardService quotaGuard;
-    @Autowired private CompanyContext companyContext;
-    @Autowired private CompanyRepository companyRepository;
-
+    private final GeminiService geminiService;
+    private final AiWidgetRecipeRepository recipeRepository;
+    private final AiInsightLogRepository logRepository;
+    private final AiQuotaGuardService quotaGuard;
+    private final CompanyContext companyContext;
+    private final CompanyRepository companyRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final String model;
 
-    @Value("${app.ai.gemini-model:gemini-2.5-flash}")
-    private String model;
+    public AiWidgetGeneratorService(
+            GeminiService geminiService,
+            AiWidgetRecipeRepository recipeRepository,
+            AiInsightLogRepository logRepository,
+            AiQuotaGuardService quotaGuard,
+            CompanyContext companyContext,
+            CompanyRepository companyRepository,
+            @Value("${app.ai.gemini-model:gemini-2.5-flash}") String model) {
+        this.geminiService = geminiService;
+        this.recipeRepository = recipeRepository;
+        this.logRepository = logRepository;
+        this.quotaGuard = quotaGuard;
+        this.companyContext = companyContext;
+        this.companyRepository = companyRepository;
+        this.model = model;
+    }
 
     public String generateWidgetConfig(String userPrompt) {
         Long companyId = companyContext.getCurrentCompanyId();

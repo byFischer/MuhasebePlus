@@ -5,15 +5,16 @@ import com.MuhasebePlus.demo.dashboard.entity.WidgetType;
 import com.MuhasebePlus.demo.dashboard.service.DynamicQueryService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
 @Component
+@RequiredArgsConstructor
 public class DataQueryProvider implements WidgetDataProvider {
 
-    @Autowired private DynamicQueryService dynamicQueryService;
+    private final DynamicQueryService dynamicQueryService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override

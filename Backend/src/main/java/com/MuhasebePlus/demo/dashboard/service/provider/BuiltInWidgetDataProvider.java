@@ -7,7 +7,7 @@ import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
 import com.MuhasebePlus.demo.invoice.entity.PaymentStatus;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceRepository;
 import com.MuhasebePlus.demo.template.repository.TemplateRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -18,11 +18,12 @@ import java.time.format.TextStyle;
 import java.util.*;
 
 @Component
+@RequiredArgsConstructor
 public class BuiltInWidgetDataProvider implements WidgetDataProvider {
 
-    @Autowired private TransactionRepository transactionRepository;
-    @Autowired private InvoiceRepository invoiceRepository;
-    @Autowired private TemplateRepository templateRepository;
+    private final TransactionRepository transactionRepository;
+    private final InvoiceRepository invoiceRepository;
+    private final TemplateRepository templateRepository;
 
     @Override
     public boolean supports(WidgetType type) {

@@ -7,7 +7,8 @@ import com.MuhasebePlus.demo.user.dto.response.UserResponseDto;
 import com.MuhasebePlus.demo.user.entity.User;
 import com.MuhasebePlus.demo.user.entity.UserRole;
 import com.MuhasebePlus.demo.user.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.MuhasebePlus.demo.company.repository.CompanyRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,16 +18,12 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional
-public class userService {
+@RequiredArgsConstructor
+public class UserService {
 
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private com.MuhasebePlus.demo.company.repository.CompanyRepository companyRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final CompanyRepository companyRepository;
 
 
     public List<UserResponseDto> getAllUsers() {

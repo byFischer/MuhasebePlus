@@ -2,7 +2,7 @@ package com.MuhasebePlus.demo.log.controller;
 
 import java.time.LocalDate;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -24,10 +24,10 @@ import com.MuhasebePlus.demo.log.service.SystemLogService;
 
 @RestController
 @RequestMapping("/api/logs")
+@RequiredArgsConstructor
 public class SystemLogController {
 
-    @Autowired
-    private SystemLogService systemLogService;
+    private final SystemLogService systemLogService;
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")

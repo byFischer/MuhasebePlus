@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,22 +24,14 @@ import com.MuhasebePlus.demo.log.service.SystemLogService;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class BankAccountService implements HardDeletable {
 
-    @Autowired
-    private BankAccountRepository bankAccountRepository;
-
-    @Autowired
-    private TransactionRepository transactionRepository;
-
-    @Autowired
-    private SystemLogService systemLogService;
-
-    @Autowired
-    private CompanyContext companyContext;
-
-    @Autowired
-    private CompanyRepository companyRepository;
+    private final BankAccountRepository bankAccountRepository;
+    private final TransactionRepository transactionRepository;
+    private final SystemLogService systemLogService;
+    private final CompanyContext companyContext;
+    private final CompanyRepository companyRepository;
 
 
     // PUBLIC METOTLAR

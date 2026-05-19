@@ -2,7 +2,7 @@ package com.MuhasebePlus.demo.financial.controller;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,10 +22,10 @@ import com.MuhasebePlus.demo.financial.service.BudgetService;
 
 @RestController
 @RequestMapping("/api/budgets")
+@RequiredArgsConstructor
 public class BudgetController {
 
-    @Autowired
-    private BudgetService budgetService;
+    private final BudgetService budgetService;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','USER')")

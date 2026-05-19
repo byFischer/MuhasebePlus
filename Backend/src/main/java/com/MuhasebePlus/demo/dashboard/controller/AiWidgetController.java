@@ -7,7 +7,7 @@ import com.MuhasebePlus.demo.dashboard.service.AiQuotaGuardService;
 import com.MuhasebePlus.demo.dashboard.service.AiWidgetChatService;
 import com.MuhasebePlus.demo.dashboard.service.AiWidgetGeneratorService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,12 +18,13 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/ai")
+@RequiredArgsConstructor
 public class AiWidgetController {
 
-    @Autowired private AiWidgetGeneratorService generatorService;
-    @Autowired private AiWidgetChatService chatService;
-    @Autowired private AiQuotaGuardService quotaGuard;
-    @Autowired private CompanyContext companyContext;
+    private final AiWidgetGeneratorService generatorService;
+    private final AiWidgetChatService chatService;
+    private final AiQuotaGuardService quotaGuard;
+    private final CompanyContext companyContext;
 
     @PostMapping("/widgets/generate")
     @PreAuthorize("hasAnyRole('ADMIN','USER')")

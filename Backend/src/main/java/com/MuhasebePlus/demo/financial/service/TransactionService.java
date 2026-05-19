@@ -5,7 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,31 +27,17 @@ import com.MuhasebePlus.demo.accounting.service.JournalEntryService;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class TransactionService implements HardDeletable {
 
-    @Autowired
-    private TransactionRepository transactionRepository;
-
-    @Autowired
-    private BankAccountRepository bankAccountRepository;
-
-    @Autowired
-    private InvoiceRepository invoiceRepository;
-
-    @Autowired
-    private SystemLogService systemLogService;
-
-    @Autowired
-    private CompanyContext companyContext;
-
-    @Autowired
-    private CompanyRepository companyRepository;
-
-    @Autowired
-    private AccountingPeriodGuard periodGuard;
-
-    @Autowired
-    private JournalEntryService journalEntryService;
+    private final TransactionRepository transactionRepository;
+    private final BankAccountRepository bankAccountRepository;
+    private final InvoiceRepository invoiceRepository;
+    private final SystemLogService systemLogService;
+    private final CompanyContext companyContext;
+    private final CompanyRepository companyRepository;
+    private final AccountingPeriodGuard periodGuard;
+    private final JournalEntryService journalEntryService;
 
 
     // PUBLIC METOTLAR

@@ -4,7 +4,7 @@ import com.MuhasebePlus.demo.dashboard.dto.request.DashboardLayoutRequestDto;
 import com.MuhasebePlus.demo.dashboard.dto.response.DashboardLayoutResponseDto;
 import com.MuhasebePlus.demo.dashboard.service.DashboardLayoutService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,9 +14,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/dashboard/layouts")
+@RequiredArgsConstructor
 public class DashboardLayoutController {
 
-    @Autowired private DashboardLayoutService layoutService;
+    private final DashboardLayoutService layoutService;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
