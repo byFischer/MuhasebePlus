@@ -27,6 +27,15 @@ public class GeminiService {
     @Value("${app.ai.gemini-model:gemini-2.5-flash}")
     private String model;
 
+    @Value("${app.ai.gemini.temperature:0.2}")
+    private double temperature;
+
+    @Value("${app.ai.gemini.widget.max-output-tokens:1024}")
+    private int widgetMaxOutputTokens;
+
+    @Value("${app.ai.gemini.chat.max-output-tokens:8192}")
+    private int chatMaxOutputTokens;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RestClient restClient;
 
@@ -55,8 +64,8 @@ public class GeminiService {
         parts.addObject().put("text", systemPrompt + "\n\n" + userPrompt);
 
         ObjectNode config = body.putObject("generationConfig");
-        config.put("temperature", 0.2);
-        config.put("maxOutputTokens", 1024);
+        config.put("temperature", temperature);
+        config.put("maxOutputTokens", widgetMaxOutputTokens);
 
         try {
             String responseBody = restClient.post()
@@ -108,8 +117,8 @@ public class GeminiService {
 
         // Generation config with structured output
         ObjectNode config = body.putObject("generationConfig");
-        config.put("temperature", 0.2);
-        config.put("maxOutputTokens", 8192);
+        config.put("temperature", temperature);
+        config.put("maxOutputTokens", chatMaxOutputTokens);
         config.put("responseMimeType", "application/json");
         try {
             config.set("responseSchema", objectMapper.valueToTree(responseSchema));
