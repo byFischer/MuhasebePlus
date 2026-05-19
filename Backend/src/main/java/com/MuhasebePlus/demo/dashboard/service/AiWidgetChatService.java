@@ -17,12 +17,14 @@ import com.MuhasebePlus.demo.dashboard.repository.AiWidgetRecipeRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 public class AiWidgetChatService {
 
@@ -187,25 +189,25 @@ public class AiWidgetChatService {
 
     private void saveAuditLog(String userPrompt, String generatedConfig, Long userId, Long companyId,
                                String endpoint, int inputTokens, int outputTokens, int latencyMs) {
-        try {
-            AiWidgetRecipe recipe = new AiWidgetRecipe();
-            recipe.setUserPrompt(userPrompt);
-            recipe.setGeneratedConfig(generatedConfig);
-            recipe.setModelUsed(model);
-            recipe.setCreatedByUserId(userId);
-            recipeRepository.save(recipe);
+        AiWidgetRecipe recipe = new AiWidgetRecipe();
+        recipe.setUserPrompt(userPrompt);
+        recipe.setGeneratedConfig(generatedConfig);
+        recipe.setModelUsed(model);
+        recipe.setCreatedByUserId(userId);
+        recipeRepository.save(recipe);
 
+        try {
             var company = companyRepository.findById(companyId).orElse(null);
-            AiInsightLog log = new AiInsightLog();
-            log.setUserId(userId);
-            log.setCompany(company);
-            log.setEndpoint(endpoint);
-            log.setInputTokens(inputTokens);
-            log.setOutputTokens(outputTokens);
-            log.setLatencyMs(latencyMs);
-            logRepository.save(log);
+            AiInsightLog auditLog = new AiInsightLog();
+            auditLog.setUserId(userId);
+            auditLog.setCompany(company);
+            auditLog.setEndpoint(endpoint);
+            auditLog.setInputTokens(inputTokens);
+            auditLog.setOutputTokens(outputTokens);
+            auditLog.setLatencyMs(latencyMs);
+            logRepository.save(auditLog);
         } catch (Exception e) {
-            // Audit log hatası ana akışı durdurmamalı
+            log.warn("Failed to write AI insight audit log userId={} companyId={}", userId, companyId, e);
         }
     }
 }
