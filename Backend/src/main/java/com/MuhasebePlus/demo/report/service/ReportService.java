@@ -259,7 +259,8 @@ public class ReportService implements HardDeletable {
             if (report.getFilePath() != null) {
                 try {
                     Files.deleteIfExists(Paths.get(report.getFilePath()));
-                } catch (IOException ignored) {
+                } catch (IOException e) {
+                    log.warn("Failed to delete report file path={} reportId={}", report.getFilePath(), report.getReportId(), e);
                 }
             }
             reportRepository.delete(report);

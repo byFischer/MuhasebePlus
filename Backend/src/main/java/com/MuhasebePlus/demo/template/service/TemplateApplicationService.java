@@ -24,6 +24,7 @@ import com.MuhasebePlus.demo.template.entity.TemplateUsageLog;
 import com.MuhasebePlus.demo.template.repository.TemplateRepository;
 import com.MuhasebePlus.demo.template.repository.TemplateUsageLogRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -275,7 +277,9 @@ public class TemplateApplicationService {
         if (val instanceof String s) {
             try {
                 return new BigDecimal(s);
-            } catch (NumberFormatException ignored) {}
+            } catch (NumberFormatException e) {
+                log.debug("Template payload amount parse failed value='{}', returning ZERO", s);
+            }
         }
         return BigDecimal.ZERO;
     }
@@ -293,7 +297,9 @@ public class TemplateApplicationService {
         if (val instanceof String s) {
             try {
                 return Long.parseLong(s);
-            } catch (NumberFormatException ignored) {}
+            } catch (NumberFormatException e) {
+                log.debug("Template payload long parse failed key='{}' value='{}', using default", key, s);
+            }
         }
         return defaultValue;
     }
@@ -305,7 +311,9 @@ public class TemplateApplicationService {
         if (val instanceof String s) {
             try {
                 return Integer.parseInt(s);
-            } catch (NumberFormatException ignored) {}
+            } catch (NumberFormatException e) {
+                log.debug("Template payload int parse failed key='{}' value='{}', returning null", key, s);
+            }
         }
         return null;
     }
@@ -317,7 +325,9 @@ public class TemplateApplicationService {
         if (val instanceof String s) {
             try {
                 return Integer.parseInt(s);
-            } catch (NumberFormatException ignored) {}
+            } catch (NumberFormatException e) {
+                log.debug("Template payload int parse failed key='{}' value='{}', returning null", key, s);
+            }
         }
         return null;
     }
@@ -328,7 +338,9 @@ public class TemplateApplicationService {
         if (val instanceof String s && !s.isBlank()) {
             try {
                 return LocalDate.parse(s);
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                log.warn("Template payload date parse failed key='{}' value='{}', using default — possible schema drift", key, s);
+            }
         }
         return defaultValue;
     }
