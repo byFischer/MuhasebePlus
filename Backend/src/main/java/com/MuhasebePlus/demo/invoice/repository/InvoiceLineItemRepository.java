@@ -36,4 +36,10 @@ public interface InvoiceLineItemRepository extends JpaRepository<InvoiceLineItem
            "WHERE li.company.companyId = :companyId AND li.isDeleted = false AND i.isDeleted = false " +
            "AND i.createdAt >= :since GROUP BY li.productId")
     List<Object[]> sumQuantityByProductLast12Months(@Param("companyId") Long companyId, @Param("since") LocalDateTime since);
+
+    @Query("SELECT li.productId, MAX(i.createdAt) FROM InvoiceLineItem li JOIN Invoice i ON li.invoiceId = i.invoiceId " +
+           "WHERE i.company.companyId = :companyId AND li.isDeleted = false AND i.isDeleted = false " +
+           "AND li.productId IN :productIds GROUP BY li.productId")
+    List<Object[]> findLastSaleDatesByProductIds(@Param("companyId") Long companyId,
+                                                  @Param("productIds") List<Integer> productIds);
 }

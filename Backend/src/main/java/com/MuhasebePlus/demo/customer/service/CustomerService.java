@@ -151,7 +151,7 @@ public class CustomerService implements HardDeletable {
         Long companyId = companyContext.getCurrentCompanyId();
         Customer c = findCustomerEntityById(id);
         BigDecimal balance = fetchBalance(id, companyId);
-        boolean hasOverdue = buildOverdueCustomerIdSet(companyId).contains(id);
+        boolean hasOverdue = invoiceRepository.existsOverdueByCustomerIdAndCompany(id, companyId);
         return toResponseDto(c, balance, hasOverdue);
     }
 
@@ -191,7 +191,7 @@ public class CustomerService implements HardDeletable {
 
         Customer updated = customerRepository.save(customer);
         BigDecimal balance = fetchBalance(updated.getCustomerId(), companyId);
-        boolean hasOverdue = buildOverdueCustomerIdSet(companyId).contains(updated.getCustomerId());
+        boolean hasOverdue = invoiceRepository.existsOverdueByCustomerIdAndCompany(updated.getCustomerId(), companyId);
         return toResponseDto(updated, balance, hasOverdue);
     }
 
@@ -215,7 +215,7 @@ public class CustomerService implements HardDeletable {
         customer.setDeletedAt(null);
         Customer restored = customerRepository.save(customer);
         BigDecimal balance = fetchBalance(restored.getCustomerId(), companyId);
-        boolean hasOverdue = buildOverdueCustomerIdSet(companyId).contains(restored.getCustomerId());
+        boolean hasOverdue = invoiceRepository.existsOverdueByCustomerIdAndCompany(restored.getCustomerId(), companyId);
         return toResponseDto(restored, balance, hasOverdue);
     }
 
@@ -615,11 +615,14 @@ public class CustomerService implements HardDeletable {
         allCustomerIds.addAll(purchaseBalances.keySet());
         for (Customer c : allCustomers) allCustomerIds.add(c.getCustomerId());
 
+        Map<Long, Customer> customerById = allCustomers.stream()
+            .collect(Collectors.toMap(Customer::getCustomerId, c -> c));
+
         Map<Long, BigDecimal> combined = new java.util.HashMap<>();
         for (Long id : allCustomerIds) {
             BigDecimal sale = saleBalances.getOrDefault(id, BigDecimal.ZERO);
             BigDecimal purchase = purchaseBalances.getOrDefault(id, BigDecimal.ZERO);
-            Customer c = allCustomers.stream().filter(x -> x.getCustomerId().equals(id)).findFirst().orElse(null);
+            Customer c = customerById.get(id);
             BigDecimal opening = (c != null && c.getOpeningBalance() != null) ? c.getOpeningBalance() : BigDecimal.ZERO;
             combined.put(id, sale.add(purchase).add(opening));
         }

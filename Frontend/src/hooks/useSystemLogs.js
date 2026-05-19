@@ -3,7 +3,11 @@ import systemLogService from '@/services/systemLogService';
 import { toast } from '@/lib/toast';
 
 export function useSystemLogs(params) {
-  return useQuery({ queryKey: ['logs', params], queryFn: () => systemLogService.list(params) });
+  return useQuery({
+    queryKey: ['logs', params],
+    queryFn: () => systemLogService.list(params),
+    placeholderData: (prev) => prev,
+  });
 }
 export function useExportSystemLogs() {
   return useMutation({

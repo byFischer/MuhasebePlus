@@ -1,5 +1,6 @@
 package com.MuhasebePlus.demo.invoice.entity;
 
+import com.MuhasebePlus.demo.common.crypto.EncryptedStringConverter;
 import com.MuhasebePlus.demo.common.entity.BaseEntity;
 import com.MuhasebePlus.demo.company.entity.Company;
 import jakarta.persistence.*;
@@ -30,6 +31,7 @@ public class EInvoiceProfile extends BaseEntity {
     @Column(name = "gib_alias", nullable = false)
     private String gibAlias;
 
+    @Convert(converter = EncryptedStringConverter.class)
     @Column(name = "gib_password", nullable = false)
     private String gibPassword;
 

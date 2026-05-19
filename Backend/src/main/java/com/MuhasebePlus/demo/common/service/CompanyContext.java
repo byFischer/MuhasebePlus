@@ -41,8 +41,13 @@ public class CompanyContext {
             throw new RuntimeException("No authenticated user found in SecurityContext");
         }
 
-        String email = authentication.getName();
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof User user) {
+            return user;
+        }
 
+        // Fallback: test profili veya anormal durum için DB lookup
+        String email = authentication.getName();
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
     }

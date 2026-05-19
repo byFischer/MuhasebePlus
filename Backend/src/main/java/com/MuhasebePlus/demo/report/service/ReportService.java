@@ -16,7 +16,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,6 +62,7 @@ import com.MuhasebePlus.demo.stock.entity.Product;
 import com.MuhasebePlus.demo.stock.entity.Stock;
 import com.MuhasebePlus.demo.stock.repository.ProductRepository;
 import com.MuhasebePlus.demo.stock.repository.StockRepository;
+import com.MuhasebePlus.demo.user.entity.User;
 import com.MuhasebePlus.demo.user.repository.UserRepository;
 
 import java.util.LinkedHashMap;
@@ -168,10 +171,12 @@ public class ReportService implements HardDeletable {
 
     public List<ReportResponseDto> getAllReports() {
         Long companyId = companyContext.getCurrentCompanyId();
-        return reportRepository.findByCompanyCompanyIdAndIsDeletedFalseOrderByGeneratedAtDesc(companyId)
-                .stream()
-                .map(this::toResponseDto)
-                .toList();
+        List<Report> reports = reportRepository.findByCompanyCompanyIdAndIsDeletedFalseOrderByGeneratedAtDesc(companyId);
+        Set<Long> userIds = reports.stream()
+                .map(Report::getUserId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, User> userMap = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(User::getUserId, u -> u));
+        return reports.stream().map(r -> toResponseDto(r, userMap)).toList();
     }
 
     public ReportResponseDto getReportById(Long reportId) {
@@ -498,6 +503,20 @@ public class ReportService implements HardDeletable {
         List<Stock> stocks = stockRepository.findActiveStocks(companyId);
         Map<Integer, Product> productMap = loadProductMap(companyId, stocks);
 
+        List<Integer> productIds = stocks.stream().map(Stock::getProductId).toList();
+
+        Map<Integer, LocalDateTime> lastSaleDateMap = new HashMap<>();
+        if (!productIds.isEmpty()) {
+            for (Object[] row : invoiceLineItemRepository.findLastSaleDatesByProductIds(companyId, productIds)) {
+                lastSaleDateMap.put((Integer) row[0], (LocalDateTime) row[1]);
+            }
+        }
+
+        Map<Integer, BigDecimal> soldQty12MonthsMap = new HashMap<>();
+        for (Object[] row : invoiceLineItemRepository.sumQuantityByProductLast12Months(companyId, twelveMonthsAgo)) {
+            soldQty12MonthsMap.put((Integer) row[0], BigDecimal.valueOf(((Number) row[1]).longValue()));
+        }
+
         BigDecimal totalBoundCapital = BigDecimal.ZERO;
         long slowMovingCount = 0;
         BigDecimal totalSoldQty12Months = BigDecimal.ZERO;
@@ -513,12 +532,10 @@ public class ReportService implements HardDeletable {
             BigDecimal costPrice = product.getCostPrice() != null ? product.getCostPrice() : BigDecimal.ZERO;
             BigDecimal boundCapital = costPrice.multiply(BigDecimal.valueOf(qty));
 
-            Optional<LocalDateTime> lastSaleOpt = invoiceLineItemRepository
-                    .findLastSaleDateByProductId(stock.getProductId(), companyId);
-
+            LocalDateTime lastSaleDate = lastSaleDateMap.get(stock.getProductId());
             long daysSinceLastSale;
-            if (lastSaleOpt.isPresent()) {
-                daysSinceLastSale = ChronoUnit.DAYS.between(lastSaleOpt.get().toLocalDate(), today);
+            if (lastSaleDate != null) {
+                daysSinceLastSale = ChronoUnit.DAYS.between(lastSaleDate.toLocalDate(), today);
             } else {
                 daysSinceLastSale = stock.getCreatedAt() != null
                         ? ChronoUnit.DAYS.between(stock.getCreatedAt().toLocalDate(), today)
@@ -536,13 +553,10 @@ public class ReportService implements HardDeletable {
 
             totalBoundCapital = totalBoundCapital.add(boundCapital);
 
-            List<Object[]> salesData = invoiceLineItemRepository.sumQuantityByProductLast12Months(companyId, twelveMonthsAgo);
-            for (Object[] row : salesData) {
-                if (row[0].equals(stock.getProductId())) {
-                    totalSoldQty12Months = totalSoldQty12Months.add(BigDecimal.valueOf(((Number) row[1]).longValue()));
-                    productsWithSales++;
-                    break;
-                }
+            BigDecimal soldQty = soldQty12MonthsMap.get(stock.getProductId());
+            if (soldQty != null) {
+                totalSoldQty12Months = totalSoldQty12Months.add(soldQty);
+                productsWithSales++;
             }
         }
 
@@ -773,6 +787,15 @@ public class ReportService implements HardDeletable {
             soldQtyMap.put((Integer) row[0], qty);
             totalSold12M = totalSold12M.add(qty);
         }
+
+        List<Integer> stockProductIds = stocks.stream().map(Stock::getProductId).toList();
+        Map<Integer, LocalDateTime> lastSaleDateMapExec = new HashMap<>();
+        if (!stockProductIds.isEmpty()) {
+            for (Object[] row : invoiceLineItemRepository.findLastSaleDatesByProductIds(companyId, stockProductIds)) {
+                lastSaleDateMapExec.put((Integer) row[0], (LocalDateTime) row[1]);
+            }
+        }
+
         BigDecimal boundCapital = BigDecimal.ZERO;
         long slowMoving = 0;
         long sb1 = 0, sb2 = 0, sb3 = 0, sb4 = 0;
@@ -785,11 +808,10 @@ public class ReportService implements HardDeletable {
             BigDecimal bc = cost.multiply(BigDecimal.valueOf(qty));
             boundCapital = boundCapital.add(bc);
 
-            Optional<LocalDateTime> lastSaleOpt = invoiceLineItemRepository
-                    .findLastSaleDateByProductId(stock.getProductId(), companyId);
+            LocalDateTime lastSaleDate = lastSaleDateMapExec.get(stock.getProductId());
             long daysSinceLastSale;
-            if (lastSaleOpt.isPresent()) {
-                daysSinceLastSale = ChronoUnit.DAYS.between(lastSaleOpt.get().toLocalDate(), today);
+            if (lastSaleDate != null) {
+                daysSinceLastSale = ChronoUnit.DAYS.between(lastSaleDate.toLocalDate(), today);
             } else {
                 daysSinceLastSale = stock.getCreatedAt() != null
                         ? ChronoUnit.DAYS.between(stock.getCreatedAt().toLocalDate(), today)
@@ -963,6 +985,25 @@ public class ReportService implements HardDeletable {
                     })
                     .orElse(null);
         }
+        return buildResponseDto(r, username);
+    }
+
+    private ReportResponseDto toResponseDto(Report r, Map<Long, User> userMap) {
+        String username = null;
+        if (r.getUserId() != null) {
+            User u = userMap.get(r.getUserId());
+            if (u != null) {
+                String email = u.getUsername();
+                if (email != null) {
+                    int at = email.indexOf('@');
+                    username = at > 0 ? email.substring(0, at) : email;
+                }
+            }
+        }
+        return buildResponseDto(r, username);
+    }
+
+    private ReportResponseDto buildResponseDto(Report r, String username) {
         return new ReportResponseDto(
                 r.getReportId(),
                 r.getReportType() != null ? r.getReportType().name() : null,
@@ -980,14 +1021,16 @@ public class ReportService implements HardDeletable {
 
     private BigDecimal computeIncomeTotal(Long companyId, ReportType type, LocalDate start, LocalDate end) {
         if (type == ReportType.EXPENSE) return BigDecimal.ZERO;
-        BigDecimal invSum = sumInvoices(fetchPaidInvoices(companyId, InvoiceType.sale, start, end));
+        BigDecimal invSum = invoiceRepository.sumPaidByTypeAndCreatedAtRange(
+                companyId, InvoiceType.sale, start.atStartOfDay(), end.plusDays(1).atStartOfDay());
         BigDecimal txSum = sumTransactions(fetchTransactions(companyId, TransactionType.INCOME, start, end));
         return invSum.add(txSum);
     }
 
     private BigDecimal computeExpenseTotal(Long companyId, ReportType type, LocalDate start, LocalDate end) {
         if (type == ReportType.INCOME) return BigDecimal.ZERO;
-        BigDecimal invSum = sumInvoices(fetchPaidInvoices(companyId, InvoiceType.purchase, start, end));
+        BigDecimal invSum = invoiceRepository.sumPaidByTypeAndCreatedAtRange(
+                companyId, InvoiceType.purchase, start.atStartOfDay(), end.plusDays(1).atStartOfDay());
         BigDecimal txSum = sumTransactions(fetchTransactions(companyId, TransactionType.EXPENSE, start, end));
         return invSum.add(txSum);
     }

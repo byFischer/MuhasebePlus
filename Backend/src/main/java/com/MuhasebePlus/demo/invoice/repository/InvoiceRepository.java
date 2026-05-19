@@ -158,4 +158,19 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpec
            "WHERE i.company.companyId = :companyId AND i.isDeleted = false " +
            "AND i.paymentStatus = com.MuhasebePlus.demo.invoice.entity.PaymentStatus.overdue")
     List<Long> findCustomerIdsWithOverdueInvoices(@Param("companyId") Long companyId);
+
+    @Query("SELECT CASE WHEN COUNT(i) > 0 THEN true ELSE false END FROM Invoice i " +
+           "WHERE i.customerId = :customerId AND i.company.companyId = :companyId " +
+           "AND i.isDeleted = false AND i.paymentStatus = com.MuhasebePlus.demo.invoice.entity.PaymentStatus.overdue")
+    boolean existsOverdueByCustomerIdAndCompany(@Param("customerId") Long customerId,
+                                                 @Param("companyId") Long companyId);
+
+    @Query("SELECT COALESCE(SUM(i.totalAmount), 0) FROM Invoice i " +
+           "WHERE i.company.companyId = :companyId AND i.invoiceType = :type " +
+           "AND i.paymentStatus = com.MuhasebePlus.demo.invoice.entity.PaymentStatus.paid " +
+           "AND i.isDeleted = false AND i.createdAt >= :start AND i.createdAt < :end")
+    BigDecimal sumPaidByTypeAndCreatedAtRange(@Param("companyId") Long companyId,
+                                               @Param("type") InvoiceType type,
+                                               @Param("start") LocalDateTime start,
+                                               @Param("end") LocalDateTime end);
 }

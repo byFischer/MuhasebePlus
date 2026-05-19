@@ -1,9 +1,12 @@
 package com.MuhasebePlus.demo.log.controller;
 
 import java.time.LocalDate;
-import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -28,12 +31,13 @@ public class SystemLogController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<SystemLogResponseDto>> getLogs(
+    public ResponseEntity<Page<SystemLogResponseDto>> getLogs(
             @RequestParam(required = false) LogLevel level,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) Long userId) {
-        return ResponseEntity.ok(systemLogService.getLogs(level, startDate, endDate, userId));
+            @RequestParam(required = false) Long userId,
+            @PageableDefault(size = 50, sort = "timestamp", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(systemLogService.getLogs(level, startDate, endDate, userId, pageable));
     }
 
     @GetMapping("/export")

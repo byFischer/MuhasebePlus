@@ -19,6 +19,7 @@ class JwtUtilTest {
         jwtUtil = new JwtUtil();
         ReflectionTestUtils.setField(jwtUtil, "secret", "test-secret-key-for-junit-tests-32chars!");
         ReflectionTestUtils.setField(jwtUtil, "expiration", 3600000L);
+        ReflectionTestUtils.invokeMethod(jwtUtil, "init");
 
         testUser = new User();
         testUser.setUserId(1L);

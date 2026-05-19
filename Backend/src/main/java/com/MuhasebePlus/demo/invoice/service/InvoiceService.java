@@ -312,6 +312,10 @@ public class InvoiceService implements HardDeletable {
         List<InvoiceLineItem> returnLines = new ArrayList<>();
         Map<Integer, Product> productMap = new HashMap<>();
 
+        record PendingMovement(int productId, int qty, MovementType mvt, BigDecimal costPrice) {}
+        List<PendingMovement> movements = new ArrayList<>();
+        List<InvoiceLineItem> toSave = new ArrayList<>();
+
         for (InvoiceLineItem ol : originalLines) {
             Product product = productRepository.findByProductIdAndCompanyCompanyIdAndIsDeletedFalse(ol.getProductId(), companyId).orElse(null);
             if (product == null) continue;
@@ -328,11 +332,15 @@ public class InvoiceService implements HardDeletable {
             rl.setDiscountRate(ol.getDiscountRate());
             rl.setWithholdingTaxRate(ol.getWithholdingTaxRate());
             rl.setDeleted(false);
-            returnLines.add(lineItemRepository.save(rl));
+            toSave.add(rl);
 
             MovementType mvt = returnType == InvoiceType.sale ? MovementType.SALE : MovementType.PURCHASE;
             int qty = returnType == InvoiceType.sale ? -ol.getQuantity() : ol.getQuantity();
-            stockMovementService.recordMovement(ol.getProductId(), qty, mvt, "INVOICE", saved.getInvoiceId(), product.getCostPrice(), null);
+            movements.add(new PendingMovement(ol.getProductId(), qty, mvt, product.getCostPrice()));
+        }
+        returnLines.addAll(lineItemRepository.saveAll(toSave));
+        for (PendingMovement m : movements) {
+            stockMovementService.recordMovement(m.productId(), m.qty(), m.mvt(), "INVOICE", saved.getInvoiceId(), m.costPrice(), null);
         }
 
         applyTotals(saved, returnLines);
@@ -638,9 +646,9 @@ public class InvoiceService implements HardDeletable {
             li.setWithholdingTaxRate(wtRate);
             li.setDeleted(false);
 
-            saved.add(lineItemRepository.save(li));
+            saved.add(li);
         }
-        return saved;
+        return lineItemRepository.saveAll(saved);
     }
 
     private void applyTotals(Invoice invoice, List<InvoiceLineItem> lineItems) {

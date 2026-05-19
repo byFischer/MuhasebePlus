@@ -1,13 +1,9 @@
 package com.MuhasebePlus.demo.invoice.service;
 
 import java.nio.charset.StandardCharsets;
-import java.security.cert.X509Certificate;
 import java.util.Base64;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
@@ -22,34 +18,18 @@ import lombok.extern.slf4j.Slf4j;
 public class GibClient {
 
     private final RestTemplate restTemplate;
+    private final String gibEndpointUrl;
 
-    public GibClient() {
-        this.restTemplate = createSecureRestTemplate();
-    }
-
-    private RestTemplate createSecureRestTemplate() {
-        try {
-            TrustManager[] trustAll = new TrustManager[]{
-                new X509TrustManager() {
-                    public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
-                    public void checkClientTrusted(X509Certificate[] certs, String authType) {}
-                    public void checkServerTrusted(X509Certificate[] certs, String authType) {}
-                }
-            };
-            SSLContext sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(null, trustAll, new java.security.SecureRandom());
-
-            javax.net.ssl.HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.getSocketFactory());
-            javax.net.ssl.HttpsURLConnection.setDefaultHostnameVerifier((hostname, session) -> true);
-        } catch (Exception ignored) {}
-
+    public GibClient(
+            @Value("${gib.endpoint.url}") String gibEndpointUrl,
+            @Value("${gib.connect-timeout:15000}") int connectTimeout,
+            @Value("${gib.read-timeout:15000}") int readTimeout) {
+        this.gibEndpointUrl = gibEndpointUrl;
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(15000);
-        factory.setReadTimeout(15000);
-        return new RestTemplate(factory);
+        factory.setConnectTimeout(connectTimeout);
+        factory.setReadTimeout(readTimeout);
+        this.restTemplate = new RestTemplate(factory);
     }
-
-    private static final String TEST_URL = "https://efaturatest.efatura.gov.tr/earsiv/ws/EarsivWebService";
 
     public GibResponse sendInvoice(EInvoiceProfile profile, String ublTrXml) {
         String soapBody = buildSendSoapEnvelope(profile.getGibAlias(), profile.getGibPassword(), ublTrXml);
@@ -62,7 +42,7 @@ public class GibClient {
             HttpEntity<String> request = new HttpEntity<>(soapBody, headers);
             log.info("GİB'e e-arşiv faturası gönderiliyor... alias={}", profile.getGibAlias());
 
-            ResponseEntity<String> response = restTemplate.exchange(TEST_URL, HttpMethod.POST, request, String.class);
+            ResponseEntity<String> response = restTemplate.exchange(gibEndpointUrl, HttpMethod.POST, request, String.class);
 
             log.info("GİB yanıtı: status={}", response.getStatusCode());
             return parseSendResponse(response.getBody());
@@ -81,7 +61,7 @@ public class GibClient {
             headers.setContentType(MediaType.TEXT_XML);
 
             HttpEntity<String> request = new HttpEntity<>(soapBody, headers);
-            ResponseEntity<String> response = restTemplate.exchange(TEST_URL, HttpMethod.POST, request, String.class);
+            ResponseEntity<String> response = restTemplate.exchange(gibEndpointUrl, HttpMethod.POST, request, String.class);
 
             return parseStatusResponse(response.getBody());
         } catch (Exception e) {

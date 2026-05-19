@@ -21,6 +21,7 @@ import com.MuhasebePlus.demo.financial.repository.BankAccountRepository;
 import com.MuhasebePlus.demo.invoice.entity.Invoice;
 import com.MuhasebePlus.demo.invoice.entity.InvoicePayment;
 import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
+import com.MuhasebePlus.demo.invoice.repository.InvoiceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -47,6 +48,7 @@ public class JournalEntryService {
     private final CustomerRepository customerRepository;
     private final BankAccountRepository bankAccountRepository;
     private final CompanyRepository companyRepository;
+    private final InvoiceRepository invoiceRepository;
     private final CompanyContext companyContext;
 
     // ─── Invoice hooks ───────────────────────────────────────────────────────
@@ -107,7 +109,8 @@ public class JournalEntryService {
         if (entryRepository.existsByCompanyCompanyIdAndSourceTypeAndSourceIdAndIsDeletedFalseAndIsReversedFalse(
                 companyId, JournalSourceType.PAYMENT, payment.getPaymentId())) return;
 
-        Invoice invoice = payment.getInvoice();
+        Invoice invoice = invoiceRepository.findById(payment.getInvoiceId())
+                .orElseThrow(() -> new BusinessException("Fatura bulunamadı: " + payment.getInvoiceId()));
         boolean isSalePayment = invoice.getInvoiceType() == InvoiceType.sale;
         BigDecimal amount = payment.getAmount();
         Company company = payment.getCompany();
