@@ -4,6 +4,7 @@ import Drawer from '@/components/mp/Drawer';
 import { TRY, fmtDate, toIsoDate } from '@/lib/format';
 import {
   useJournalEntries, useJournalEntry, useTrialBalance,
+  useIncomeStatement, useBalanceSheet,
   useCreateJournalEntry, useReverseJournalEntry, useDeleteJournalEntry,
 } from '@/hooks/useJournalEntries';
 import { useChartOfAccounts } from '@/hooks/useChartOfAccounts';
@@ -12,6 +13,8 @@ import { useAuth } from '@/context/AuthContext';
 const TABS = [
   { id: 'journal', label: 'Yevmiye Defteri' },
   { id: 'trial',   label: 'Mizan' },
+  { id: 'income',  label: 'Gelir Tablosu' },
+  { id: 'balance', label: 'Bilanço' },
   { id: 'manual',  label: 'Manuel Fiş' },
 ];
 
@@ -40,7 +43,7 @@ export default function YevmiyePage() {
       <div className="page-head">
         <div>
           <h1 className="page-title">Muhasebe Defteri</h1>
-          <p className="page-sub">Yevmiye, Mizan ve Manuel Fiş</p>
+          <p className="page-sub">Yevmiye, mizan, mali tablolar ve manuel fiş</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <input type="date" className="input" style={{ width: 'auto' }}
@@ -61,6 +64,8 @@ export default function YevmiyePage() {
 
       {tab === 'journal' && <JournalTab startDate={startDate} endDate={endDate} isAdmin={isAdmin} />}
       {tab === 'trial'   && <TrialBalanceTab startDate={startDate} endDate={endDate} />}
+      {tab === 'income'  && <IncomeStatementTab startDate={startDate} endDate={endDate} />}
+      {tab === 'balance' && <BalanceSheetTab asOfDate={endDate} />}
       {tab === 'manual'  && isAdmin && <ManualEntryTab />}
       {tab === 'manual'  && !isAdmin && <div className="empty">Bu sekmeye erişim için yönetici yetkisi gereklidir.</div>}
     </div>
@@ -281,6 +286,130 @@ function TrialBalanceTab({ startDate, endDate }) {
 }
 
 /* ─── Manuel Fiş ─── */
+function IncomeStatementTab({ startDate, endDate }) {
+  const { data, isLoading } = useIncomeStatement(startDate, endDate);
+  const sections = data?.sections || [];
+  const netProfit = Number(data?.netProfit || 0);
+
+  return (
+    <div>
+      {data && (
+        <div className="kpis" style={{ marginTop: 16, marginBottom: 16 }}>
+          <div className="kpi">
+            <div className="kpi-label">Toplam Gelir</div>
+            <div className="kpi-val">{TRY(data.totalIncome)}</div>
+          </div>
+          <div className="kpi">
+            <div className="kpi-label">Toplam Gider</div>
+            <div className="kpi-val">{TRY(data.totalExpense)}</div>
+          </div>
+          <div className="kpi">
+            <div className="kpi-label">Net Kar/Zarar</div>
+            <div className="kpi-val" style={{ color: netProfit >= 0 ? 'var(--pos)' : 'var(--neg)' }}>
+              {TRY(data.netProfit)}
+            </div>
+          </div>
+          <div className="kpi">
+            <div className="kpi-label">Kar Marji</div>
+            <div className="kpi-val">{Number(data.profitMarginPercent || 0).toFixed(2)}%</div>
+          </div>
+        </div>
+      )}
+      <FinancialStatementTable
+        isLoading={isLoading}
+        sections={sections}
+        emptyText="Bu tarih aralığında gelir tablosu kaydı bulunamadı."
+      />
+    </div>
+  );
+}
+
+function BalanceSheetTab({ asOfDate }) {
+  const { data, isLoading } = useBalanceSheet(asOfDate);
+  const difference = Number(data?.difference || 0);
+  const balanced = Math.abs(difference) < 0.01;
+  const sections = [
+    ...(data?.assetSections || []),
+    ...(data?.liabilitySections || []),
+    ...(data?.equitySections || []),
+  ];
+
+  return (
+    <div>
+      {data && (
+        <div className="kpis" style={{ marginTop: 16, marginBottom: 16 }}>
+          <div className="kpi">
+            <div className="kpi-label">Toplam Aktif</div>
+            <div className="kpi-val">{TRY(data.totalAssets)}</div>
+          </div>
+          <div className="kpi">
+            <div className="kpi-label">Toplam Pasif</div>
+            <div className="kpi-val">{TRY(data.totalLiabilitiesAndEquity)}</div>
+          </div>
+          <div className="kpi">
+            <div className="kpi-label">Oz Kaynak</div>
+            <div className="kpi-val">{TRY(data.totalEquity)}</div>
+          </div>
+          <div className="kpi" style={!balanced ? { borderColor: 'var(--neg)', background: 'var(--neg-soft)' } : {}}>
+            <div className="kpi-label">Denge Kontrolu</div>
+            <div className="kpi-val" style={{ color: balanced ? 'var(--pos)' : 'var(--neg)', fontSize: 18 }}>
+              {balanced ? 'Dengeli' : `Fark: ${TRY(Math.abs(difference))}`}
+            </div>
+          </div>
+        </div>
+      )}
+      <FinancialStatementTable
+        isLoading={isLoading}
+        sections={sections}
+        emptyText="Bu tarih itibarıyla bilanço kaydı bulunamadı."
+      />
+    </div>
+  );
+}
+
+function FinancialStatementTable({ isLoading, sections, emptyText }) {
+  const hasRows = sections.some(section => (section.lines || []).length > 0);
+
+  return (
+    <div className="table-wrap">
+      <table className="table">
+        <thead>
+          <tr>
+            <th>Grup</th>
+            <th>Hesap Kodu</th>
+            <th>Hesap Adı</th>
+            <th className="num">Tutar</th>
+          </tr>
+        </thead>
+        <tbody>
+          {isLoading && (
+            <tr><td colSpan={4} style={{ textAlign: 'center', padding: 24, color: 'var(--ink-3)' }}>Yükleniyor…</td></tr>
+          )}
+          {!isLoading && !hasRows && (
+            <tr><td colSpan={4} style={{ textAlign: 'center', padding: 24, color: 'var(--ink-3)' }}>{emptyText}</td></tr>
+          )}
+          {!isLoading && hasRows && sections.map(section => (
+            <React.Fragment key={section.sectionCode}>
+              <tr className="table-total-row">
+                <td colSpan={3} style={{ fontWeight: 600 }}>{section.sectionName}</td>
+                <td className="num mono" style={{ fontWeight: 600 }}>{TRY(section.totalAmount)}</td>
+              </tr>
+              {(section.lines || []).map(line => (
+                <tr key={`${section.sectionCode}-${line.accountId ?? line.accountCode}`}>
+                  <td className="muted">{section.sectionName}</td>
+                  <td className="mono" style={{ fontWeight: 600 }}>{line.accountCode}</td>
+                  <td>{line.accountName}</td>
+                  <td className="num mono">{TRY(line.amount)}</td>
+                </tr>
+              ))}
+            </React.Fragment>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function ManualEntryTab() {
   const today = toIsoDate(new Date());
   const { data: accounts = [] } = useChartOfAccounts();

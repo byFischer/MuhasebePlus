@@ -28,6 +28,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.MuhasebePlus.demo.accounting.dto.response.TrialBalanceRowDto;
+import com.MuhasebePlus.demo.accounting.dto.response.BalanceSheetResponseDto;
+import com.MuhasebePlus.demo.accounting.dto.response.FinancialStatementLineDto;
+import com.MuhasebePlus.demo.accounting.dto.response.FinancialStatementSectionDto;
+import com.MuhasebePlus.demo.accounting.dto.response.IncomeStatementResponseDto;
 import com.MuhasebePlus.demo.accounting.entity.AccountType;
 import com.MuhasebePlus.demo.accounting.service.JournalEntryService;
 import com.MuhasebePlus.demo.common.scheduler.HardDeletable;
@@ -900,6 +904,17 @@ public class ReportService implements HardDeletable {
     // GELİR TABLOSU (Income Statement)
 
     private ReportPreviewResponseDto previewIncomeStatement(LocalDate start, LocalDate end) {
+        if (start != null && end != null) {
+            IncomeStatementResponseDto statement = journalEntryService.getIncomeStatement(start, end);
+            List<KpiItem> kpis = List.of(
+                    new KpiItem("Toplam Gelir",  statement.totalIncome(),  "currency", "pos"),
+                    new KpiItem("Toplam Gider",  statement.totalExpense(), "currency", "neg"),
+                    new KpiItem("Net Kar/Zarar", statement.netProfit(),    "currency", statement.netProfit().signum() >= 0 ? "pos" : "neg")
+            );
+            List<BucketPoint> buckets = bucketsFromStatementLines(statement.sections());
+            return single(kpis, statement.profitMarginPercent(), "Kar Marji %", null, buckets.isEmpty() ? null : buckets);
+        }
+
         List<TrialBalanceRowDto> rows = journalEntryService.getTrialBalance(start, end);
 
         BigDecimal totalIncome = rows.stream()
@@ -936,6 +951,22 @@ public class ReportService implements HardDeletable {
     // BİLANÇO (Balance Sheet)
 
     private ReportPreviewResponseDto previewBalanceSheet(LocalDate start, LocalDate end) {
+        if (end != null) {
+            BalanceSheetResponseDto balanceSheet = journalEntryService.getBalanceSheet(end);
+            BigDecimal difference = balanceSheet.difference().abs();
+            List<KpiItem> kpis = List.of(
+                    new KpiItem("Toplam Aktif", balanceSheet.totalAssets(),               "currency", "neutral"),
+                    new KpiItem("Toplam Pasif", balanceSheet.totalLiabilitiesAndEquity(), "currency", "neutral"),
+                    new KpiItem("Oz Kaynak",    balanceSheet.totalEquity(),               "currency", balanceSheet.totalEquity().signum() >= 0 ? "pos" : "neg"),
+                    new KpiItem("Denge Farki",  difference,                               "currency", difference.signum() == 0 ? "pos" : "neg")
+            );
+            List<BucketPoint> buckets = new ArrayList<>();
+            buckets.addAll(bucketsFromSections(balanceSheet.assetSections()));
+            buckets.addAll(bucketsFromSections(balanceSheet.liabilitySections()));
+            buckets.addAll(bucketsFromSections(balanceSheet.equitySections()));
+            return single(kpis, null, null, null, buckets);
+        }
+
         List<TrialBalanceRowDto> rows = journalEntryService.getTrialBalance(start, end);
 
         BigDecimal totalAssets = rows.stream()
@@ -973,6 +1004,22 @@ public class ReportService implements HardDeletable {
 
 
     // YARDIMCI METOTLAR
+
+    private List<BucketPoint> bucketsFromStatementLines(List<FinancialStatementSectionDto> sections) {
+        List<BucketPoint> buckets = new ArrayList<>();
+        for (FinancialStatementSectionDto section : sections) {
+            for (FinancialStatementLineDto line : section.lines()) {
+                buckets.add(new BucketPoint(line.accountCode() + " " + line.accountName(), line.amount()));
+            }
+        }
+        return buckets;
+    }
+
+    private List<BucketPoint> bucketsFromSections(List<FinancialStatementSectionDto> sections) {
+        return sections.stream()
+                .map(section -> new BucketPoint(section.sectionName(), section.totalAmount()))
+                .toList();
+    }
 
     private Report findActiveReportById(Long reportId, Long companyId) {
         return reportRepository.findByReportIdAndCompanyCompanyIdAndIsDeletedFalse(reportId, companyId)

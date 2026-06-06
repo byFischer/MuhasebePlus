@@ -27,6 +27,9 @@ import ChekPage from "@/pages/ChekPage";
 import HesapPlaniPage from "@/pages/HesapPlaniPage";
 import YevmiyePage from "@/pages/YevmiyePage";
 import DonemPage from "@/pages/DonemPage";
+import KdvPage from "@/pages/KdvPage";
+import BankaMutabakatPage from "@/pages/BankaMutabakatPage";
+import SabitKiymetPage from "@/pages/SabitKiymetPage";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false, staleTime: 30_000 } },
@@ -61,6 +64,9 @@ export default function App() {
                 <Route path="/hesap-plani" element={<HesapPlaniPage />} />
                 <Route path="/yevmiye"     element={<YevmiyePage />} />
                 <Route path="/donem"       element={<DonemPage />} />
+                <Route path="/kdv"              element={<KdvPage />} />
+                <Route path="/banka-mutabakat" element={<BankaMutabakatPage />} />
+                <Route path="/sabit-kiymet"   element={<SabitKiymetPage />} />
                 <Route index element={<Navigate to="/dashboard" replace />} />
               </Route>
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

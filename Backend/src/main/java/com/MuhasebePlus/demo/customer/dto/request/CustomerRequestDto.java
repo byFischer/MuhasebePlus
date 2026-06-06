@@ -38,7 +38,6 @@ public record CustomerRequestDto(
         @Size(max = 255)
         String email,
 
-        @NotBlank(message = "Account code is required")
         @Size(max = 20)
         String accountCode,
 

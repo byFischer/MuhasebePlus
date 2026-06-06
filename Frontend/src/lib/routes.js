@@ -15,6 +15,9 @@ export const ROUTE_META = {
   '/hesap-plani': { crumbs: ['Muhasebe', 'Hesap Planı'],     icon: 'accounting',label: 'Hesap Planı' },
   '/yevmiye':     { crumbs: ['Muhasebe', 'Yevmiye Defteri'], icon: 'journal',   label: 'Yevmiye Defteri' },
   '/donem':       { crumbs: ['Muhasebe', 'Muhasebe Dönemi'], icon: 'calendar',  label: 'Muhasebe Dönemi' },
+  '/kdv':              { crumbs: ['Muhasebe', 'KDV Beyannamesi'],   icon: 'percent',  label: 'KDV Beyannamesi' },
+  '/banka-mutabakat':  { crumbs: ['Muhasebe', 'Banka Mutabakatı'], icon: 'bank',     label: 'Banka Mutabakatı' },
+  '/sabit-kiymet':     { crumbs: ['Muhasebe', 'Sabit Kıymetler'], icon: 'building', label: 'Sabit Kıymetler' },
 };
 
 export const NAV = [
@@ -34,6 +37,9 @@ export const NAV = [
   { to: '/hesap-plani', label: 'Hesap Planı',      icon: 'accounting' },
   { to: '/yevmiye',     label: 'Yevmiye Defteri',  icon: 'journal' },
   { to: '/donem',       label: 'Muhasebe Dönemi',  icon: 'calendar' },
+  { to: '/kdv',              label: 'KDV Beyannamesi',  icon: 'percent' },
+  { to: '/banka-mutabakat',  label: 'Banka Mutabakatı', icon: 'bank' },
+  { to: '/sabit-kiymet',     label: 'Sabit Kıymetler',  icon: 'building' },
   { section: 'OTOMASYON' },
   { to: '/sablon', label: 'Şablonlar', icon: 'template' },
   { to: '/rapor',  label: 'Raporlar',  icon: 'chart' },

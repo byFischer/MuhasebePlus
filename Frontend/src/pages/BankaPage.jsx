@@ -102,7 +102,9 @@ export default function BankaPage() {
                 <BankLogo bankName={b.accountName || b.bankName} />
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 13 }}>{b.accountName || b.bankName}</div>
-                  <div className="muted" style={{ fontSize: 11 }}>{b.currency || 'TRY'}</div>
+                  <div className="muted" style={{ fontSize: 11 }}>
+                    {b.accountType === 'CASH' ? 'Kasa' : b.accountType === 'POS' ? 'POS' : 'Banka'} · {b.currency || 'TRY'}{b.accountCode ? ` · ${b.accountCode}` : ''}
+                  </div>
                 </div>
               </div>
               <button className="tb-icon-btn" onClick={() => deleteMut.mutate(b.bankAccountId || b.accountId)}><Icon name="trash" size={14} /></button>
@@ -162,17 +164,22 @@ function CopyIban({ iban }) {
 function BankAccountDrawer({ open, onClose }) {
   const createMut = useCreateBankAccount();
   const { data: bankList = [] } = useBankList();
-  const EMPTY = { bankName: '', iban: '', currency: 'TRY' };
+  const EMPTY = { accountType: 'BANK', bankName: '', iban: '', currency: 'TRY' };
   const [f, setF] = useState(EMPTY);
   const ibanValid = IBAN_RE.test('TR' + f.iban);
-  const valid = f.bankName && ibanValid;
+  const valid = f.accountType === 'BANK' ? Boolean(f.bankName && ibanValid) : Boolean(f.bankName);
 
   useEffect(() => { if (!open) setF(EMPTY); }, [open]);
 
   const save = () => {
     if (!valid) return;
     createMut.mutate(
-      { bankName: f.bankName, iban: 'TR' + f.iban.trim(), currency: f.currency },
+      {
+        accountType: f.accountType,
+        bankName: f.bankName,
+        iban: f.accountType === 'BANK' ? 'TR' + f.iban.trim() : null,
+        currency: f.currency
+      },
       { onSuccess: onClose }
     );
   };
@@ -187,7 +194,27 @@ function BankAccountDrawer({ open, onClose }) {
       }>
       <div className="col gap-12">
         <div className="field">
-          <label>Banka *</label>
+          <label>Hesap Tipi *</label>
+          <select
+            className="input"
+            value={f.accountType}
+            onChange={e => setF({ ...f, accountType: e.target.value, bankName: '', iban: '' })}
+          >
+            <option value="BANK">Banka</option>
+            <option value="CASH">Kasa</option>
+            <option value="POS">POS</option>
+          </select>
+        </div>
+        <div className="field">
+          <label>{f.accountType === 'CASH' ? 'Kasa Adi *' : f.accountType === 'POS' ? 'POS Hesabi *' : 'Banka *'}</label>
+          {f.accountType !== 'BANK' ? (
+            <input
+              className="input"
+              value={f.bankName}
+              onChange={e => setF({ ...f, bankName: e.target.value })}
+              placeholder={f.accountType === 'POS' ? 'POS Hesabi' : 'Merkez Kasa'}
+            />
+          ) : (
           <select
             className="input"
             value={f.bankName}
@@ -197,8 +224,9 @@ function BankAccountDrawer({ open, onClose }) {
             <option value="">Banka seçin...</option>
             {bankList.map(b => <option key={b} value={b}>{b}</option>)}
           </select>
+          )}
         </div>
-        <div className="field">
+        {f.accountType === 'BANK' && <div className="field">
           <label>IBAN * <span className="muted" style={{ fontSize: 11 }}>24 rakam</span></label>
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <span className="input mono" style={{
@@ -220,7 +248,7 @@ function BankAccountDrawer({ open, onClose }) {
               24 haneli rakam girin
             </span>
           )}
-        </div>
+        </div>}
         <div className="field">
           <label>Para Birimi *</label>
           <select className="input" value={f.currency} onChange={e => setF({ ...f, currency: e.target.value })}>

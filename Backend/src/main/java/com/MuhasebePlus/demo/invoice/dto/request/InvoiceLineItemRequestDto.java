@@ -6,6 +6,7 @@ import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 
@@ -18,6 +19,9 @@ public record InvoiceLineItemRequestDto(
 
     @Valid
     NewProductRequestDto newProduct,
+
+    @Positive(message = "Unit price must be greater than zero")
+    BigDecimal unitPrice,
 
     @DecimalMin(value = "0", message = "Discount rate cannot be negative")
     @DecimalMax(value = "100", message = "Discount rate cannot exceed 100")

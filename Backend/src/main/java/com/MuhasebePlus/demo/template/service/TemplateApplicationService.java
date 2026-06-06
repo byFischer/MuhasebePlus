@@ -3,6 +3,7 @@ package com.MuhasebePlus.demo.template.service;
 import com.MuhasebePlus.demo.common.service.CompanyContext;
 import com.MuhasebePlus.demo.financial.dto.request.TransactionRequestDto;
 import com.MuhasebePlus.demo.financial.entity.BankAccount;
+import com.MuhasebePlus.demo.financial.entity.TransactionCategory;
 import com.MuhasebePlus.demo.financial.entity.TransactionType;
 import com.MuhasebePlus.demo.financial.repository.BankAccountRepository;
 import com.MuhasebePlus.demo.financial.service.TransactionService;
@@ -119,7 +120,9 @@ public class TemplateApplicationService {
         TransactionRequestDto txDto = new TransactionRequestDto(
                 accountId,
                 null,
+                null,
                 type == TemplateType.INCOME ? TransactionType.INCOME : TransactionType.EXPENSE,
+                TransactionCategory.GENERAL,
                 amount,
                 LocalDate.now(),
                 description != null ? description : template.getTemplateName(),
@@ -180,7 +183,7 @@ public class TemplateApplicationService {
             Integer productId = extractIntFromMap(item, "productId");
             Integer quantity = extractIntFromMap(item, "quantity");
             if (productId != null && quantity != null && quantity > 0) {
-                lineItems.add(new InvoiceLineItemRequestDto(productId, quantity, null, null, null));
+                lineItems.add(new InvoiceLineItemRequestDto(productId, quantity, null, null, null, null));
             }
         }
 
@@ -226,7 +229,7 @@ public class TemplateApplicationService {
                 ? TransactionType.EXPENSE : TransactionType.INCOME;
 
         TransactionRequestDto txDto = new TransactionRequestDto(
-                accountId, null, txType, amount, LocalDate.now(),
+                accountId, null, null, txType, TransactionCategory.GENERAL, amount, LocalDate.now(),
                 description, category, false);
 
         var response = transactionService.createTransaction(txDto);
@@ -251,15 +254,10 @@ public class TemplateApplicationService {
 
         String description = extractString(payload, "description", "Banka transferi: " + template.getTemplateName());
 
-        TransactionRequestDto expenseDto = new TransactionRequestDto(
-                fromAccountId, null, TransactionType.EXPENSE, amount, LocalDate.now(),
-                description, "Banka Transferi", false);
-        transactionService.createTransaction(expenseDto);
-
-        TransactionRequestDto incomeDto = new TransactionRequestDto(
-                toAccountId, null, TransactionType.INCOME, amount, LocalDate.now(),
-                description, "Banka Transferi", false);
-        var response = transactionService.createTransaction(incomeDto);
+        TransactionRequestDto transferDto = new TransactionRequestDto(
+                fromAccountId, toAccountId, null, TransactionType.EXPENSE, TransactionCategory.TRANSFER,
+                amount, LocalDate.now(), description, "Virman", false);
+        var response = transactionService.createTransaction(transferDto);
 
         return response.transactionId();
     }

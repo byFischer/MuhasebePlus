@@ -113,7 +113,7 @@ public class InvoiceService implements HardDeletable {
 
         Invoice savedInvoice = invoiceRepository.save(invoice);
 
-        List<InvoiceLineItem> savedLineItems = saveLineItems(savedInvoice.getInvoiceId(), dto.lineItems(), productMap);
+        List<InvoiceLineItem> savedLineItems = saveLineItems(savedInvoice.getInvoiceId(), dto.lineItems(), productMap, dto.invoiceType());
         applyTotals(savedInvoice, savedLineItems);
         Invoice finalInvoice = invoiceRepository.save(savedInvoice);
 
@@ -608,7 +608,8 @@ public class InvoiceService implements HardDeletable {
     private List<InvoiceLineItem> saveLineItems(
             Long invoiceId,
             List<InvoiceLineItemRequestDto> items,
-            Map<Integer, Product> productMap) {
+            Map<Integer, Product> productMap,
+            InvoiceType invoiceType) {
 
         Long companyId = companyContext.getCurrentCompanyId();
         List<InvoiceLineItem> saved = new ArrayList<>();
@@ -625,7 +626,7 @@ public class InvoiceService implements HardDeletable {
             Product product = productMap.get(pid);
             if (product == null) continue;
 
-            BigDecimal unitPrice = product.getSalePrice() != null ? product.getSalePrice() : BigDecimal.ZERO;
+            BigDecimal unitPrice = resolveUnitPrice(req, product, invoiceType);
             BigDecimal vatRate   = product.getVatRate()   != null ? product.getVatRate()   : BigDecimal.ZERO;
             BigDecimal quantity  = BigDecimal.valueOf(req.quantity());
             BigDecimal discountRate = req.discountRate() != null ? req.discountRate() : BigDecimal.ZERO;
@@ -747,9 +748,32 @@ public class InvoiceService implements HardDeletable {
                 Product p = productMap.get(resolvedProductId);
                 stockMovementService.recordMovement(resolvedProductId, item.quantity(),
                         MovementType.PURCHASE, "INVOICE", savedInvoice.getInvoiceId(),
-                        p != null ? p.getCostPrice() : null, null);
+                        resolveUnitCost(item, p), null);
             }
         }
+    }
+
+    private BigDecimal resolveUnitPrice(InvoiceLineItemRequestDto req, Product product, InvoiceType invoiceType) {
+        if (req.unitPrice() != null) {
+            return req.unitPrice();
+        }
+        if (invoiceType == InvoiceType.purchase && product.getCostPrice() != null) {
+            return product.getCostPrice();
+        }
+        if (product.getSalePrice() != null) {
+            return product.getSalePrice();
+        }
+        if (product.getCostPrice() != null) {
+            return product.getCostPrice();
+        }
+        return BigDecimal.ZERO;
+    }
+
+    private BigDecimal resolveUnitCost(InvoiceLineItemRequestDto req, Product product) {
+        if (req.unitPrice() != null) {
+            return req.unitPrice();
+        }
+        return product != null ? product.getCostPrice() : null;
     }
 
     private BigDecimal round2(BigDecimal value) {

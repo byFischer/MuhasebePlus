@@ -3,6 +3,7 @@ package com.MuhasebePlus.demo.financial.dto.request;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import com.MuhasebePlus.demo.financial.entity.TransactionCategory;
 import com.MuhasebePlus.demo.financial.entity.TransactionType;
 
 import jakarta.validation.constraints.DecimalMin;
@@ -14,10 +15,14 @@ public record TransactionRequestDto(
         @NotNull(message = "Account id is required")
         Long accountId,
 
+        Long transferAccountId,
+
         Long invoiceId,
 
         @NotNull(message = "Transaction type is required")
         TransactionType transactionType,
+
+        TransactionCategory transactionCategory,
 
         @NotNull(message = "Amount is required")
         @DecimalMin(value = "0.01", message = "Amount must be greater than 0")

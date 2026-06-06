@@ -1,5 +1,6 @@
 package com.MuhasebePlus.demo.period.service;
 
+import com.MuhasebePlus.demo.accounting.service.JournalEntryService;
 import com.MuhasebePlus.demo.common.exception.BusinessException;
 import com.MuhasebePlus.demo.common.service.CompanyContext;
 import com.MuhasebePlus.demo.company.entity.Company;
@@ -9,6 +10,7 @@ import com.MuhasebePlus.demo.log.service.SystemLogService;
 import com.MuhasebePlus.demo.period.dto.request.ClosePeriodRequestDto;
 import com.MuhasebePlus.demo.period.dto.request.ReopenPeriodRequestDto;
 import com.MuhasebePlus.demo.period.dto.response.AccountingPeriodResponseDto;
+import com.MuhasebePlus.demo.period.dto.response.YearEndSummaryResponseDto;
 import com.MuhasebePlus.demo.period.entity.AccountingPeriod;
 import com.MuhasebePlus.demo.period.entity.PeriodStatus;
 import com.MuhasebePlus.demo.period.repository.AccountingPeriodRepository;
@@ -16,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +32,7 @@ public class AccountingPeriodService {
     private final CompanyRepository companyRepository;
     private final CompanyContext companyContext;
     private final SystemLogService systemLogService;
+    private final JournalEntryService journalEntryService;
 
     public AccountingPeriodResponseDto closePeriod(ClosePeriodRequestDto dto) {
         Long companyId = companyContext.getCurrentCompanyId();
@@ -96,6 +100,56 @@ public class AccountingPeriodService {
                 .findByCompanyCompanyIdAndYearAndMonth(companyId, year, month)
                 .orElse(buildVirtualOpen(companyId, year, month));
         return toResponseDto(period);
+    }
+
+    public YearEndSummaryResponseDto closeYear(int year) {
+        Long companyId = companyContext.getCurrentCompanyId();
+        Long userId = companyContext.getCurrentUserId();
+
+        List<AccountingPeriod> yearPeriods =
+                periodRepository.findByCompanyCompanyIdAndYearOrderByMonthAsc(companyId, year);
+
+        if (yearPeriods.size() < 12) {
+            throw new BusinessException(year + " yılının tüm 12 dönemi bulunamadı.");
+        }
+
+        boolean allClosed = yearPeriods.stream().allMatch(p -> p.getStatus() == PeriodStatus.CLOSED);
+        if (!allClosed) {
+            throw new BusinessException(year + " yılının tüm dönemleri kapalı değil. Önce tüm ayları kapatın.");
+        }
+
+        AccountingPeriod dec = yearPeriods.stream()
+                .filter(p -> p.getMonth() == 12)
+                .findFirst()
+                .orElseThrow(() -> new BusinessException("Aralık dönemi bulunamadı."));
+
+        if (dec.getYearEndClosedAt() != null) {
+            throw new BusinessException(year + " yılı sonu zaten kapatılmış.");
+        }
+
+        Long closingEntryId = journalEntryService.createYearEndClosingEntry(companyId, year);
+
+        LocalDateTime now = LocalDateTime.now();
+        dec.setYearEndClosedAt(now);
+        dec.setYearEndClosedBy(userId);
+        if (closingEntryId != null) {
+            dec.setClosingJournalEntryId(closingEntryId);
+        }
+        periodRepository.save(dec);
+
+        systemLogService.log(LogLevel.WARNING,
+                String.format("%d yılı sonu kapanışı gerçekleştirildi (kullanıcı: %d, kapanış fişi: %s)",
+                        year, userId, closingEntryId));
+
+        return new YearEndSummaryResponseDto(
+                year,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                closingEntryId,
+                now,
+                year + " yılı başarıyla kapatıldı."
+        );
     }
 
     /**

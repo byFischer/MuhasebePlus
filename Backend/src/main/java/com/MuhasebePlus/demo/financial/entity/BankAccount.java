@@ -54,6 +54,10 @@ public class BankAccount extends SoftDeletableEntity {
     private String iban;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "account_type", length = 20)
+    private BankAccountType accountType;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "currency", length = 10)
     private Currency currency;
 

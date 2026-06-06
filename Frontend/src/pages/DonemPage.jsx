@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Icon from '@/components/mp/Icon';
-import { useAccountingPeriods, useClosePeriod, useReopenPeriod } from '@/hooks/useAccountingPeriods';
+import { useAccountingPeriods, useClosePeriod, useReopenPeriod, useCloseYear } from '@/hooks/useAccountingPeriods';
 import { useAuth } from '@/context/AuthContext';
 
 const MONTH_NAMES = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
@@ -13,10 +13,12 @@ export default function DonemPage() {
   const [year, setYear] = useState(currentYear);
   const [reopenModal, setReopenModal] = useState(null);
   const [reopenReason, setReopenReason] = useState('');
+  const [yearEndModal, setYearEndModal] = useState(false);
 
   const { data: periods = [], isLoading } = useAccountingPeriods(year);
   const closePeriod  = useClosePeriod();
   const reopenPeriod = useReopenPeriod();
+  const closeYear    = useCloseYear();
 
   const handleClose = (month) => {
     if (!window.confirm(`${MONTH_NAMES[month - 1]} ${year} dönemini kapatmak istediğinizden emin misiniz?`)) return;
@@ -28,6 +30,14 @@ export default function DonemPage() {
     reopenPeriod.mutate({ year: reopenModal.year, month: reopenModal.month, reason: reopenReason }, {
       onSuccess: () => { setReopenModal(null); setReopenReason(''); },
     });
+  };
+
+  const allClosed = periods.length === 12 && periods.every(p => p.status === 'CLOSED');
+  const decPeriod  = periods.find(p => p.month === 12);
+  const yearAlreadyClosed = decPeriod?.yearEndClosedAt != null;
+
+  const handleCloseYear = () => {
+    closeYear.mutate(year, { onSuccess: () => setYearEndModal(false) });
   };
 
   const grid = Array.from({ length: 12 }, (_, i) => {
@@ -51,6 +61,17 @@ export default function DonemPage() {
           <button className="btn ghost" onClick={() => setYear(y => y + 1)} disabled={year >= currentYear + 1}>
             <Icon name="chevRight" size={14} />
           </button>
+          {isAdmin && allClosed && !yearAlreadyClosed && (
+            <button className="btn danger" style={{ marginLeft: 8 }} onClick={() => setYearEndModal(true)}>
+              <Icon name="lock" size={13} style={{ marginRight: 4 }} />
+              Yıl Sonu Kapat
+            </button>
+          )}
+          {isAdmin && yearAlreadyClosed && (
+            <span className="badge neg" style={{ marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <Icon name="lock" size={11} /> {year} Yılı Kapalı
+            </span>
+          )}
         </div>
       </div>
 
@@ -113,6 +134,37 @@ export default function DonemPage() {
           </ul>
         </div>
       </div>
+
+      {yearEndModal && (
+        <div className="scrim" onClick={() => setYearEndModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="drawer-h">
+              <h3>Yıl Sonu Kapanışı</h3>
+              <button className="tb-icon-btn" onClick={() => setYearEndModal(false)}><Icon name="x" size={14} /></button>
+            </div>
+            <div className="drawer-b">
+              <p style={{ fontSize: 13, marginTop: 0, marginBottom: 12 }}>
+                <strong>{year} yılı</strong> sonu kapanışı gerçekleştirilecek. Bu işlem:
+              </p>
+              <ul style={{ margin: '0 0 16px', padding: '0 0 0 16px', lineHeight: 2, fontSize: 12.5, color: 'var(--ink-2)' }}>
+                <li>Gelir (6xx) ve gider (7xx) hesaplarını kapatır</li>
+                <li>Net kâr/zararı <strong>590 / 591</strong> hesabına aktarır</li>
+                <li>Kapanış yevmiye fişi otomatik oluşturulur</li>
+                <li>Bu işlem <strong>geri alınamaz</strong></li>
+              </ul>
+              <div style={{ padding: '10px 12px', background: 'var(--neg-bg, #fff5f5)', border: '1px solid var(--neg)', borderRadius: 6, fontSize: 12, color: 'var(--neg)' }}>
+                Tüm 12 ay kapalı durumda. Devam edebilirsiniz.
+              </div>
+            </div>
+            <div className="drawer-f">
+              <button className="btn ghost" onClick={() => setYearEndModal(false)}>İptal</button>
+              <button className="btn danger" disabled={closeYear.isPending} onClick={handleCloseYear}>
+                {closeYear.isPending ? 'İşleniyor…' : `${year} Yılını Kapat`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {reopenModal && (
         <div className="scrim" onClick={() => setReopenModal(null)}>

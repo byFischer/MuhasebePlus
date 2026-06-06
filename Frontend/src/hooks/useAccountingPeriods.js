@@ -24,3 +24,11 @@ export function useReopenPeriod() {
     onError: (e) => toast.err(e?.response?.data?.message || 'Dönem açılamadı'),
   });
 }
+export function useCloseYear() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (year) => accountingPeriodService.closeYear(year),
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['accounting-periods'] }); toast.ok(data?.message || 'Yıl sonu kapatıldı'); },
+    onError: (e) => toast.err(e?.response?.data?.message || 'Yıl sonu kapatılamadı'),
+  });
+}

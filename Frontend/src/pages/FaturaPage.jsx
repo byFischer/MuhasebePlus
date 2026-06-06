@@ -336,7 +336,7 @@ function RelatedStockMovements({ invoiceId, lineItems }) {
   );
 }
 
-const EMPTY_LINE = () => ({ productId: '', quantity: 1, newProduct: null, showNewProduct: false, discountRate: '', withholdingTaxRate: '' });
+const EMPTY_LINE = () => ({ productId: '', quantity: 1, unitPrice: '', newProduct: null, showNewProduct: false, discountRate: '', withholdingTaxRate: '' });
 
 function InvoiceDrawer({ open, onClose, customers, products, seriesList }) {
   const createMut = useCreateInvoice();
@@ -396,11 +396,12 @@ function InvoiceDrawer({ open, onClose, customers, products, seriesList }) {
           return {
             productId: null, quantity: Number(l.quantity),
             newProduct: { barcode: np.barcode.trim(), name: np.name.trim(), description: np.description?.trim() || undefined, unit: np.unit.trim(), salePrice: Number(np.salePrice), vatRate: Number(np.vatRate), costPrice: Number(np.costPrice), minQuantity: Number(np.minQuantity) || 0 },
+            unitPrice: l.unitPrice ? Number(l.unitPrice) : Number(np.costPrice),
             discountRate: l.discountRate ? Number(l.discountRate) : null,
             withholdingTaxRate: l.withholdingTaxRate ? Number(l.withholdingTaxRate) : null,
           };
         }
-        return { productId: Number(l.productId), quantity: Number(l.quantity), newProduct: null, discountRate: l.discountRate ? Number(l.discountRate) : null, withholdingTaxRate: l.withholdingTaxRate ? Number(l.withholdingTaxRate) : null };
+        return { productId: Number(l.productId), quantity: Number(l.quantity), newProduct: null, unitPrice: l.unitPrice ? Number(l.unitPrice) : null, discountRate: l.discountRate ? Number(l.discountRate) : null, withholdingTaxRate: l.withholdingTaxRate ? Number(l.withholdingTaxRate) : null };
       }),
     }, { onSuccess: onClose });
   };
@@ -572,6 +573,10 @@ function InvoiceDrawer({ open, onClose, customers, products, seriesList }) {
                   <div className="field" style={{ width: 70, margin: 0 }}>
                     {i === 0 && <label style={{ fontSize: 11 }}>Adet</label>}
                     <input className="input mono" type="number" min="1" value={l.quantity} onChange={e => updateLine(i, 'quantity', e.target.value)} />
+                  </div>
+                  <div className="field" style={{ width: 96, margin: 0 }}>
+                    {i === 0 && <label style={{ fontSize: 11 }}>Birim Fiyat</label>}
+                    <input className="input mono" type="number" min="0.01" step="0.01" value={l.unitPrice || ''} onChange={e => updateLine(i, 'unitPrice', e.target.value)} placeholder="Oto" />
                   </div>
                   <div className="field" style={{ width: 60, margin: 0 }}>
                     {i === 0 && <label style={{ fontSize: 11 }}>İsk.%</label>}

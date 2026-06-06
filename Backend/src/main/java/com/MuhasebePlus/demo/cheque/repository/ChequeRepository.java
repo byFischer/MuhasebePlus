@@ -20,6 +20,8 @@ public interface ChequeRepository extends JpaRepository<Cheque, Long> {
 
     List<Cheque> findByCompanyCompanyIdAndChequeTypeAndIsDeletedFalse(Long companyId, ChequeType chequeType);
 
+    Optional<Cheque> findByInvoicePaymentIdAndCompanyCompanyIdAndIsDeletedFalse(Long invoicePaymentId, Long companyId);
+
     List<Cheque> findByCompanyCompanyIdAndStatusAndDueDateBeforeAndIsDeletedFalse(
             Long companyId, ChequeStatus status, LocalDate date);
 

@@ -2,6 +2,7 @@ package com.MuhasebePlus.demo.cheque.service;
 
 import com.MuhasebePlus.demo.accounting.service.JournalEntryService;
 import com.MuhasebePlus.demo.cheque.dto.request.BounceReasonRequestDto;
+import com.MuhasebePlus.demo.cheque.dto.request.ChequeDetailsDto;
 import com.MuhasebePlus.demo.cheque.dto.request.ChequeRequestDto;
 import com.MuhasebePlus.demo.cheque.dto.request.CollectChequeRequestDto;
 import com.MuhasebePlus.demo.cheque.dto.request.EndorseChequeRequestDto;
@@ -9,6 +10,7 @@ import com.MuhasebePlus.demo.cheque.entity.*;
 import com.MuhasebePlus.demo.cheque.repository.ChequeMovementRepository;
 import com.MuhasebePlus.demo.cheque.repository.ChequeRepository;
 import com.MuhasebePlus.demo.common.exception.BusinessException;
+import com.MuhasebePlus.demo.common.exception.ClosedPeriodException;
 import com.MuhasebePlus.demo.common.service.CompanyContext;
 import com.MuhasebePlus.demo.company.entity.Company;
 import com.MuhasebePlus.demo.company.repository.CompanyRepository;
@@ -19,13 +21,12 @@ import com.MuhasebePlus.demo.financial.entity.Currency;
 import com.MuhasebePlus.demo.financial.entity.Transaction;
 import com.MuhasebePlus.demo.financial.repository.BankAccountRepository;
 import com.MuhasebePlus.demo.financial.repository.TransactionRepository;
-import com.MuhasebePlus.demo.invoice.entity.Invoice;
 import com.MuhasebePlus.demo.invoice.entity.InvoicePayment;
 import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
-import com.MuhasebePlus.demo.invoice.entity.PaymentStatus;
 import com.MuhasebePlus.demo.invoice.repository.InvoicePaymentRepository;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceRepository;
 import com.MuhasebePlus.demo.log.service.SystemLogService;
+import com.MuhasebePlus.demo.period.service.AccountingPeriodGuard;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -59,6 +60,7 @@ class ChequeServiceTest {
     @Mock private InvoiceRepository invoiceRepository;
     @Mock private SystemLogService systemLogService;
     @Mock private JournalEntryService journalEntryService;
+    @Mock private AccountingPeriodGuard periodGuard;
 
     @InjectMocks
     private ChequeService chequeService;
@@ -87,6 +89,18 @@ class ChequeServiceTest {
         assertThatThrownBy(() -> chequeService.createCheque(chequeRequestDto("CHK-001")))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("zaten kayıtlı");
+
+        verify(chequeRepository, never()).save(any());
+    }
+
+    @Test
+    void createCheque_whenPeriodIsClosed_throwsBeforeSaving() {
+        ChequeRequestDto dto = chequeRequestDto("CHK-CLOSED");
+        doThrow(new ClosedPeriodException(dto.issueDate().getYear(), dto.issueDate().getMonthValue()))
+                .when(periodGuard).assertOpen(dto.issueDate());
+
+        assertThatThrownBy(() -> chequeService.createCheque(dto))
+                .isInstanceOf(ClosedPeriodException.class);
 
         verify(chequeRepository, never()).save(any());
     }
@@ -172,6 +186,31 @@ class ChequeServiceTest {
         assertThat(cheque.getTransactionId()).isEqualTo(100L);
         verify(journalEntryService).createForTransaction(savedTx);
         verify(movementRepository).save(argThat(m -> m.getMovementType() == ChequeMovementType.COLLECTED));
+    }
+
+    @Test
+    void markAsCollected_whenInvoicePaymentCheque_usesChequeSettlementJournal() {
+        Cheque cheque = buildCheque(1L, ChequeStatus.IN_PORTFOLIO);
+        cheque.setInvoicePaymentId(50L);
+        when(chequeRepository.findByChequeIdAndCompanyCompanyIdAndIsDeletedFalse(1L, COMPANY_ID))
+                .thenReturn(Optional.of(cheque));
+
+        BankAccount bankAccount = new BankAccount();
+        bankAccount.setAccountId(10L);
+        bankAccount.setBankName("Test Bankasi");
+        when(bankAccountRepository.findByAccountIdAndCompanyCompanyIdAndIsDeletedFalse(10L, COMPANY_ID))
+                .thenReturn(Optional.of(bankAccount));
+        when(companyRepository.getReferenceById(COMPANY_ID)).thenReturn(company);
+
+        Transaction savedTx = new Transaction();
+        savedTx.setTransactionId(101L);
+        when(transactionRepository.save(any())).thenReturn(savedTx);
+        when(chequeRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        chequeService.markAsCollected(1L, new CollectChequeRequestDto(10L));
+
+        verify(journalEntryService).createForChequeSettlement(cheque, savedTx);
+        verify(journalEntryService, never()).createForTransaction(savedTx);
     }
 
     @Test
@@ -335,6 +374,62 @@ class ChequeServiceTest {
     }
 
     // ── Yardımcı metodlar ─────────────────────────────────────────────────────
+
+    @Test
+    void registerFromPayment_whenPurchaseInvoice_createsPayableCheque() {
+        InvoicePayment payment = new InvoicePayment();
+        payment.setPaymentId(60L);
+        payment.setCompany(company);
+        payment.setAmount(new BigDecimal("5000.00"));
+        ChequeDetailsDto details = new ChequeDetailsDto(
+                "CHK-PAY-001",
+                ChequeKind.CHEQUE,
+                "Test Bankasi",
+                "Merkez",
+                "123456789",
+                LocalDate.now(),
+                LocalDate.now().plusDays(30)
+        );
+
+        when(chequeRepository.existsByChequeNumberAndCompanyCompanyId("CHK-PAY-001", COMPANY_ID))
+                .thenReturn(false);
+        when(companyRepository.getReferenceById(COMPANY_ID)).thenReturn(company);
+        when(chequeRepository.save(any())).thenAnswer(inv -> {
+            Cheque c = inv.getArgument(0);
+            c.setChequeId(60L);
+            return c;
+        });
+
+        Cheque saved = chequeService.registerFromPayment(payment, details, 99L, InvoiceType.purchase);
+
+        assertThat(saved.getChequeType()).isEqualTo(ChequeType.PAYABLE);
+        assertThat(saved.getInvoicePaymentId()).isEqualTo(60L);
+        verify(movementRepository).save(argThat(m ->
+                m.getMovementType() == ChequeMovementType.REGISTERED
+                        && m.getSourceId().equals(60L)
+                        && "INVOICE_PAYMENT".equals(m.getSourceType())
+        ));
+    }
+
+    @Test
+    void cancelByInvoicePayment_marksLinkedChequeDeleted() {
+        Cheque cheque = buildCheque(2L, ChequeStatus.IN_PORTFOLIO);
+        cheque.setInvoicePaymentId(60L);
+        when(chequeRepository.findByInvoicePaymentIdAndCompanyCompanyIdAndIsDeletedFalse(60L, COMPANY_ID))
+                .thenReturn(Optional.of(cheque));
+        when(chequeRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        chequeService.cancelByInvoicePayment(60L, COMPANY_ID, "Odeme silindi");
+
+        assertThat(cheque.getStatus()).isEqualTo(ChequeStatus.CANCELLED);
+        assertThat(cheque.isDeleted()).isTrue();
+        assertThat(cheque.getDeletedAt()).isNotNull();
+        verify(movementRepository).save(argThat(m ->
+                m.getMovementType() == ChequeMovementType.CANCELLED
+                        && m.getSourceId().equals(60L)
+                        && "INVOICE_PAYMENT".equals(m.getSourceType())
+        ));
+    }
 
     private Cheque buildCheque(Long chequeId, ChequeStatus status) {
         return Cheque.builder()

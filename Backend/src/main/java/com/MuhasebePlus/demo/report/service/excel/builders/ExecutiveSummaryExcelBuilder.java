@@ -47,7 +47,6 @@ public class ExecutiveSummaryExcelBuilder implements ReportExcelBuilder {
     public ReportType supports() { return ReportType.EXECUTIVE_SUMMARY; }
 
     @Override
-    @SuppressWarnings("null")
     public void build(Workbook wb, Long companyId, LocalDate start, LocalDate end) {
         LocalDate today = LocalDate.now();
 
