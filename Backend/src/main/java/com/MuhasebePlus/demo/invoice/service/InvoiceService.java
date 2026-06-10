@@ -42,10 +42,12 @@ import com.MuhasebePlus.demo.invoice.entity.InvoiceLineItem;
 import com.MuhasebePlus.demo.invoice.entity.InvoiceSeries;
 import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
 import com.MuhasebePlus.demo.invoice.entity.PaymentStatus;
+import com.MuhasebePlus.demo.invoice.entity.InvoiceVatSummary;
 import com.MuhasebePlus.demo.invoice.repository.CollectionPromiseRepository;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceLineItemRepository;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceRepository;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceSeriesRepository;
+import com.MuhasebePlus.demo.invoice.repository.InvoiceVatSummaryRepository;
 import com.MuhasebePlus.demo.log.entity.LogLevel;
 import com.MuhasebePlus.demo.log.service.SystemLogService;
 import com.MuhasebePlus.demo.stock.entity.MovementType;
@@ -78,6 +80,7 @@ public class InvoiceService implements HardDeletable {
     private final CollectionPromiseRepository promiseRepository;
     private final AccountingPeriodGuard periodGuard;
     private final JournalEntryService journalEntryService;
+    private final InvoiceVatSummaryRepository vatSummaryRepository;
 
 
     // PUBLIC METODLAR - INVOICE CRUD
@@ -647,6 +650,9 @@ public class InvoiceService implements HardDeletable {
             li.setLineTotal(lineTotal);
             li.setDiscountRate(discountRate);
             li.setWithholdingTaxRate(wtRate);
+            li.setWithholdingTaxCodeId(req.withholdingTaxCodeId());
+            li.setVatExemptionCodeId(req.vatExemptionCodeId());
+            li.setVatExemptionReason(req.vatExemptionReason());
             li.setDeleted(false);
 
             saved.add(li);
@@ -659,7 +665,7 @@ public class InvoiceService implements HardDeletable {
         BigDecimal subtotal = BigDecimal.ZERO;
         BigDecimal wtAmount = BigDecimal.ZERO;
 
-        record LineCalc(BigDecimal afterLineDiscount, BigDecimal vatRate, BigDecimal wtRate) {}
+        record LineCalc(InvoiceLineItem item, BigDecimal afterLineDiscount, BigDecimal vatRate, BigDecimal wtRate) {}
         List<LineCalc> calcs = new ArrayList<>();
 
         for (InvoiceLineItem li : lineItems) {
@@ -669,13 +675,13 @@ public class InvoiceService implements HardDeletable {
             BigDecimal liDiscount = round2(net.multiply(liDiscountRate).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP));
             BigDecimal afterLineDiscount = net.subtract(liDiscount);
             BigDecimal vatRate = li.getVatRate() != null ? li.getVatRate() : BigDecimal.ZERO;
+            BigDecimal wtRate  = li.getWithholdingTaxRate() != null ? li.getWithholdingTaxRate() : BigDecimal.ZERO;
 
             subtotal = subtotal.add(afterLineDiscount);
-            calcs.add(new LineCalc(afterLineDiscount, vatRate,
-                li.getWithholdingTaxRate() != null ? li.getWithholdingTaxRate() : BigDecimal.ZERO));
+            calcs.add(new LineCalc(li, afterLineDiscount, vatRate, wtRate));
 
-            if (calcs.get(calcs.size() - 1).wtRate().compareTo(BigDecimal.ZERO) > 0) {
-                wtAmount = wtAmount.add(round2(afterLineDiscount.multiply(calcs.get(calcs.size() - 1).wtRate())
+            if (wtRate.compareTo(BigDecimal.ZERO) > 0) {
+                wtAmount = wtAmount.add(round2(afterLineDiscount.multiply(wtRate)
                     .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP)));
             }
         }
@@ -700,11 +706,14 @@ public class InvoiceService implements HardDeletable {
         BigDecimal vatAmount = BigDecimal.ZERO;
         BigDecimal distributed = BigDecimal.ZERO;
 
+        // KDV oran bazlı kırılım (VatSummary için)
+        Map<BigDecimal, BigDecimal> vatBaseByRate = new HashMap<>();
+        Map<BigDecimal, BigDecimal> vatAmtByRate  = new HashMap<>();
+
         for (int i = 0; i < calcs.size(); i++) {
             LineCalc calc = calcs.get(i);
             BigDecimal lineShare;
             if (subtotal.compareTo(BigDecimal.ZERO) > 0) {
-                // Son satırda kalan farkı al (yuvarlama hatası önleme)
                 if (i == calcs.size() - 1) {
                     lineShare = invoiceDiscount.subtract(distributed);
                 } else {
@@ -722,6 +731,14 @@ public class InvoiceService implements HardDeletable {
 
             finalSubtotal = finalSubtotal.add(lineNet);
             vatAmount = vatAmount.add(lineVat);
+
+            // Satır bazlı tutarları entity'e yaz
+            calc.item().setVatBaseAmount(lineNet);
+            calc.item().setVatAmount(lineVat);
+
+            // Oran bazlı kırılım topla
+            vatBaseByRate.merge(calc.vatRate(), lineNet, BigDecimal::add);
+            vatAmtByRate.merge(calc.vatRate(), lineVat, BigDecimal::add);
         }
 
         BigDecimal totalAmount = round2(finalSubtotal.add(vatAmount).subtract(wtAmount));
@@ -730,6 +747,23 @@ public class InvoiceService implements HardDeletable {
         invoice.setVatAmount(round2(vatAmount));
         invoice.setWithholdingTaxAmount(round2(wtAmount));
         invoice.setTotalAmount(totalAmount);
+
+        // 4. InvoiceVatSummary kayıtlarını güncelle (fatura ID'si set edilmişse)
+        if (invoice.getInvoiceId() != null) {
+            vatSummaryRepository.deleteByInvoiceId(invoice.getInvoiceId());
+            List<InvoiceVatSummary> summaries = new ArrayList<>();
+            for (Map.Entry<BigDecimal, BigDecimal> entry : vatBaseByRate.entrySet()) {
+                BigDecimal rate = entry.getKey();
+                summaries.add(InvoiceVatSummary.builder()
+                        .company(invoice.getCompany())
+                        .invoiceId(invoice.getInvoiceId())
+                        .vatRate(rate)
+                        .vatBaseAmount(entry.getValue())
+                        .vatAmount(vatAmtByRate.getOrDefault(rate, BigDecimal.ZERO))
+                        .build());
+            }
+            vatSummaryRepository.saveAll(summaries);
+        }
     }
 
     private void recordStockMovements(List<InvoiceLineItemRequestDto> items, Invoice savedInvoice, Map<Integer, Product> productMap) {

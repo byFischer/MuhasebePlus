@@ -62,6 +62,8 @@ const PATHS = {
   cheque: 'M2 7h20v14H2z M6 11h4 M6 15h8 M16 11h2',
   accounting: 'M2 3h20v4H2z M4 7v14 M20 7v14 M4 12h16 M8 3v4 M16 3v4',
   journal: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z M8 7h8 M8 11h8 M8 15h4',
+  document: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8',
+  archive: 'M21 8v13H3V8 M23 3H1v5h22V3z M10 12h4',
 };
 
 export default function Icon({ name, size = 16, ...rest }) {

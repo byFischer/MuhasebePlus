@@ -24,6 +24,24 @@ public record CompanyRequestDto(
         String phone,
 
         @Size(max = 255)
-        String email
+        String email,
+
+        @Size(max = 10)
+        String taxOfficeCode,
+
+        @Size(max = 30)
+        String tradeRegistryNo,
+
+        @Size(max = 20)
+        String mersisNo,
+
+        @Size(max = 10)
+        String nace,
+
+        @Size(max = 20)
+        String declarationPeriodType,
+
+        @Size(max = 30)
+        String corporateTaxType
 ) {
 }

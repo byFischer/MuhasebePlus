@@ -11,6 +11,7 @@ import { MOVEMENT_LABELS, MOVEMENT_TYPE_COLORS } from '@/lib/movementLabels';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from '@/lib/toast';
 import invoiceService from '@/services/invoiceService';
+import { useWithholdingCodes, useExemptionCodes } from '@/hooks/useTaxCodes';
 
 function InvoicePill({ status, cancelled }) {
   if (cancelled) return <span className="pill neg"><span className="dot" />İptal</span>;
@@ -336,11 +337,23 @@ function RelatedStockMovements({ invoiceId, lineItems }) {
   );
 }
 
-const EMPTY_LINE = () => ({ productId: '', quantity: 1, newProduct: null, showNewProduct: false, discountRate: '', withholdingTaxRate: '' });
+const EMPTY_LINE = () => ({
+  productId: '',
+  quantity: 1,
+  newProduct: null,
+  showNewProduct: false,
+  discountRate: '',
+  withholdingTaxRate: '',
+  withholdingTaxCodeId: null,
+  vatExemptionCodeId: null,
+  vatExemptionReason: '',
+});
 
 function InvoiceDrawer({ open, onClose, customers, products, seriesList }) {
   const createMut = useCreateInvoice();
   const nextNumMut = useNextInvoiceNumber();
+  const { data: withholdingCodes = [] } = useWithholdingCodes();
+  const { data: exemptionCodes = [] } = useExemptionCodes();
   const EMPTY = { invoiceNumber: '', customerId: '', invoiceType: 'sale', invoiceDate: new Date().toISOString().slice(0, 10), dueDate: '', currency: 'TRY', exchangeRate: '', discountType: '', discountAmount: '', description: '', deliveryAddress: '', seriesCode: '' };
   const [f, setF] = useState(EMPTY);
   const [lines, setLines] = useState([EMPTY_LINE()]);
@@ -391,16 +404,25 @@ function InvoiceDrawer({ open, onClose, customers, products, seriesList }) {
       description: f.description?.trim() || null,
       deliveryAddress: f.deliveryAddress?.trim() || null,
       lineItems: validLines.map(l => {
+        const taxCodeObj = withholdingCodes.find(c => c.codeId === l.withholdingTaxCodeId);
+        const computedRate = taxCodeObj ? Number(taxCodeObj.withholdingRate) * 100 : (l.withholdingTaxRate ? Number(l.withholdingTaxRate) : null);
         if (l.newProduct) {
           const np = l.newProduct;
           return {
             productId: null, quantity: Number(l.quantity),
             newProduct: { barcode: np.barcode.trim(), name: np.name.trim(), description: np.description?.trim() || undefined, unit: np.unit.trim(), salePrice: Number(np.salePrice), vatRate: Number(np.vatRate), costPrice: Number(np.costPrice), minQuantity: Number(np.minQuantity) || 0 },
             discountRate: l.discountRate ? Number(l.discountRate) : null,
-            withholdingTaxRate: l.withholdingTaxRate ? Number(l.withholdingTaxRate) : null,
+            withholdingTaxRate: computedRate,
           };
         }
-        return { productId: Number(l.productId), quantity: Number(l.quantity), newProduct: null, discountRate: l.discountRate ? Number(l.discountRate) : null, withholdingTaxRate: l.withholdingTaxRate ? Number(l.withholdingTaxRate) : null };
+        return {
+          productId: Number(l.productId), quantity: Number(l.quantity), newProduct: null,
+          discountRate: l.discountRate ? Number(l.discountRate) : null,
+          withholdingTaxRate: computedRate,
+          withholdingTaxCodeId: l.withholdingTaxCodeId || null,
+          vatExemptionCodeId: l.vatExemptionCodeId || null,
+          vatExemptionReason: l.vatExemptionReason || null,
+        };
       }),
     }, { onSuccess: onClose });
   };
@@ -577,9 +599,38 @@ function InvoiceDrawer({ open, onClose, customers, products, seriesList }) {
                     {i === 0 && <label style={{ fontSize: 11 }}>İsk.%</label>}
                     <input className="input mono" type="number" min="0" max="100" value={l.discountRate || ''} onChange={e => updateLine(i, 'discountRate', e.target.value)} placeholder="0" />
                   </div>
-                  <div className="field" style={{ width: 60, margin: 0 }}>
-                    {i === 0 && <label style={{ fontSize: 11 }}>Stopaj%</label>}
-                    <input className="input mono" type="number" min="0" max="100" value={l.withholdingTaxRate || ''} onChange={e => updateLine(i, 'withholdingTaxRate', e.target.value)} placeholder="0" />
+                  <div className="field" style={{ width: 130, margin: 0 }}>
+                    {i === 0 && <label style={{ fontSize: 11 }}>Tevkifat Kodu</label>}
+                    <select
+                      className="input"
+                      style={{ fontSize: 11 }}
+                      value={l.withholdingTaxCodeId || ''}
+                      onChange={e => {
+                        const codeId = e.target.value ? Number(e.target.value) : null;
+                        const code = withholdingCodes.find(c => c.codeId === codeId);
+                        updateLine(i, 'withholdingTaxCodeId', codeId);
+                        updateLine(i, 'withholdingTaxRate', code ? String(Number(code.withholdingRate) * 100) : '');
+                      }}
+                    >
+                      <option value="">Tevkifat yok</option>
+                      {withholdingCodes.map(c => (
+                        <option key={c.codeId} value={c.codeId}>{c.code} — {c.numerator}/{c.denominator}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field" style={{ width: 130, margin: 0 }}>
+                    {i === 0 && <label style={{ fontSize: 11 }}>İstisna Kodu</label>}
+                    <select
+                      className="input"
+                      style={{ fontSize: 11 }}
+                      value={l.vatExemptionCodeId || ''}
+                      onChange={e => updateLine(i, 'vatExemptionCodeId', e.target.value ? Number(e.target.value) : null)}
+                    >
+                      <option value="">İstisna yok</option>
+                      {exemptionCodes.map(c => (
+                        <option key={c.codeId} value={c.codeId}>{c.code} — {c.description?.slice(0, 20)}</option>
+                      ))}
+                    </select>
                   </div>
                   <button
                     className="tb-icon-btn"

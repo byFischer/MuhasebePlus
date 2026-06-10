@@ -34,6 +34,7 @@ import DataWidget from '@/widgets/DataWidget';
 import WidgetConfigModal from '@/widgets/shell/WidgetConfigModal';
 import { useWidgetData } from '@/hooks/useWidgetData';
 import AiWidgetChatPanel from '@/components/ai/AiWidgetChatPanel';
+import BeyannameReminderWidget from '@/widgets/BeyannameReminderWidget';
 
 const WIDGET_COMPONENTS = {
   kpis:       KpisWidget,
@@ -406,6 +407,9 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
+
+      {/* Beyanname reminder banner */}
+      <BeyannameReminderWidget />
 
       {/* Slot grid */}
       <div

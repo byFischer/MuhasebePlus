@@ -180,7 +180,7 @@ public class TemplateApplicationService {
             Integer productId = extractIntFromMap(item, "productId");
             Integer quantity = extractIntFromMap(item, "quantity");
             if (productId != null && quantity != null && quantity > 0) {
-                lineItems.add(new InvoiceLineItemRequestDto(productId, quantity, null, null, null));
+                lineItems.add(new InvoiceLineItemRequestDto(productId, quantity, null, null, null, null, null, null));
             }
         }
 
@@ -268,7 +268,6 @@ public class TemplateApplicationService {
     // PAYLOAD EXTRACTORS
     // ============================================================
 
-    @SuppressWarnings("unchecked")
     private BigDecimal extractAmount(Map<String, Object> payload) {
         if (payload == null) return BigDecimal.ZERO;
         Object val = payload.get("amount");

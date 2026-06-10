@@ -1,5 +1,6 @@
 package com.MuhasebePlus.demo.accounting.repository;
 
+import com.MuhasebePlus.demo.accounting.entity.AccountType;
 import com.MuhasebePlus.demo.accounting.entity.JournalEntryLine;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -48,4 +49,24 @@ public interface JournalEntryLineRepository extends JpaRepository<JournalEntryLi
             @Param("accountId") Long accountId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
+
+    // Used for income statement: sum debits and credits per account type (INCOME, EXPENSE, COST)
+    @Query("""
+            SELECT jel.account.accountType,
+                   SUM(jel.debitAmount)  AS totalDebit,
+                   SUM(jel.creditAmount) AS totalCredit
+            FROM JournalEntryLine jel
+            JOIN jel.entry je
+            WHERE jel.company.companyId = :companyId
+              AND je.entryDate BETWEEN :startDate AND :endDate
+              AND je.isDeleted = false
+              AND je.isReversed = false
+              AND jel.account.accountType IN :types
+            GROUP BY jel.account.accountType
+            """)
+    List<Object[]> sumByAccountTypeForPeriod(
+            @Param("companyId") Long companyId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("types") List<AccountType> types);
 }

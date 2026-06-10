@@ -91,6 +91,12 @@ public class CompanyService {
         company.setCity(dto.city());
         company.setPhone(dto.phone());
         company.setEmail(dto.email());
+        company.setTaxOfficeCode(dto.taxOfficeCode());
+        company.setTradeRegistryNo(dto.tradeRegistryNo());
+        company.setMersisNo(dto.mersisNo());
+        company.setNace(dto.nace());
+        if (dto.declarationPeriodType() != null) company.setDeclarationPeriodType(dto.declarationPeriodType());
+        if (dto.corporateTaxType() != null) company.setCorporateTaxType(dto.corporateTaxType());
 
         Company updatedCompany = companyRepository.save(company);
         return mapToResponseDto(updatedCompany);
@@ -111,6 +117,42 @@ public class CompanyService {
         companyRepository.save(company);
     }
 
+    public CompanyResponseDto getCurrentCompany() {
+        Long currentCompanyId = companyContext.getCurrentCompanyId();
+        Company company = companyRepository.findById(currentCompanyId)
+                .orElseThrow(() -> new RuntimeException("Company not found"));
+        return mapToResponseDto(company);
+    }
+
+    @Transactional
+    public CompanyResponseDto updateCurrentCompany(CompanyRequestDto dto) {
+        Long currentCompanyId = companyContext.getCurrentCompanyId();
+        Company company = companyRepository.findById(currentCompanyId)
+                .orElseThrow(() -> new RuntimeException("Company not found"));
+
+        if (dto.taxNumber() != null && !dto.taxNumber().equals(company.getTaxNumber())) {
+            if (companyRepository.existsByTaxNumber(dto.taxNumber())) {
+                throw new RuntimeException("Tax number already exists: " + dto.taxNumber());
+            }
+        }
+
+        company.setCompanyName(dto.companyName());
+        company.setTaxOffice(dto.taxOffice());
+        company.setTaxNumber(dto.taxNumber());
+        company.setAddress(dto.address());
+        company.setCity(dto.city());
+        company.setPhone(dto.phone());
+        company.setEmail(dto.email());
+        company.setTaxOfficeCode(dto.taxOfficeCode());
+        company.setTradeRegistryNo(dto.tradeRegistryNo());
+        company.setMersisNo(dto.mersisNo());
+        company.setNace(dto.nace());
+        if (dto.declarationPeriodType() != null) company.setDeclarationPeriodType(dto.declarationPeriodType());
+        if (dto.corporateTaxType() != null) company.setCorporateTaxType(dto.corporateTaxType());
+
+        return mapToResponseDto(companyRepository.save(company));
+    }
+
     // Helper metot: Entity -> ResponseDTO dönüşümü
     private CompanyResponseDto mapToResponseDto(Company company) {
         return new CompanyResponseDto(
@@ -124,7 +166,13 @@ public class CompanyService {
                 company.getEmail(),
                 company.isActive(),
                 company.getCreatedAt(),
-                company.getUpdatedAt()
+                company.getUpdatedAt(),
+                company.getTaxOfficeCode(),
+                company.getTradeRegistryNo(),
+                company.getMersisNo(),
+                company.getNace(),
+                company.getDeclarationPeriodType(),
+                company.getCorporateTaxType()
         );
     }
 }

@@ -43,4 +43,24 @@ public class Company extends BaseEntity {
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private boolean isActive = true;
+
+    @Column(name = "tax_office_code", length = 10)
+    private String taxOfficeCode;
+
+    @Column(name = "trade_registry_no", length = 30)
+    private String tradeRegistryNo;
+
+    @Column(name = "mersis_no", length = 20)
+    private String mersisNo;
+
+    @Column(name = "nace", length = 10)
+    private String nace;
+
+    @Column(name = "declaration_period_type", length = 20)
+    @Builder.Default
+    private String declarationPeriodType = "MONTHLY";
+
+    @Column(name = "corporate_tax_type", length = 30)
+    @Builder.Default
+    private String corporateTaxType = "GELIR_VERGISI";
 }

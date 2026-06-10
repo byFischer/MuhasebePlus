@@ -13,6 +13,12 @@ public record CompanyResponseDto(
         String email,
         boolean isActive,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        String taxOfficeCode,
+        String tradeRegistryNo,
+        String mersisNo,
+        String nace,
+        String declarationPeriodType,
+        String corporateTaxType
 ) {
 }

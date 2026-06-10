@@ -55,4 +55,16 @@ public class CompanyController {
         companyService.deleteCompany(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/me")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<CompanyResponseDto> getCurrentCompany() {
+        return ResponseEntity.ok(companyService.getCurrentCompany());
+    }
+
+    @PutMapping("/me")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<CompanyResponseDto> updateCurrentCompany(@Valid @RequestBody CompanyRequestDto requestDto) {
+        return ResponseEntity.ok(companyService.updateCurrentCompany(requestDto));
+    }
 }

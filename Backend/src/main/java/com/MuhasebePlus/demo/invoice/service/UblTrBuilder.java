@@ -56,11 +56,19 @@ public class UblTrBuilder {
             appendParty(xml, "AccountingCustomerParty", customer);
         }
 
+        // Group line items by VAT rate for multi-rate TaxSubtotal (UBL-TR requirement)
+        Map<BigDecimal, BigDecimal> vatBaseByRate = new TreeMap<>();
+        Map<BigDecimal, BigDecimal> vatAmtByRate  = new TreeMap<>();
         BigDecimal taxExclusive = BigDecimal.ZERO;
         BigDecimal totalVat = BigDecimal.ZERO;
         for (InvoiceLineItem li : lineItems) {
-            taxExclusive = taxExclusive.add(calcNet(li));
-            totalVat = totalVat.add(calcVat(li));
+            BigDecimal net = calcNet(li);
+            BigDecimal vat = calcVat(li);
+            BigDecimal rate = li.getVatRate() != null ? li.getVatRate().stripTrailingZeros() : BigDecimal.ZERO;
+            taxExclusive = taxExclusive.add(net);
+            totalVat = totalVat.add(vat);
+            vatBaseByRate.merge(rate, net, BigDecimal::add);
+            vatAmtByRate.merge(rate, vat, BigDecimal::add);
         }
 
         String taxExclusiveStr = fmt(taxExclusive);
@@ -78,18 +86,25 @@ public class UblTrBuilder {
         xml.append("    <cbc:PayableAmount currencyID=\"").append(currency).append("\">").append(payableStr).append("</cbc:PayableAmount>\n");
         xml.append("  </cac:LegalMonetaryTotal>\n");
 
+        // TaxTotal with one TaxSubtotal per VAT rate (GIB UBL-TR requirement)
         xml.append("  <cac:TaxTotal>\n");
         xml.append("    <cbc:TaxAmount currencyID=\"").append(currency).append("\">").append(totalVatStr).append("</cbc:TaxAmount>\n");
-        xml.append("    <cac:TaxSubtotal>\n");
-        xml.append("      <cbc:TaxableAmount currencyID=\"").append(currency).append("\">").append(taxExclusiveStr).append("</cbc:TaxableAmount>\n");
-        xml.append("      <cbc:TaxAmount currencyID=\"").append(currency).append("\">").append(totalVatStr).append("</cbc:TaxAmount>\n");
-        xml.append("      <cac:TaxCategory>\n");
-        xml.append("        <cac:TaxScheme>\n");
-        xml.append("          <cbc:Name>KDV</cbc:Name>\n");
-        xml.append("          <cbc:TaxTypeCode>0015</cbc:TaxTypeCode>\n");
-        xml.append("        </cac:TaxScheme>\n");
-        xml.append("      </cac:TaxCategory>\n");
-        xml.append("    </cac:TaxSubtotal>\n");
+        for (Map.Entry<BigDecimal, BigDecimal> entry : vatBaseByRate.entrySet()) {
+            BigDecimal rate = entry.getKey();
+            BigDecimal base = entry.getValue();
+            BigDecimal vatAmt = vatAmtByRate.getOrDefault(rate, BigDecimal.ZERO);
+            xml.append("    <cac:TaxSubtotal>\n");
+            xml.append("      <cbc:TaxableAmount currencyID=\"").append(currency).append("\">").append(fmt(base)).append("</cbc:TaxableAmount>\n");
+            xml.append("      <cbc:TaxAmount currencyID=\"").append(currency).append("\">").append(fmt(vatAmt)).append("</cbc:TaxAmount>\n");
+            xml.append("      <cac:TaxCategory>\n");
+            xml.append("        <cbc:Percent>").append(rate.toPlainString()).append("</cbc:Percent>\n");
+            xml.append("        <cac:TaxScheme>\n");
+            xml.append("          <cbc:Name>KDV</cbc:Name>\n");
+            xml.append("          <cbc:TaxTypeCode>0015</cbc:TaxTypeCode>\n");
+            xml.append("        </cac:TaxScheme>\n");
+            xml.append("      </cac:TaxCategory>\n");
+            xml.append("    </cac:TaxSubtotal>\n");
+        }
         xml.append("  </cac:TaxTotal>\n");
 
         if (invoice.getDiscountAmount() != null && invoice.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {

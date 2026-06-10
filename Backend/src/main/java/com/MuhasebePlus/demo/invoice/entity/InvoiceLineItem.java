@@ -70,6 +70,21 @@ public class InvoiceLineItem extends BaseEntity {
     @Column(name = "withholding_tax_rate", precision = 5, scale = 2)
     private BigDecimal withholdingTaxRate;
 
+    @Column(name = "vat_base_amount", precision = 15, scale = 2)
+    private BigDecimal vatBaseAmount;
+
+    @Column(name = "vat_amount", precision = 15, scale = 2)
+    private BigDecimal vatAmount;
+
+    @Column(name = "withholding_tax_code_id")
+    private Integer withholdingTaxCodeId;
+
+    @Column(name = "vat_exemption_code_id")
+    private Integer vatExemptionCodeId;
+
+    @Column(name = "vat_exemption_reason", length = 500)
+    private String vatExemptionReason;
+
     @Column(name = "is_deleted")
     private boolean isDeleted;
 }

@@ -173,4 +173,12 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpec
                                                @Param("type") InvoiceType type,
                                                @Param("start") LocalDateTime start,
                                                @Param("end") LocalDateTime end);
+
+    @Query("SELECT i FROM Invoice i WHERE i.company.companyId = :companyId " +
+           "AND i.invoiceType = :type AND i.isDeleted = false AND i.cancelled = false " +
+           "AND i.invoiceDate >= :start AND i.invoiceDate <= :end")
+    List<Invoice> findForPeriod(@Param("companyId") Long companyId,
+                                 @Param("type") InvoiceType type,
+                                 @Param("start") LocalDate start,
+                                 @Param("end") LocalDate end);
 }

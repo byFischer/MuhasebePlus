@@ -25,7 +25,13 @@ public record InvoiceLineItemRequestDto(
 
     @DecimalMin(value = "0", message = "Withholding tax rate cannot be negative")
     @DecimalMax(value = "100", message = "Withholding tax rate cannot exceed 100")
-    BigDecimal withholdingTaxRate
+    BigDecimal withholdingTaxRate,
+
+    Integer withholdingTaxCodeId,
+
+    Integer vatExemptionCodeId,
+
+    String vatExemptionReason
 ) {
     @AssertTrue(message = "productId or newProduct must be provided, but not both")
     public boolean isValidProductReference() {

@@ -15,6 +15,8 @@ export const ROUTE_META = {
   '/hesap-plani': { crumbs: ['Muhasebe', 'Hesap Planı'],     icon: 'accounting',label: 'Hesap Planı' },
   '/yevmiye':     { crumbs: ['Muhasebe', 'Yevmiye Defteri'], icon: 'journal',   label: 'Yevmiye Defteri' },
   '/donem':       { crumbs: ['Muhasebe', 'Muhasebe Dönemi'], icon: 'calendar',  label: 'Muhasebe Dönemi' },
+  '/beyanname':   { crumbs: ['Muhasebe', 'Beyannameler'],    icon: 'document',  label: 'Beyannameler' },
+  '/edefter':     { crumbs: ['Muhasebe', 'e-Defter'],        icon: 'archive',   label: 'e-Defter' },
 };
 
 export const NAV = [
@@ -34,6 +36,8 @@ export const NAV = [
   { to: '/hesap-plani', label: 'Hesap Planı',      icon: 'accounting' },
   { to: '/yevmiye',     label: 'Yevmiye Defteri',  icon: 'journal' },
   { to: '/donem',       label: 'Muhasebe Dönemi',  icon: 'calendar' },
+  { to: '/beyanname',   label: 'Beyannameler',      icon: 'document' },
+  { to: '/edefter',     label: 'e-Defter',          icon: 'archive' },
   { section: 'OTOMASYON' },
   { to: '/sablon', label: 'Şablonlar', icon: 'template' },
   { to: '/rapor',  label: 'Raporlar',  icon: 'chart' },
