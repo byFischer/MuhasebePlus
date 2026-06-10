@@ -35,7 +35,6 @@ public class ArAgingExcelBuilder implements ReportExcelBuilder {
     public ReportType supports() { return ReportType.AR_AGING; }
 
     @Override
-    @SuppressWarnings("null")
     public void build(Workbook wb, Long companyId, LocalDate start, LocalDate end) {
         LocalDate today = LocalDate.now();
         List<Invoice> openInvoices = new ArrayList<>();

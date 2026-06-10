@@ -7,6 +7,14 @@ import { useTransactions, useCreateTransaction } from '@/hooks/useTransactions';
 import { useBankAccounts } from '@/hooks/useBankAccounts';
 
 const TODAY = new Date().toISOString().slice(0, 10);
+const TX_CATEGORY_OPTIONS = [
+  ['GENERAL', 'Genel'],
+  ['BANK_FEE', 'Banka Masrafi'],
+  ['POS_COLLECTION', 'POS Tahsilati'],
+  ['CREDIT_CARD_PAYMENT', 'Kredi Karti Odemesi'],
+  ['TRANSFER', 'Virman'],
+];
+const TX_CATEGORY_LABELS = Object.fromEntries(TX_CATEGORY_OPTIONS);
 
 export default function GelirGiderPage() {
   const { data: list = [], isLoading, isError, refetch } = useTransactions();
@@ -17,14 +25,15 @@ export default function GelirGiderPage() {
   const PAGE_SIZE = 15;
 
   const totals = useMemo(() => {
-    const g = list.filter(x => x.transactionType === 'INCOME').reduce((s, x) => s + Number(x.amount || 0), 0);
-    const e = list.filter(x => x.transactionType === 'EXPENSE').reduce((s, x) => s + Number(x.amount || 0), 0);
+    const operating = list.filter(x => x.transactionCategory !== 'TRANSFER');
+    const g = operating.filter(x => x.transactionType === 'INCOME').reduce((s, x) => s + Number(x.amount || 0), 0);
+    const e = operating.filter(x => x.transactionType === 'EXPENSE').reduce((s, x) => s + Number(x.amount || 0), 0);
     return { g, e, net: g - e };
   }, [list]);
 
   const filtered = list.filter(x => {
-    if (tab === 'gelir') return x.transactionType === 'INCOME';
-    if (tab === 'gider') return x.transactionType === 'EXPENSE';
+    if (tab === 'gelir') return x.transactionType === 'INCOME' && x.transactionCategory !== 'TRANSFER';
+    if (tab === 'gider') return x.transactionType === 'EXPENSE' && x.transactionCategory !== 'TRANSFER';
     return true;
   });
 
@@ -68,13 +77,13 @@ export default function GelirGiderPage() {
                   <td className="mono">{x.transactionId}</td>
                   <td className="muted">{x.transactionDate}</td>
                   <td>
-                    <span className={`pill ${x.transactionType === 'INCOME' ? 'pos' : 'neg'}`}>
-                      <span className="dot" />{x.transactionType === 'INCOME' ? 'Gelir' : 'Gider'}
+                    <span className={`pill ${x.transactionCategory === 'TRANSFER' ? '' : x.transactionType === 'INCOME' ? 'pos' : 'neg'}`}>
+                      <span className="dot" />{x.transactionCategory === 'TRANSFER' ? 'Virman' : x.transactionType === 'INCOME' ? 'Gelir' : 'Gider'}
                     </span>
                   </td>
-                  <td>{x.category}</td>
+                  <td>{x.category || TX_CATEGORY_LABELS[x.transactionCategory] || '-'}</td>
                   <td>{x.description}</td>
-                  <td className="num mono tnum" style={{ color: x.transactionType === 'INCOME' ? 'var(--pos)' : 'var(--neg)', fontWeight: 600 }}>
+                  <td className="num mono tnum" style={{ color: x.transactionCategory === 'TRANSFER' ? 'inherit' : x.transactionType === 'INCOME' ? 'var(--pos)' : 'var(--neg)', fontWeight: 600 }}>
                     {TRY(x.amount || 0)}
                   </td>
                 </tr>
@@ -92,10 +101,23 @@ export default function GelirGiderPage() {
 
 function TransactionDrawer({ open, onClose, banks }) {
   const createMut = useCreateTransaction();
-  const EMPTY = { accountId: '', transactionType: 'INCOME', amount: '', transactionDate: TODAY, description: '', category: '' };
+  const EMPTY = {
+    accountId: '',
+    transferAccountId: '',
+    transactionType: 'INCOME',
+    transactionCategory: 'GENERAL',
+    amount: '',
+    transactionDate: TODAY,
+    description: '',
+    category: ''
+  };
   const [f, setF] = useState(EMPTY);
 
-  const valid = f.accountId && f.transactionType && Number(f.amount) > 0 && f.transactionDate;
+  const valid = f.accountId
+    && f.transactionType
+    && Number(f.amount) > 0
+    && f.transactionDate
+    && (f.transactionCategory !== 'TRANSFER' || (f.transferAccountId && f.transferAccountId !== f.accountId));
 
   useEffect(() => { if (!open) setF({ ...EMPTY, transactionDate: new Date().toISOString().slice(0, 10) }); }, [open]);
 
@@ -103,7 +125,9 @@ function TransactionDrawer({ open, onClose, banks }) {
     if (!valid) return;
     createMut.mutate({
       accountId: Number(f.accountId),
-      transactionType: f.transactionType,
+      transferAccountId: f.transactionCategory === 'TRANSFER' ? Number(f.transferAccountId) : null,
+      transactionType: f.transactionCategory === 'TRANSFER' ? 'EXPENSE' : f.transactionType,
+      transactionCategory: f.transactionCategory,
       amount: Number(f.amount),
       transactionDate: f.transactionDate,
       description: f.description.trim() || undefined,
@@ -134,8 +158,48 @@ function TransactionDrawer({ open, onClose, banks }) {
         </div>
         <div className="grid-2">
           <div className="field">
+            <label>İşlem Kategorisi *</label>
+            <select
+              className="input"
+              value={f.transactionCategory}
+              onChange={e => {
+                const next = e.target.value;
+                setF({
+                  ...f,
+                  transactionCategory: next,
+                  transactionType: ['BANK_FEE', 'CREDIT_CARD_PAYMENT', 'TRANSFER'].includes(next)
+                    ? 'EXPENSE'
+                    : next === 'POS_COLLECTION' ? 'INCOME' : f.transactionType,
+                  transferAccountId: next === 'TRANSFER' ? f.transferAccountId : ''
+                });
+              }}
+            >
+              {TX_CATEGORY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </div>
+          {f.transactionCategory === 'TRANSFER' && (
+            <div className="field">
+              <label>Hedef Hesap *</label>
+              <select className="input" value={f.transferAccountId} onChange={e => setF({ ...f, transferAccountId: e.target.value })}>
+                <option value="">Hesap seçin...</option>
+                {banks.filter(b => String(b.bankAccountId || b.accountId) !== String(f.accountId)).map(b => (
+                  <option key={b.bankAccountId || b.accountId} value={b.bankAccountId || b.accountId}>
+                    {b.bankName || b.accountName} - {b.currency}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+        <div className="grid-2">
+          <div className="field">
             <label>Tür *</label>
-            <select className="input" value={f.transactionType} onChange={e => setF({ ...f, transactionType: e.target.value })}>
+            <select
+              className="input"
+              value={f.transactionType}
+              disabled={f.transactionCategory !== 'GENERAL'}
+              onChange={e => setF({ ...f, transactionType: e.target.value })}
+            >
               <option value="INCOME">Gelir</option>
               <option value="EXPENSE">Gider</option>
             </select>

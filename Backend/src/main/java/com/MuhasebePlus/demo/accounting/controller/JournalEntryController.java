@@ -1,7 +1,9 @@
 package com.MuhasebePlus.demo.accounting.controller;
 
 import com.MuhasebePlus.demo.accounting.dto.request.JournalEntryRequestDto;
+import com.MuhasebePlus.demo.accounting.dto.response.BalanceSheetResponseDto;
 import com.MuhasebePlus.demo.accounting.dto.response.GeneralLedgerRowDto;
+import com.MuhasebePlus.demo.accounting.dto.response.IncomeStatementResponseDto;
 import com.MuhasebePlus.demo.accounting.dto.response.JournalEntryResponseDto;
 import com.MuhasebePlus.demo.accounting.dto.response.TrialBalanceRowDto;
 import com.MuhasebePlus.demo.accounting.service.JournalEntryService;
@@ -67,6 +69,21 @@ public class JournalEntryController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return ResponseEntity.ok(journalEntryService.getTrialBalance(startDate, endDate));
+    }
+
+    @GetMapping("/income-statement")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<IncomeStatementResponseDto> incomeStatement(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        return ResponseEntity.ok(journalEntryService.getIncomeStatement(startDate, endDate));
+    }
+
+    @GetMapping("/balance-sheet")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<BalanceSheetResponseDto> balanceSheet(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOfDate) {
+        return ResponseEntity.ok(journalEntryService.getBalanceSheet(asOfDate));
     }
 
     @GetMapping("/general-ledger/{accountId}")

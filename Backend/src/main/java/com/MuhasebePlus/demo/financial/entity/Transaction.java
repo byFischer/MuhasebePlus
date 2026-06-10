@@ -47,6 +47,13 @@ public class Transaction extends SoftDeletableEntity {
     @JoinColumn(name = "account_id", insertable = false, updatable = false)
     private BankAccount account;
 
+    @Column(name = "transfer_account_id")
+    private Long transferAccountId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "transfer_account_id", insertable = false, updatable = false)
+    private BankAccount transferAccount;
+
     @Column(name = "invoice_id")
     private Long invoiceId;
 
@@ -57,6 +64,10 @@ public class Transaction extends SoftDeletableEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "transaction_type", length = 20)
     private TransactionType transactionType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "transaction_category", length = 30)
+    private TransactionCategory transactionCategory;
 
     @Column(name = "amount", precision = 15, scale = 2)
     private BigDecimal amount;

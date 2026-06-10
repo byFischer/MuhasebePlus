@@ -25,12 +25,27 @@ public interface JournalEntryLineRepository extends JpaRepository<JournalEntryLi
             WHERE jel.company.companyId = :companyId
               AND je.entryDate BETWEEN :startDate AND :endDate
               AND je.isDeleted = false
-              AND je.isReversed = false
             GROUP BY jel.accountId
             """)
     List<Object[]> sumByAccountForPeriod(
             @Param("companyId") Long companyId,
             @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    // Used for balance sheet: cumulative balance up to a date
+    @Query("""
+            SELECT jel.accountId,
+                   SUM(jel.debitAmount)  AS totalDebit,
+                   SUM(jel.creditAmount) AS totalCredit
+            FROM JournalEntryLine jel
+            JOIN jel.entry je
+            WHERE jel.company.companyId = :companyId
+              AND je.entryDate <= :endDate
+              AND je.isDeleted = false
+            GROUP BY jel.accountId
+            """)
+    List<Object[]> sumByAccountUntil(
+            @Param("companyId") Long companyId,
             @Param("endDate") LocalDate endDate);
 
     // Used for general ledger: all lines for one account within a date range
@@ -41,7 +56,6 @@ public interface JournalEntryLineRepository extends JpaRepository<JournalEntryLi
               AND jel.accountId = :accountId
               AND je.entryDate BETWEEN :startDate AND :endDate
               AND je.isDeleted = false
-              AND je.isReversed = false
             ORDER BY je.entryDate ASC, je.entryId ASC, jel.lineOrder ASC
             """)
     List<JournalEntryLine> findForGeneralLedger(

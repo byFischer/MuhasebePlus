@@ -51,4 +51,13 @@ public class AccountingPeriod extends BaseEntity {
 
     @Column(name = "reopen_reason", length = 500)
     private String reopenReason;
+
+    @Column(name = "year_end_closed_at")
+    private LocalDateTime yearEndClosedAt;
+
+    @Column(name = "year_end_closed_by")
+    private Long yearEndClosedBy;
+
+    @Column(name = "closing_journal_entry_id")
+    private Long closingJournalEntryId;
 }

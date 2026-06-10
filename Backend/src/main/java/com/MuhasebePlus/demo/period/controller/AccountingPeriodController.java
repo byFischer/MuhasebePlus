@@ -3,6 +3,7 @@ package com.MuhasebePlus.demo.period.controller;
 import com.MuhasebePlus.demo.period.dto.request.ClosePeriodRequestDto;
 import com.MuhasebePlus.demo.period.dto.request.ReopenPeriodRequestDto;
 import com.MuhasebePlus.demo.period.dto.response.AccountingPeriodResponseDto;
+import com.MuhasebePlus.demo.period.dto.response.YearEndSummaryResponseDto;
 import com.MuhasebePlus.demo.period.service.AccountingPeriodService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -55,5 +56,11 @@ public class AccountingPeriodController {
     public ResponseEntity<AccountingPeriodResponseDto> reopenPeriod(
             @Valid @RequestBody ReopenPeriodRequestDto dto) {
         return ResponseEntity.ok(accountingPeriodService.reopenPeriod(dto));
+    }
+
+    @PostMapping("/close-year")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<YearEndSummaryResponseDto> closeYear(@RequestParam int year) {
+        return ResponseEntity.ok(accountingPeriodService.closeYear(year));
     }
 }

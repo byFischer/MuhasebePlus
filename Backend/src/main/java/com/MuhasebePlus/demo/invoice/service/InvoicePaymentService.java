@@ -29,6 +29,7 @@ import com.MuhasebePlus.demo.invoice.repository.InvoicePaymentRepository;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceRepository;
 import com.MuhasebePlus.demo.log.entity.LogLevel;
 import com.MuhasebePlus.demo.log.service.SystemLogService;
+import com.MuhasebePlus.demo.cheque.entity.Cheque;
 import com.MuhasebePlus.demo.cheque.service.ChequeService;
 import com.MuhasebePlus.demo.invoice.entity.PaymentMethod;
 import com.MuhasebePlus.demo.period.service.AccountingPeriodGuard;
@@ -95,7 +96,9 @@ public class InvoicePaymentService implements HardDeletable {
             payment.setDeleted(false);
             InvoicePayment savedPayment = invoicePaymentRepository.save(payment);
 
-            chequeService.registerFromPayment(savedPayment, dto.chequeDetails(), invoice.getCustomerId());
+            Cheque cheque = chequeService.registerFromPayment(savedPayment, dto.chequeDetails(),
+                    invoice.getCustomerId(), invoice.getInvoiceType());
+            journalEntryService.createForChequePayment(savedPayment, cheque);
             recalculateInvoiceStatus(invoiceId, companyId);
             systemLogService.log(LogLevel.INFO, "Çek ile fatura ödemesi portföye eklendi: "
                     + invoice.getInvoiceNumber() + " - " + dto.amount());
@@ -178,6 +181,10 @@ public class InvoicePaymentService implements HardDeletable {
         payment.setDeletedAt(LocalDateTime.now());
         invoicePaymentRepository.save(payment);
         journalEntryService.reverseForPayment(companyId, paymentId, "Ödeme silindi");
+
+        if (payment.getPaymentMethod() == PaymentMethod.check) {
+            chequeService.cancelByInvoicePayment(paymentId, companyId, "Odeme silindi");
+        }
 
         if (payment.getTransactionId() != null) {
             transactionRepository.findById(payment.getTransactionId()).ifPresent(transaction -> {

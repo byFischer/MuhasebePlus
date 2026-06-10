@@ -7,8 +7,10 @@ import java.time.LocalDateTime;
 public record TransactionResponseDto(
         Long transactionId,
         Long accountId,
+        Long transferAccountId,
         Long invoiceId,
         String transactionType,
+        String transactionCategory,
         BigDecimal amount,
         LocalDate transactionDate,
         String description,

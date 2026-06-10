@@ -2,21 +2,24 @@ package com.MuhasebePlus.demo.financial.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.MuhasebePlus.demo.accounting.entity.AccountType;
+import com.MuhasebePlus.demo.accounting.service.ChartOfAccountService;
 import com.MuhasebePlus.demo.common.scheduler.HardDeletable;
 import com.MuhasebePlus.demo.common.service.CompanyContext;
 import com.MuhasebePlus.demo.company.repository.CompanyRepository;
 import com.MuhasebePlus.demo.financial.dto.request.BankAccountRequestDto;
 import com.MuhasebePlus.demo.financial.dto.response.BankAccountResponseDto;
 import com.MuhasebePlus.demo.financial.entity.BankAccount;
+import com.MuhasebePlus.demo.financial.entity.BankAccountType;
 import com.MuhasebePlus.demo.financial.entity.TransactionType;
 import com.MuhasebePlus.demo.financial.repository.BankAccountRepository;
 import com.MuhasebePlus.demo.financial.repository.TransactionRepository;
@@ -34,6 +37,7 @@ public class BankAccountService implements HardDeletable {
     private final SystemLogService systemLogService;
     private final CompanyContext companyContext;
     private final CompanyRepository companyRepository;
+    private final ChartOfAccountService chartOfAccountService;
 
 
     // PUBLIC METOTLAR
@@ -42,7 +46,9 @@ public class BankAccountService implements HardDeletable {
         Long companyId = companyContext.getCurrentCompanyId();
         Long userId = companyContext.getCurrentUserId();
 
-        if (bankAccountRepository.existsByIbanAndCompanyCompanyIdAndIsDeletedFalse(dto.iban(), companyId)) {
+        BankAccountType accountType = dto.accountType() != null ? dto.accountType() : BankAccountType.BANK;
+        String iban = normalizeIban(accountType, dto.iban());
+        if (iban != null && bankAccountRepository.existsByIbanAndCompanyCompanyIdAndIsDeletedFalse(iban, companyId)) {
             throw new RuntimeException("Bu IBAN zaten kayıtlı: " + dto.iban());
         }
 
@@ -50,8 +56,10 @@ public class BankAccountService implements HardDeletable {
         account.setCompany(companyRepository.getReferenceById(companyId));
         account.setUserId(userId);
         account.setBankName(dto.bankName());
-        account.setIban(dto.iban());
+        account.setIban(iban);
+        account.setAccountType(accountType);
         account.setCurrency(dto.currency());
+        account.setAccountCode(createFinancialAccountCode(companyId, accountType, dto.bankName()));
         account.setDeleted(false);
 
         BankAccount saved = bankAccountRepository.save(account);
@@ -79,14 +87,21 @@ public class BankAccountService implements HardDeletable {
         Long companyId = companyContext.getCurrentCompanyId();
         BankAccount account = findActiveAccountById(accountId, companyId);
 
-        if (!account.getIban().equals(dto.iban()) &&
-                bankAccountRepository.existsByIbanAndAccountIdNotAndCompanyCompanyIdAndIsDeletedFalse(dto.iban(), accountId, companyId)) {
+        BankAccountType accountType = dto.accountType() != null ? dto.accountType() : accountType(account);
+        String iban = normalizeIban(accountType, dto.iban());
+        if (iban != null && !iban.equals(account.getIban()) &&
+                bankAccountRepository.existsByIbanAndAccountIdNotAndCompanyCompanyIdAndIsDeletedFalse(iban, accountId, companyId)) {
             throw new RuntimeException("Bu IBAN zaten kayıtlı: " + dto.iban());
         }
 
         account.setBankName(dto.bankName());
-        account.setIban(dto.iban());
+        account.setIban(iban);
+        account.setAccountType(accountType);
         account.setCurrency(dto.currency());
+        if (account.getAccountCode() == null || account.getAccountCode().isBlank()
+                || !account.getAccountCode().startsWith(parentCode(accountType))) {
+            account.setAccountCode(createFinancialAccountCode(companyId, accountType, dto.bankName()));
+        }
 
         BankAccount updated = bankAccountRepository.save(account);
         log.info("Bank account updated id={} companyId={}", accountId, companyId);
@@ -142,13 +157,20 @@ public class BankAccountService implements HardDeletable {
     }
 
     private Map<Long, BigDecimal> buildBalanceMap(Long companyId) {
-        return transactionRepository
-                .calculateBalancesByCompany(companyId, TransactionType.INCOME)
-                .stream()
-                .collect(Collectors.toMap(
-                        row -> (Long) row[0],
-                        row -> (BigDecimal) row[1]
-                ));
+        Map<Long, BigDecimal> balances = new HashMap<>();
+        transactionRepository
+                .findByCompanyCompanyIdAndIsDeletedFalseOrderByTransactionDateDescTransactionIdDesc(companyId)
+                .forEach(tx -> {
+                    BigDecimal amount = tx.getAmount() != null ? tx.getAmount() : BigDecimal.ZERO;
+                    BigDecimal sourceEffect = tx.getTransactionType() == TransactionType.INCOME
+                            ? amount
+                            : amount.negate();
+                    addBalance(balances, tx.getAccountId(), sourceEffect);
+                    if (tx.getTransferAccountId() != null) {
+                        addBalance(balances, tx.getTransferAccountId(), amount);
+                    }
+                });
+        return balances;
     }
 
     private BankAccountResponseDto toResponseDto(BankAccount a, BigDecimal balance) {
@@ -156,11 +178,46 @@ public class BankAccountService implements HardDeletable {
                 a.getAccountId(),
                 a.getBankName(),
                 a.getIban(),
+                accountType(a).name(),
+                a.getAccountCode(),
                 a.getCurrency().name(),
                 balance,
                 a.isDeleted(),
                 a.getCreatedAt(),
                 a.getUpdatedAt()
         );
+    }
+
+    private void addBalance(Map<Long, BigDecimal> balances, Long accountId, BigDecimal effect) {
+        if (accountId == null || effect == null) return;
+        balances.merge(accountId, effect, BigDecimal::add);
+    }
+
+    private String normalizeIban(BankAccountType accountType, String iban) {
+        if (accountType != BankAccountType.BANK) return null;
+        if (iban == null || !iban.matches("^TR[0-9]{24}$")) {
+            throw new RuntimeException("IBAN gecerli bir Turkiye IBAN'i olmalidir (TR + 24 rakam)");
+        }
+        return iban;
+    }
+
+    private String createFinancialAccountCode(Long companyId, BankAccountType accountType, String name) {
+        return chartOfAccountService.getOrCreateLeafAccount(
+                companyId,
+                parentCode(accountType),
+                name,
+                AccountType.ASSET);
+    }
+
+    private String parentCode(BankAccountType accountType) {
+        return switch (accountType) {
+            case CASH -> "100";
+            case POS -> "108";
+            case BANK -> "102";
+        };
+    }
+
+    private BankAccountType accountType(BankAccount account) {
+        return account.getAccountType() != null ? account.getAccountType() : BankAccountType.BANK;
     }
 }

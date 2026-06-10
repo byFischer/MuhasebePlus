@@ -4,12 +4,14 @@ import com.MuhasebePlus.demo.common.entity.SoftDeletableEntity;
 import com.MuhasebePlus.demo.company.entity.Company;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "chart_of_account")

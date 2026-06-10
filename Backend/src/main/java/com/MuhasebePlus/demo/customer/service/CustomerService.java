@@ -11,6 +11,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -55,6 +56,7 @@ import com.MuhasebePlus.demo.log.entity.LogLevel;
 import com.MuhasebePlus.demo.log.service.SystemLogService;
 import com.MuhasebePlus.demo.accounting.entity.AccountType;
 import com.MuhasebePlus.demo.accounting.service.ChartOfAccountService;
+import com.MuhasebePlus.demo.accounting.service.JournalEntryService;
 
 @Slf4j
 @Service
@@ -70,18 +72,20 @@ public class CustomerService implements HardDeletable {
     private final InvoicePaymentRepository invoicePaymentRepository;
     private final SystemLogService systemLogService;
     private final ChartOfAccountService chartOfAccountService;
+    private final JournalEntryService journalEntryService;
 
     // PUBLIC METOTLAR
 
     public CustomerResponseDto createCustomer(CustomerRequestDto dto) {
         Long companyId = companyContext.getCurrentCompanyId();
+        String accountCode = normalizeAccountCode(dto.accountCode());
 
         if (customerRepository.existsByTaxNumberAndCompanyCompanyIdAndIsDeletedFalse(dto.taxNumber(), companyId)) {
             throw new RuntimeException("A customer with the same tax number already exists in your company: " + dto.taxNumber());
         }
 
-        if (dto.accountCode() != null && customerRepository.existsByAccountCodeAndCompanyCompanyIdAndIsDeletedFalse(dto.accountCode(), companyId)) {
-            throw new RuntimeException("A customer with the same account code already exists in your company: " + dto.accountCode());
+        if (accountCode != null && customerRepository.existsByAccountCodeAndCompanyCompanyIdAndIsDeletedFalse(accountCode, companyId)) {
+            throw new RuntimeException("A customer with the same account code already exists in your company: " + accountCode);
         }
 
         Customer customer = new Customer();
@@ -95,7 +99,7 @@ public class CustomerService implements HardDeletable {
         customer.setType(dto.type());
         customer.setDeleted(false);
 
-        customer.setAccountCode(dto.accountCode());
+        customer.setAccountCode(accountCode);
         customer.setOpeningBalance(dto.openingBalance() != null ? dto.openingBalance() : BigDecimal.ZERO);
         customer.setOpeningBalanceDate(dto.openingBalanceDate());
         customer.setTaxOffice(dto.taxOffice());
@@ -108,17 +112,8 @@ public class CustomerService implements HardDeletable {
         customer.setCustomerGroup(dto.customerGroup());
 
         Customer saved = customerRepository.save(customer);
-
-        // Auto-generate chart-of-accounts leaf if accounting is set up and no code provided
-        if ((saved.getAccountCode() == null || saved.getAccountCode().isBlank())
-                && chartOfAccountService.isAccountingSetup(companyId)) {
-            boolean isVendor = saved.getCustomerRole() == CustomerRole.SELLER;
-            String parentCode = isVendor ? "320" : "120";
-            AccountType accountType = isVendor ? AccountType.LIABILITY : AccountType.ASSET;
-            String code = chartOfAccountService.getOrCreateLeafAccount(companyId, parentCode, saved.getName(), accountType);
-            saved.setAccountCode(code);
-            customerRepository.save(saved);
-        }
+        saved = ensureCustomerAccountCode(companyId, saved);
+        journalEntryService.createForCustomerOpening(saved);
 
         systemLogService.log(LogLevel.INFO, "Müşteri oluşturuldu: " + saved.getName() + " (id=" + saved.getCustomerId() + ")");
         log.info("Customer created id={} companyId={}", saved.getCustomerId(), companyId);
@@ -147,15 +142,20 @@ public class CustomerService implements HardDeletable {
     public CustomerResponseDto updateCustomer(Long id, CustomerRequestDto dto) {
         Long companyId = companyContext.getCurrentCompanyId();
         Customer customer = findCustomerEntityById(id);
+        String accountCode = normalizeAccountCode(dto.accountCode());
+        BigDecimal oldOpeningBalance = nvl(customer.getOpeningBalance());
+        LocalDate oldOpeningBalanceDate = customer.getOpeningBalanceDate();
+        String oldAccountCode = normalizeAccountCode(customer.getAccountCode());
+        CustomerRole oldCustomerRole = customer.getCustomerRole();
 
         if (!customer.getTaxNumber().equals(dto.taxNumber()) &&
                 customerRepository.existsByTaxNumberAndCompanyCompanyIdAndIsDeletedFalse(dto.taxNumber(), companyId)) {
             throw new RuntimeException("A customer with the same tax number already exists in your company: " + dto.taxNumber());
         }
 
-        if (dto.accountCode() != null && !dto.accountCode().equals(customer.getAccountCode()) &&
-                customerRepository.existsByAccountCodeAndCompanyCompanyIdAndIsDeletedFalse(dto.accountCode(), companyId)) {
-            throw new RuntimeException("A customer with the same account code already exists in your company: " + dto.accountCode());
+        if (accountCode != null && !accountCode.equals(oldAccountCode) &&
+                customerRepository.existsByAccountCodeAndCompanyCompanyIdAndIsDeletedFalse(accountCode, companyId)) {
+            throw new RuntimeException("A customer with the same account code already exists in your company: " + accountCode);
         }
 
         customer.setName(dto.name());
@@ -166,7 +166,9 @@ public class CustomerService implements HardDeletable {
         customer.setPhoneNumber(dto.phoneNumber());
         customer.setType(dto.type());
 
-        customer.setAccountCode(dto.accountCode());
+        if (accountCode != null) {
+            customer.setAccountCode(accountCode);
+        }
         customer.setOpeningBalance(dto.openingBalance() != null ? dto.openingBalance() : BigDecimal.ZERO);
         customer.setOpeningBalanceDate(dto.openingBalanceDate());
         customer.setTaxOffice(dto.taxOffice());
@@ -179,6 +181,11 @@ public class CustomerService implements HardDeletable {
         customer.setCustomerGroup(dto.customerGroup());
 
         Customer updated = customerRepository.save(customer);
+        updated = ensureCustomerAccountCode(companyId, updated);
+        if (openingAccountingChanged(oldOpeningBalance, oldOpeningBalanceDate, oldAccountCode, oldCustomerRole, updated)) {
+            journalEntryService.reverseForCustomerOpening(companyId, updated.getCustomerId(), "Cari acilis bakiyesi guncellendi");
+            journalEntryService.createForCustomerOpening(updated);
+        }
         BigDecimal balance = fetchBalance(updated.getCustomerId(), companyId);
         boolean hasOverdue = invoiceRepository.existsOverdueByCustomerIdAndCompany(updated.getCustomerId(), companyId);
         return toResponseDto(updated, balance, hasOverdue);
@@ -195,6 +202,7 @@ public class CustomerService implements HardDeletable {
         customer.setDeleted(true);
         customer.setDeletedAt(LocalDateTime.now());
         customerRepository.save(customer);
+        journalEntryService.reverseForCustomerOpening(companyId, id, "Cari silindi");
     }
 
     public CustomerResponseDto restoreCustomer(Long id) {
@@ -203,6 +211,8 @@ public class CustomerService implements HardDeletable {
         customer.setDeleted(false);
         customer.setDeletedAt(null);
         Customer restored = customerRepository.save(customer);
+        restored = ensureCustomerAccountCode(companyId, restored);
+        journalEntryService.createForCustomerOpening(restored);
         BigDecimal balance = fetchBalance(restored.getCustomerId(), companyId);
         boolean hasOverdue = invoiceRepository.existsOverdueByCustomerIdAndCompany(restored.getCustomerId(), companyId);
         return toResponseDto(restored, balance, hasOverdue);
@@ -270,6 +280,72 @@ public class CustomerService implements HardDeletable {
     public List<CustomerActivityDto> getCustomerActivity(Long customerId, LocalDate startDate, LocalDate endDate) {
         Long companyId = companyContext.getCurrentCompanyId();
         Customer customer = findCustomerEntityById(customerId);
+        List<Invoice> invoices = invoiceRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(customerId, companyId);
+        BigDecimal openingBalance = calculateBalanceBefore(customer, invoices, companyId, startDate);
+
+        List<CustomerActivityDto> lines = new ArrayList<>();
+        if (openingBalance.compareTo(BigDecimal.ZERO) != 0) {
+            lines.add(new CustomerActivityDto(
+                startDate, "ACILIS", "Donem basi bakiye", "-",
+                openingBalance.compareTo(BigDecimal.ZERO) > 0 ? openingBalance : BigDecimal.ZERO,
+                openingBalance.compareTo(BigDecimal.ZERO) < 0 ? openingBalance.abs() : BigDecimal.ZERO,
+                openingBalance
+            ));
+        }
+
+        List<CustomerActivityEvent> events = new ArrayList<>();
+        addCustomerOpeningEvent(customer, startDate, endDate, events);
+        for (Invoice inv : invoices) {
+            if (!isAccountingInvoice(inv)) continue;
+            boolean isSale = inv.getInvoiceType() == InvoiceType.sale;
+            BigDecimal invoiceAmount = nvl(inv.getTotalAmount());
+
+            if (isInRange(inv.getInvoiceDate(), startDate, endDate)) {
+                events.add(new CustomerActivityEvent(
+                    inv.getInvoiceDate(), 1, "FATURA",
+                    isSale ? "Satis Faturasi" : "Alis Faturasi",
+                    inv.getInvoiceNumber(),
+                    isSale ? invoiceAmount : BigDecimal.ZERO,
+                    isSale ? BigDecimal.ZERO : invoiceAmount
+                ));
+            }
+
+            if (inv.getInvoiceId() != null) {
+                List<InvoicePayment> payments = invoicePaymentRepository.findByInvoiceIdAndCompanyCompanyIdAndIsDeletedFalse(inv.getInvoiceId(), companyId);
+                for (InvoicePayment pmt : payments) {
+                    if (!isInRange(pmt.getPaymentDate(), startDate, endDate)) continue;
+                    BigDecimal paymentAmount = nvl(pmt.getAmount());
+                    events.add(new CustomerActivityEvent(
+                        pmt.getPaymentDate(), 2,
+                        isSale ? "TAHSILAT" : "ODEME",
+                        isSale ? "Tahsilat" : "Odeme",
+                        "#PMT" + pmt.getPaymentId(),
+                        isSale ? BigDecimal.ZERO : paymentAmount,
+                        isSale ? paymentAmount : BigDecimal.ZERO
+                    ));
+                }
+            }
+        }
+
+        BigDecimal[] runningBalance = { openingBalance };
+        events.stream()
+            .sorted(Comparator
+                .comparing(CustomerActivityEvent::date)
+                .thenComparing(CustomerActivityEvent::order)
+                .thenComparing(e -> e.documentNo() != null ? e.documentNo() : ""))
+            .forEach(event -> {
+                runningBalance[0] = runningBalance[0].add(event.debit()).subtract(event.credit());
+                lines.add(new CustomerActivityDto(
+                    event.date(), event.type(), event.description(), event.documentNo(),
+                    event.debit(), event.credit(), runningBalance[0]
+                ));
+            });
+        return lines;
+    }
+
+    private List<CustomerActivityDto> getCustomerActivityLegacy(Long customerId, LocalDate startDate, LocalDate endDate) {
+        Long companyId = companyContext.getCurrentCompanyId();
+        Customer customer = findCustomerEntityById(customerId);
 
         BigDecimal opening = customer.getOpeningBalance() != null ? customer.getOpeningBalance() : BigDecimal.ZERO;
 
@@ -325,11 +401,8 @@ public class CustomerService implements HardDeletable {
         Long companyId = companyContext.getCurrentCompanyId();
         LocalDate today = LocalDate.now();
 
-        List<Invoice> openInvoices = new ArrayList<>();
-        openInvoices.addAll(invoiceRepository.findByPaymentStatusAndInvoiceTypeAndCompanyCompanyIdAndIsDeletedFalse(
-                PaymentStatus.pending, InvoiceType.sale, companyId));
-        openInvoices.addAll(invoiceRepository.findByPaymentStatusAndInvoiceTypeAndCompanyCompanyIdAndIsDeletedFalse(
-                PaymentStatus.overdue, InvoiceType.sale, companyId));
+        List<Invoice> openInvoices = invoiceRepository.findByInvoiceTypeAndCompanyCompanyIdAndIsDeletedFalse(
+                InvoiceType.sale, companyId);
 
         List<Customer> customers = customerRepository.findByCompanyCompanyIdAndIsDeletedFalse(companyId);
         Map<Long, Customer> customerMap = customers.stream()
@@ -338,18 +411,19 @@ public class CustomerService implements HardDeletable {
         Map<Long, CustomerAgingDto> agingMap = new java.util.HashMap<>();
 
         for (Invoice inv : openInvoices) {
-            if (inv.getCustomerId() == null || inv.getDueDate() == null) continue;
+            if (!isAccountingInvoice(inv) || inv.getCustomerId() == null || inv.getDueDate() == null) continue;
             Customer c = customerMap.get(inv.getCustomerId());
             if (c == null) continue;
 
             long days = java.time.temporal.ChronoUnit.DAYS.between(inv.getDueDate(), today);
             if (days <= 0) continue;
+            BigDecimal amount = remainingInvoiceAmount(inv);
+            if (amount.compareTo(BigDecimal.ZERO) <= 0) continue;
 
             CustomerAgingDto dto = agingMap.computeIfAbsent(inv.getCustomerId(), k ->
                 new CustomerAgingDto(inv.getCustomerId(), c.getName(), c.getAccountCode(),
                         BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO));
 
-            BigDecimal amount = inv.getTotalAmount() != null ? inv.getTotalAmount() : BigDecimal.ZERO;
             agingMap.put(inv.getCustomerId(),
                 new CustomerAgingDto(dto.customerId(), dto.customerName(), dto.accountCode(),
                     dto.totalAR().add(amount),
@@ -581,39 +655,21 @@ public class CustomerService implements HardDeletable {
     // PRIVATE METOTLAR
 
     private Map<Long, BigDecimal> buildBalanceMap(Long companyId) {
-        Map<Long, BigDecimal> saleBalances = invoiceRepository
-            .calculateOutstandingBalancesByCompany(companyId, InvoiceType.sale, PaymentStatus.paid)
-            .stream()
-            .collect(Collectors.toMap(
-                row -> (Long) row[0],
-                row -> (BigDecimal) row[1]
-            ));
-
-        Map<Long, BigDecimal> purchaseBalances = invoiceRepository
-            .calculateOutstandingBalancesByCompanyPurchase(companyId, InvoiceType.purchase, PaymentStatus.paid)
-            .stream()
-            .collect(Collectors.toMap(
-                row -> (Long) row[0],
-                row -> ((BigDecimal) row[1]).negate()
-            ));
-
         List<Customer> allCustomers = customerRepository.findByCompanyCompanyIdAndIsDeletedFalse(companyId);
-
-        Set<Long> allCustomerIds = new HashSet<>();
-        allCustomerIds.addAll(saleBalances.keySet());
-        allCustomerIds.addAll(purchaseBalances.keySet());
-        for (Customer c : allCustomers) allCustomerIds.add(c.getCustomerId());
-
-        Map<Long, Customer> customerById = allCustomers.stream()
-            .collect(Collectors.toMap(Customer::getCustomerId, c -> c));
-
         Map<Long, BigDecimal> combined = new java.util.HashMap<>();
-        for (Long id : allCustomerIds) {
-            BigDecimal sale = saleBalances.getOrDefault(id, BigDecimal.ZERO);
-            BigDecimal purchase = purchaseBalances.getOrDefault(id, BigDecimal.ZERO);
-            Customer c = customerById.get(id);
-            BigDecimal opening = (c != null && c.getOpeningBalance() != null) ? c.getOpeningBalance() : BigDecimal.ZERO;
-            combined.put(id, sale.add(purchase).add(opening));
+        for (Customer c : allCustomers) {
+            combined.put(c.getCustomerId(), nvl(c.getOpeningBalance()));
+        }
+
+        List<Invoice> invoices = invoiceRepository.findByCompanyCompanyIdAndIsDeletedFalse(companyId);
+        for (Invoice inv : invoices) {
+            if (!isAccountingInvoice(inv) || inv.getCustomerId() == null) continue;
+            BigDecimal amount = remainingInvoiceAmount(inv);
+            if (inv.getInvoiceType() == InvoiceType.sale) {
+                combined.merge(inv.getCustomerId(), amount, BigDecimal::add);
+            } else {
+                combined.merge(inv.getCustomerId(), amount.negate(), BigDecimal::add);
+            }
         }
         return combined;
     }
@@ -621,15 +677,127 @@ public class CustomerService implements HardDeletable {
     private BigDecimal fetchBalance(Long customerId, Long companyId) {
         Customer c = customerRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(customerId, companyId)
                 .orElse(null);
-        BigDecimal opening = (c != null && c.getOpeningBalance() != null) ? c.getOpeningBalance() : BigDecimal.ZERO;
+        BigDecimal balance = c != null ? nvl(c.getOpeningBalance()) : BigDecimal.ZERO;
 
-        BigDecimal saleBalance = invoiceRepository.calculateOutstandingBalanceForCustomer(
-            customerId, companyId, InvoiceType.sale, PaymentStatus.paid);
-        BigDecimal purchaseBalance = invoiceRepository.calculateOutstandingBalanceForCustomerPurchase(
-            customerId, companyId, InvoiceType.purchase, PaymentStatus.paid);
-        BigDecimal sale = saleBalance != null ? saleBalance : BigDecimal.ZERO;
-        BigDecimal purchase = purchaseBalance != null ? purchaseBalance : BigDecimal.ZERO;
-        return sale.subtract(purchase).add(opening);
+        List<Invoice> invoices = invoiceRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(customerId, companyId);
+        for (Invoice inv : invoices) {
+            if (!isAccountingInvoice(inv)) continue;
+            BigDecimal amount = remainingInvoiceAmount(inv);
+            balance = inv.getInvoiceType() == InvoiceType.sale
+                    ? balance.add(amount)
+                    : balance.subtract(amount);
+        }
+        return balance;
+    }
+
+    private Customer ensureCustomerAccountCode(Long companyId, Customer customer) {
+        if (customer.getAccountCode() != null && !customer.getAccountCode().isBlank()) {
+            return customer;
+        }
+        if (!chartOfAccountService.isAccountingSetup(companyId)) {
+            return customer;
+        }
+
+        boolean vendorAccount = usesVendorAccount(customer);
+        String parentCode = vendorAccount ? "320" : "120";
+        AccountType accountType = vendorAccount ? AccountType.LIABILITY : AccountType.ASSET;
+        String code = chartOfAccountService.getOrCreateLeafAccount(companyId, parentCode, customer.getName(), accountType);
+        customer.setAccountCode(code);
+        return customerRepository.save(customer);
+    }
+
+    private boolean openingAccountingChanged(BigDecimal oldOpeningBalance, LocalDate oldOpeningBalanceDate,
+                                             String oldAccountCode, CustomerRole oldCustomerRole,
+                                             Customer updated) {
+        return oldOpeningBalance.compareTo(nvl(updated.getOpeningBalance())) != 0
+                || !Objects.equals(oldOpeningBalanceDate, updated.getOpeningBalanceDate())
+                || !Objects.equals(oldAccountCode, normalizeAccountCode(updated.getAccountCode()))
+                || oldCustomerRole != updated.getCustomerRole();
+    }
+
+    private boolean usesVendorAccount(Customer customer) {
+        return customer.getCustomerRole() == CustomerRole.SELLER
+                || nvl(customer.getOpeningBalance()).compareTo(BigDecimal.ZERO) < 0;
+    }
+
+    private String normalizeAccountCode(String accountCode) {
+        return accountCode != null && !accountCode.isBlank() ? accountCode.trim() : null;
+    }
+
+    private BigDecimal remainingInvoiceAmount(Invoice invoice) {
+        BigDecimal paidAmount = invoice.getInvoiceId() != null
+                ? invoicePaymentRepository.sumAmountByInvoiceId(invoice.getInvoiceId()).orElse(BigDecimal.ZERO)
+                : BigDecimal.ZERO;
+        return nvl(invoice.getTotalAmount()).subtract(paidAmount);
+    }
+
+    private BigDecimal calculateBalanceBefore(Customer customer, List<Invoice> invoices, Long companyId, LocalDate beforeDate) {
+        BigDecimal balance = BigDecimal.ZERO;
+        if (beforeDate == null) {
+            return nvl(customer.getOpeningBalance());
+        }
+
+        LocalDate openingDate = customer.getOpeningBalanceDate();
+        BigDecimal openingBalance = nvl(customer.getOpeningBalance());
+        if (openingBalance.compareTo(BigDecimal.ZERO) != 0
+                && (openingDate == null || openingDate.isBefore(beforeDate))) {
+            balance = balance.add(openingBalance);
+        }
+
+        for (Invoice inv : invoices) {
+            if (!isAccountingInvoice(inv)) continue;
+            boolean isSale = inv.getInvoiceType() == InvoiceType.sale;
+            BigDecimal invoiceAmount = nvl(inv.getTotalAmount());
+            if (inv.getInvoiceDate() != null && inv.getInvoiceDate().isBefore(beforeDate)) {
+                balance = isSale ? balance.add(invoiceAmount) : balance.subtract(invoiceAmount);
+            }
+
+            if (inv.getInvoiceId() != null) {
+                List<InvoicePayment> payments = invoicePaymentRepository.findByInvoiceIdAndCompanyCompanyIdAndIsDeletedFalse(inv.getInvoiceId(), companyId);
+                for (InvoicePayment pmt : payments) {
+                    if (pmt.getPaymentDate() == null || !pmt.getPaymentDate().isBefore(beforeDate)) continue;
+                    BigDecimal paymentAmount = nvl(pmt.getAmount());
+                    balance = isSale ? balance.subtract(paymentAmount) : balance.add(paymentAmount);
+                }
+            }
+        }
+        return balance;
+    }
+
+    private void addCustomerOpeningEvent(Customer customer, LocalDate startDate, LocalDate endDate,
+                                         List<CustomerActivityEvent> events) {
+        BigDecimal openingBalance = nvl(customer.getOpeningBalance());
+        LocalDate openingDate = customer.getOpeningBalanceDate();
+        if (openingBalance.compareTo(BigDecimal.ZERO) == 0 || openingDate == null
+                || !isInRange(openingDate, startDate, endDate)) {
+            return;
+        }
+
+        events.add(new CustomerActivityEvent(
+                openingDate, 0, "ACILIS", "Acilis Bakiyesi", "-",
+                openingBalance.compareTo(BigDecimal.ZERO) > 0 ? openingBalance : BigDecimal.ZERO,
+                openingBalance.compareTo(BigDecimal.ZERO) < 0 ? openingBalance.abs() : BigDecimal.ZERO
+        ));
+    }
+
+    private boolean isInRange(LocalDate date, LocalDate startDate, LocalDate endDate) {
+        return date != null
+                && (startDate == null || !date.isBefore(startDate))
+                && (endDate == null || !date.isAfter(endDate));
+    }
+
+    private boolean isAccountingInvoice(Invoice invoice) {
+        return invoice != null
+                && !invoice.isCancelled()
+                && invoice.getPaymentStatus() != PaymentStatus.draft;
+    }
+
+    private static BigDecimal nvl(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
+    }
+
+    private record CustomerActivityEvent(LocalDate date, int order, String type, String description,
+                                         String documentNo, BigDecimal debit, BigDecimal credit) {
     }
 
     private Customer findCustomerEntityById(Long id) {

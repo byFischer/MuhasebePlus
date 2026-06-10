@@ -35,6 +35,7 @@ import com.MuhasebePlus.demo.invoice.repository.InvoiceRepository;
 import com.MuhasebePlus.demo.log.entity.LogLevel;
 import com.MuhasebePlus.demo.log.service.SystemLogService;
 import com.MuhasebePlus.demo.accounting.service.JournalEntryService;
+import com.MuhasebePlus.demo.period.service.AccountingPeriodGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -61,11 +62,13 @@ public class ChequeService implements HardDeletable {
     private final InvoiceRepository invoiceRepository;
     private final SystemLogService systemLogService;
     private final JournalEntryService journalEntryService;
+    private final AccountingPeriodGuard periodGuard;
 
     // ── CRUD ──────────────────────────────────────────────────────────────────
 
     public ChequeResponseDto createCheque(ChequeRequestDto dto) {
         Long companyId = companyContext.getCurrentCompanyId();
+        periodGuard.assertOpen(dto.issueDate());
 
         if (chequeRepository.existsByChequeNumberAndCompanyCompanyId(dto.chequeNumber(), companyId)) {
             throw new BusinessException("Bu çek numarası zaten kayıtlı: " + dto.chequeNumber());
@@ -123,6 +126,7 @@ public class ChequeService implements HardDeletable {
 
     public void deleteCheque(Long chequeId) {
         Cheque cheque = findActive(chequeId);
+        periodGuard.assertOpen(cheque.getIssueDate());
         cheque.setDeleted(true);
         cheque.setDeletedAt(LocalDateTime.now());
         chequeRepository.save(cheque);
@@ -133,6 +137,7 @@ public class ChequeService implements HardDeletable {
 
     public ChequeResponseDto deposit(Long chequeId, Long bankAccountId) {
         Cheque cheque = findActive(chequeId);
+        periodGuard.assertOpen(LocalDate.now());
         assertStatus(cheque, ChequeStatus.IN_PORTFOLIO, "Sadece portföydeki çekler bankaya verilebilir");
 
         cheque.setStatus(ChequeStatus.DEPOSITED);
@@ -145,6 +150,7 @@ public class ChequeService implements HardDeletable {
 
     public ChequeResponseDto markAsCollected(Long chequeId, CollectChequeRequestDto dto) {
         Long companyId = companyContext.getCurrentCompanyId();
+        periodGuard.assertOpen(LocalDate.now());
         Cheque cheque = findActive(chequeId);
         assertStatus(cheque, List.of(ChequeStatus.IN_PORTFOLIO, ChequeStatus.DEPOSITED),
                 "Tahsil edilebilir durumda değil");
@@ -166,13 +172,16 @@ public class ChequeService implements HardDeletable {
         tx.setCategory(cheque.getChequeKind() == ChequeKind.CHEQUE ? "Çek Tahsilatı" : "Senet Tahsilatı");
         tx.setRecurring(false);
         tx.setDeleted(false);
-        Transaction savedTx = transactionRepository.save(tx);
-        journalEntryService.createForTransaction(savedTx);
-
         cheque.setStatus(ChequeStatus.COLLECTED);
         cheque.setBankAccountId(dto.bankAccountId());
+        Transaction savedTx = transactionRepository.save(tx);
         cheque.setTransactionId(savedTx.getTransactionId());
         Cheque saved = chequeRepository.save(cheque);
+        if (saved.getInvoicePaymentId() != null) {
+            journalEntryService.createForChequeSettlement(saved, savedTx);
+        } else {
+            journalEntryService.createForTransaction(savedTx);
+        }
         recordMovement(saved, ChequeMovementType.COLLECTED, "MANUAL", null,
                 dto.bankAccountId(), savedTx.getTransactionId(), null);
         systemLogService.log(LogLevel.INFO, "Çek tahsil edildi: " + cheque.getChequeNumber()
@@ -182,6 +191,7 @@ public class ChequeService implements HardDeletable {
 
     public ChequeResponseDto markAsBounced(Long chequeId, BounceReasonRequestDto dto) {
         Long companyId = companyContext.getCurrentCompanyId();
+        periodGuard.assertOpen(LocalDate.now());
         Cheque cheque = findActive(chequeId);
         assertStatus(cheque, List.of(ChequeStatus.IN_PORTFOLIO, ChequeStatus.DEPOSITED),
                 "Karşılıksız işlemi uygulanamaz");
@@ -194,6 +204,7 @@ public class ChequeService implements HardDeletable {
         if (cheque.getInvoicePaymentId() != null) {
             invoicePaymentRepository.findById(cheque.getInvoicePaymentId()).ifPresent(payment -> {
                 if (!payment.isDeleted()) {
+                    periodGuard.assertOpen(payment.getPaymentDate());
                     payment.setDeleted(true);
                     payment.setDeletedAt(LocalDateTime.now());
                     invoicePaymentRepository.save(payment);
@@ -210,6 +221,7 @@ public class ChequeService implements HardDeletable {
 
     public ChequeResponseDto endorse(Long chequeId, EndorseChequeRequestDto dto) {
         Long companyId = companyContext.getCurrentCompanyId();
+        periodGuard.assertOpen(LocalDate.now());
         Cheque cheque = findActive(chequeId);
         assertStatus(cheque, ChequeStatus.IN_PORTFOLIO, "Sadece portföydeki çekler ciro edilebilir");
 
@@ -227,6 +239,7 @@ public class ChequeService implements HardDeletable {
 
     public ChequeResponseDto cancel(Long chequeId, String reason) {
         Cheque cheque = findActive(chequeId);
+        periodGuard.assertOpen(LocalDate.now());
         assertStatus(cheque, ChequeStatus.IN_PORTFOLIO, "Sadece portföydeki çekler iptal edilebilir");
 
         cheque.setStatus(ChequeStatus.CANCELLED);
@@ -238,12 +251,27 @@ public class ChequeService implements HardDeletable {
 
     // ── FATURA ÖDEMESİ ENTEGRASYONU ──────────────────────────────────────────
 
+    public void cancelByInvoicePayment(Long paymentId, Long companyId, String reason) {
+        periodGuard.assertOpen(LocalDate.now());
+        chequeRepository.findByInvoicePaymentIdAndCompanyCompanyIdAndIsDeletedFalse(paymentId, companyId)
+                .ifPresent(cheque -> {
+                    cheque.setStatus(ChequeStatus.CANCELLED);
+                    cheque.setDeleted(true);
+                    cheque.setDeletedAt(LocalDateTime.now());
+                    Cheque saved = chequeRepository.save(cheque);
+                    recordMovement(saved, ChequeMovementType.CANCELLED, "INVOICE_PAYMENT",
+                            paymentId, null, null, reason);
+                });
+    }
+
     /**
      * InvoicePaymentService.createPayment tarafından çağrılır.
      * paymentMethod=check seçildiğinde Transaction üretilmez; çek portföye girer.
      */
-    public void registerFromPayment(InvoicePayment savedPayment, ChequeDetailsDto details, Long customerId) {
+    public Cheque registerFromPayment(InvoicePayment savedPayment, ChequeDetailsDto details,
+                                      Long customerId, InvoiceType invoiceType) {
         Long companyId = savedPayment.getCompany().getCompanyId();
+        periodGuard.assertOpen(savedPayment.getPaymentDate());
 
         if (chequeRepository.existsByChequeNumberAndCompanyCompanyId(details.chequeNumber(), companyId)) {
             throw new BusinessException("Bu çek numarası zaten kayıtlı: " + details.chequeNumber());
@@ -252,7 +280,7 @@ public class ChequeService implements HardDeletable {
         Cheque cheque = Cheque.builder()
                 .company(companyRepository.getReferenceById(companyId))
                 .chequeNumber(details.chequeNumber())
-                .chequeType(ChequeType.RECEIVABLE)
+                .chequeType(invoiceType == InvoiceType.purchase ? ChequeType.PAYABLE : ChequeType.RECEIVABLE)
                 .chequeKind(details.chequeKind())
                 .customerId(customerId)
                 .drawerBank(details.drawerBank())
@@ -271,6 +299,7 @@ public class ChequeService implements HardDeletable {
                 savedPayment.getPaymentId(), null, null, null);
         systemLogService.log(LogLevel.INFO,
                 "Fatura ödemesi çek olarak portföye eklendi: " + details.chequeNumber());
+        return saved;
     }
 
     // ── PORTFÖY ÖZETİ ─────────────────────────────────────────────────────────

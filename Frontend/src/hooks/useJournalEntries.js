@@ -15,6 +15,20 @@ export function useTrialBalance(startDate, endDate) {
     enabled: !!startDate && !!endDate,
   });
 }
+export function useIncomeStatement(startDate, endDate) {
+  return useQuery({
+    queryKey: ['income-statement', startDate, endDate],
+    queryFn: () => journalEntryService.incomeStatement(startDate, endDate),
+    enabled: !!startDate && !!endDate,
+  });
+}
+export function useBalanceSheet(asOfDate) {
+  return useQuery({
+    queryKey: ['balance-sheet', asOfDate],
+    queryFn: () => journalEntryService.balanceSheet(asOfDate),
+    enabled: !!asOfDate,
+  });
+}
 export function useGeneralLedger(accountId, startDate, endDate) {
   return useQuery({
     queryKey: ['general-ledger', accountId, startDate, endDate],

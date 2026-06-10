@@ -24,8 +24,12 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
 
     List<Transaction> findByCompanyCompanyIdAndIsDeletedFalseOrderByTransactionDateDescTransactionIdDesc(Long companyId);
 
+    @Query("SELECT t FROM Transaction t " +
+           "WHERE (t.accountId = :accountId OR t.transferAccountId = :accountId) " +
+           "AND t.company.companyId = :companyId AND t.isDeleted = false " +
+           "ORDER BY t.transactionDate DESC, t.transactionId DESC")
     List<Transaction> findByAccountIdAndCompanyCompanyIdAndIsDeletedFalseOrderByTransactionDateDesc(
-            Long accountId, Long companyId);
+            @Param("accountId") Long accountId, @Param("companyId") Long companyId);
 
     List<Transaction> findByTransactionTypeAndCompanyCompanyIdAndIsDeletedFalseOrderByTransactionDateDesc(
             TransactionType transactionType, Long companyId);
@@ -33,13 +37,21 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
     List<Transaction> findByTransactionDateBetweenAndCompanyCompanyIdAndIsDeletedFalseOrderByTransactionDateDesc(
             LocalDate startDate, LocalDate endDate, Long companyId);
 
-    boolean existsByAccountIdAndCompanyCompanyIdAndIsDeletedFalse(Long accountId, Long companyId);
+    @Query("SELECT CASE WHEN COUNT(t) > 0 THEN true ELSE false END FROM Transaction t " +
+           "WHERE (t.accountId = :accountId OR t.transferAccountId = :accountId) " +
+           "AND t.company.companyId = :companyId AND t.isDeleted = false")
+    boolean existsByAccountIdAndCompanyCompanyIdAndIsDeletedFalse(
+            @Param("accountId") Long accountId, @Param("companyId") Long companyId);
 
     List<Transaction> findByIsDeletedTrueAndDeletedAtBefore(LocalDateTime cutoff);
 
-    @Query("SELECT COALESCE(SUM(CASE WHEN t.transactionType = :income THEN t.amount ELSE -t.amount END), 0) " +
+    @Query("SELECT COALESCE(SUM(CASE " +
+           "WHEN t.accountId = :accountId THEN CASE WHEN t.transactionType = :income THEN t.amount ELSE -t.amount END " +
+           "WHEN t.transferAccountId = :accountId THEN t.amount " +
+           "ELSE 0 END), 0) " +
            "FROM Transaction t " +
-           "WHERE t.accountId = :accountId AND t.company.companyId = :companyId AND t.isDeleted = false")
+           "WHERE (t.accountId = :accountId OR t.transferAccountId = :accountId) " +
+           "AND t.company.companyId = :companyId AND t.isDeleted = false")
     BigDecimal calculateBalanceForAccount(
             @Param("accountId") Long accountId,
             @Param("companyId") Long companyId,

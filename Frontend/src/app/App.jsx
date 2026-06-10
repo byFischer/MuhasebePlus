@@ -29,6 +29,9 @@ import YevmiyePage from "@/pages/YevmiyePage";
 import DonemPage from "@/pages/DonemPage";
 import BeyannamePage from "@/pages/beyanname/BeyannamePage";
 import EDefterPage from "@/pages/edefter/EDefterPage";
+import KdvPage from "@/pages/KdvPage";
+import BankaMutabakatPage from "@/pages/BankaMutabakatPage";
+import SabitKiymetPage from "@/pages/SabitKiymetPage";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false, staleTime: 30_000 } },
@@ -65,6 +68,9 @@ export default function App() {
                 <Route path="/donem"       element={<DonemPage />} />
                 <Route path="/beyanname"   element={<BeyannamePage />} />
                 <Route path="/edefter"     element={<EDefterPage />} />
+                <Route path="/kdv"              element={<KdvPage />} />
+                <Route path="/banka-mutabakat" element={<BankaMutabakatPage />} />
+                <Route path="/sabit-kiymet"   element={<SabitKiymetPage />} />
                 <Route index element={<Navigate to="/dashboard" replace />} />
               </Route>
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

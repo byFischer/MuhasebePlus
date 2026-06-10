@@ -5,6 +5,9 @@ public enum JournalSourceType {
     PAYMENT,
     TRANSACTION,
     CHEQUE,
+    DEPRECIATION,
+    CUSTOMER_OPENING,
+    VAT_DECLARATION,
     MANUAL,
     REVERSAL
 }

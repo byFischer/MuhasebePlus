@@ -17,6 +17,7 @@ import com.MuhasebePlus.demo.financial.dto.request.TransactionRequestDto;
 import com.MuhasebePlus.demo.financial.dto.response.TransactionResponseDto;
 import com.MuhasebePlus.demo.financial.entity.BankAccount;
 import com.MuhasebePlus.demo.financial.entity.Transaction;
+import com.MuhasebePlus.demo.financial.entity.TransactionCategory;
 import com.MuhasebePlus.demo.financial.entity.TransactionType;
 import com.MuhasebePlus.demo.financial.repository.BankAccountRepository;
 import com.MuhasebePlus.demo.financial.repository.TransactionRepository;
@@ -50,20 +51,25 @@ public class TransactionService implements HardDeletable {
 
         BankAccount account = validateAccount(dto.accountId(), companyId);
         validateInvoice(dto.invoiceId(), companyId);
+        TransactionCategory transactionCategory = category(dto.transactionCategory());
+        validateTransfer(dto.accountId(), dto.transferAccountId(), transactionCategory, companyId);
+        TransactionType transactionType = transactionType(dto.transactionType(), transactionCategory);
 
-        if (dto.transactionType() == TransactionType.EXPENSE) {
+        if (transactionType == TransactionType.EXPENSE) {
             assertSufficientBalance(account.getAccountId(), companyId, dto.amount());
         }
 
         Transaction tx = new Transaction();
         tx.setCompany(companyRepository.getReferenceById(companyId));
         tx.setAccountId(dto.accountId());
+        tx.setTransferAccountId(transactionCategory == TransactionCategory.TRANSFER ? dto.transferAccountId() : null);
         tx.setInvoiceId(dto.invoiceId());
-        tx.setTransactionType(dto.transactionType());
+        tx.setTransactionType(transactionType);
+        tx.setTransactionCategory(transactionCategory);
         tx.setAmount(dto.amount());
         tx.setTransactionDate(dto.transactionDate());
         tx.setDescription(dto.description());
-        tx.setCategory(dto.category());
+        tx.setCategory(categoryLabel(dto.category(), transactionCategory));
         tx.setRecurring(Boolean.TRUE.equals(dto.isRecurring()));
         tx.setDeleted(false);
 
@@ -132,9 +138,12 @@ public class TransactionService implements HardDeletable {
 
         BankAccount account = validateAccount(dto.accountId(), companyId);
         validateInvoice(dto.invoiceId(), companyId);
+        TransactionCategory transactionCategory = category(dto.transactionCategory());
+        validateTransfer(dto.accountId(), dto.transferAccountId(), transactionCategory, companyId);
+        TransactionType transactionType = transactionType(dto.transactionType(), transactionCategory);
 
         // Bakiye kontrolu: yeni tutar - eski tutar (eski tutar bakiyeye geri eklenir)
-        if (dto.transactionType() == TransactionType.EXPENSE) {
+        if (transactionType == TransactionType.EXPENSE) {
             BigDecimal currentBalance = fetchBalance(account.getAccountId(), companyId);
             BigDecimal effectiveBalance = restoreOldEffect(currentBalance, tx);
             if (effectiveBalance.compareTo(dto.amount()) < 0) {
@@ -143,12 +152,14 @@ public class TransactionService implements HardDeletable {
         }
 
         tx.setAccountId(dto.accountId());
+        tx.setTransferAccountId(transactionCategory == TransactionCategory.TRANSFER ? dto.transferAccountId() : null);
         tx.setInvoiceId(dto.invoiceId());
-        tx.setTransactionType(dto.transactionType());
+        tx.setTransactionType(transactionType);
+        tx.setTransactionCategory(transactionCategory);
         tx.setAmount(dto.amount());
         tx.setTransactionDate(dto.transactionDate());
         tx.setDescription(dto.description());
-        tx.setCategory(dto.category());
+        tx.setCategory(categoryLabel(dto.category(), transactionCategory));
         tx.setRecurring(Boolean.TRUE.equals(dto.isRecurring()));
 
         Transaction updated = transactionRepository.save(tx);
@@ -237,12 +248,45 @@ public class TransactionService implements HardDeletable {
         }
     }
 
+    private TransactionCategory category(TransactionCategory category) {
+        return category != null ? category : TransactionCategory.GENERAL;
+    }
+
+    private TransactionType transactionType(TransactionType requested, TransactionCategory category) {
+        return category == TransactionCategory.TRANSFER ? TransactionType.EXPENSE : requested;
+    }
+
+    private void validateTransfer(Long accountId, Long transferAccountId,
+                                  TransactionCategory category, Long companyId) {
+        if (category != TransactionCategory.TRANSFER) return;
+        if (transferAccountId == null) {
+            throw new RuntimeException("Virman icin hedef hesap zorunludur");
+        }
+        if (accountId.equals(transferAccountId)) {
+            throw new RuntimeException("Virman kaynak ve hedef hesabi ayni olamaz");
+        }
+        validateAccount(transferAccountId, companyId);
+    }
+
+    private String categoryLabel(String category, TransactionCategory transactionCategory) {
+        if (category != null && !category.isBlank()) return category;
+        return switch (transactionCategory) {
+            case BANK_FEE -> "Banka Masrafi";
+            case POS_COLLECTION -> "POS Tahsilati";
+            case CREDIT_CARD_PAYMENT -> "Kredi Karti Odemesi";
+            case TRANSFER -> "Virman";
+            case GENERAL -> null;
+        };
+    }
+
     private TransactionResponseDto toResponseDto(Transaction t) {
         return new TransactionResponseDto(
                 t.getTransactionId(),
                 t.getAccountId(),
+                t.getTransferAccountId(),
                 t.getInvoiceId(),
                 t.getTransactionType() != null ? t.getTransactionType().name() : null,
+                t.getTransactionCategory() != null ? t.getTransactionCategory().name() : TransactionCategory.GENERAL.name(),
                 t.getAmount(),
                 t.getTransactionDate(),
                 t.getDescription(),
