@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-@RestController
+@RestController("declarationVatDeclarationController")
 @RequestMapping("/api/declarations/vat")
 @RequiredArgsConstructor
 public class VatDeclarationController {

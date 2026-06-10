@@ -5,8 +5,8 @@ import lombok.*;
 
 import java.math.BigDecimal;
 
-@Entity
-@Table(name = "vat_declaration_line")
+@Entity(name = "VatPeriodLine")
+@Table(name = "vat_period_line")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class VatDeclarationLine {
 

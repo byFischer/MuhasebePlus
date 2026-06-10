@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS vat_period (
     CONSTRAINT uq_vat_period UNIQUE (company_id, year, month)
 );
 
-CREATE TABLE IF NOT EXISTS vat_declaration_line (
+CREATE TABLE IF NOT EXISTS vat_period_line (
     id              BIGSERIAL     PRIMARY KEY,
     vat_period_id   BIGINT        NOT NULL REFERENCES vat_period(id) ON DELETE CASCADE,
     line_type       VARCHAR(10)   NOT NULL,
@@ -25,4 +25,4 @@ CREATE TABLE IF NOT EXISTS vat_declaration_line (
 
 CREATE INDEX IF NOT EXISTS idx_vat_period_company     ON vat_period(company_id);
 CREATE INDEX IF NOT EXISTS idx_vat_period_year_month  ON vat_period(company_id, year, month);
-CREATE INDEX IF NOT EXISTS idx_vat_decl_period        ON vat_declaration_line(vat_period_id);
+CREATE INDEX IF NOT EXISTS idx_vat_period_line        ON vat_period_line(vat_period_id);
