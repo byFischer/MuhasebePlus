@@ -23,9 +23,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final int AUTH_WINDOW_MS = 60_000;
     private static final int GENERAL_LIMIT = 60;
     private static final int GENERAL_WINDOW_MS = 60_000;
+    private static final int PUBLIC_LIMIT = 30;
+    private static final int PUBLIC_WINDOW_MS = 60_000;
 
     private final Map<String, Bucket> authBuckets = new ConcurrentHashMap<>();
     private final Map<String, Bucket> generalBuckets = new ConcurrentHashMap<>();
+    private final Map<String, Bucket> publicBuckets = new ConcurrentHashMap<>();
     private long lastCleanup = System.currentTimeMillis();
 
     @Override
@@ -37,17 +40,18 @@ public class RateLimitFilter extends OncePerRequestFilter {
         String clientIp = getClientIp(request);
 
         boolean isAuthPath = path.startsWith("/api/auth/") || path.equals("/api/users/register");
+        boolean isPublicPath = path.startsWith("/api/public/");
 
         if (!isAuthPath && !path.startsWith("/api/")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        int limit = isAuthPath ? AUTH_LIMIT : GENERAL_LIMIT;
-        int windowMs = isAuthPath ? AUTH_WINDOW_MS : GENERAL_WINDOW_MS;
-        Map<String, Bucket> buckets = isAuthPath ? authBuckets : generalBuckets;
+        int limit = isAuthPath ? AUTH_LIMIT : isPublicPath ? PUBLIC_LIMIT : GENERAL_LIMIT;
+        int windowMs = isAuthPath ? AUTH_WINDOW_MS : isPublicPath ? PUBLIC_WINDOW_MS : GENERAL_WINDOW_MS;
+        Map<String, Bucket> buckets = isAuthPath ? authBuckets : isPublicPath ? publicBuckets : generalBuckets;
 
-        String key = isAuthPath ? "auth:" + clientIp : "general:" + clientIp;
+        String key = isAuthPath ? "auth:" + clientIp : isPublicPath ? "public:" + clientIp : "general:" + clientIp;
         long now = System.currentTimeMillis();
 
         cleanupIfNeeded(now);
@@ -76,9 +80,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private void cleanupIfNeeded(long now) {
         if (now - lastCleanup < 60_000) return;
         lastCleanup = now;
-        long cutoff = now - Math.max(AUTH_WINDOW_MS, GENERAL_WINDOW_MS);
+        long cutoff = now - Math.max(AUTH_WINDOW_MS, Math.max(GENERAL_WINDOW_MS, PUBLIC_WINDOW_MS));
         authBuckets.entrySet().removeIf(e -> e.getValue().windowStart < cutoff);
         generalBuckets.entrySet().removeIf(e -> e.getValue().windowStart < cutoff);
+        publicBuckets.entrySet().removeIf(e -> e.getValue().windowStart < cutoff);
     }
 
     private String getClientIp(HttpServletRequest request) {

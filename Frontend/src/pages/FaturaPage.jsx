@@ -12,6 +12,7 @@ import { useSearchParams } from 'react-router-dom';
 import { toast } from '@/lib/toast';
 import invoiceService from '@/services/invoiceService';
 import { useWithholdingCodes, useExemptionCodes } from '@/hooks/useTaxCodes';
+import ShareLinkModal from '@/components/invoice/ShareLinkModal';
 
 function InvoicePill({ status, cancelled }) {
   if (cancelled) return <span className="pill neg"><span className="dot" />İptal</span>;
@@ -42,6 +43,7 @@ export default function FaturaPage() {
   const [returnDrawer, setReturnDrawer] = useState(null);
   const [gibOpen, setGibOpen] = useState(false);
   const [seriesOpen, setSeriesOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [detailInvoiceId, setDetailInvoiceId] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const PAGE_SIZE = 15;
@@ -127,6 +129,7 @@ export default function FaturaPage() {
       <div className="page-head">
         <div><h1 className="page-title">Fatura Yönetimi</h1><p className="page-sub">{list.length} fatura</p></div>
         <div className="page-actions">
+          <button className="btn ghost" onClick={() => setShareOpen(true)}><Icon name="share" size={14} /> Paylaş</button>
           <button className="btn ghost" onClick={() => setSeriesOpen(true)}><Icon name="grip" size={14} /> Seriler</button>
           <button className="btn ghost" onClick={() => setGibOpen(true)}><Icon name="globe" size={14} /> GİB</button>
           <button className="btn primary" onClick={() => setDrawer(true)}><Icon name="plus" /> Yeni Fatura</button>
@@ -206,6 +209,7 @@ export default function FaturaPage() {
         <ReturnInvoiceDrawer original={returnDrawer} customers={customers} onClose={() => setReturnDrawer(null)} />
       )}
       {gibOpen && <GibProfileModal onClose={() => setGibOpen(false)} />}
+      {shareOpen && <ShareLinkModal onClose={() => setShareOpen(false)} />}
       {seriesOpen && <SeriesModal seriesList={seriesList} createMut={createSeriesMut} onClose={() => setSeriesOpen(false)} />}
     </div>
   );

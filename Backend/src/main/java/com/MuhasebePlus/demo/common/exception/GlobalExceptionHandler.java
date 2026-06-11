@@ -60,6 +60,12 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), req.getRequestURI(), null);
     }
 
+    @ExceptionHandler(com.MuhasebePlus.demo.sharelink.exception.ShareLinkNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleShareLinkNotFound(RuntimeException ex, HttpServletRequest req) {
+        log.warn("Share link not found on {}", req.getRequestURI());
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), req.getRequestURI(), null);
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntime(RuntimeException ex, HttpServletRequest req) {
         log.error("Runtime exception on {}: {}", req.getRequestURI(), ex.getMessage(), ex);

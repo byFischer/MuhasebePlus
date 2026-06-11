@@ -52,6 +52,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/system/initialize").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
                 .requestMatchers("/error").permitAll()
+                .requestMatchers("/api/public/**").permitAll()
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex

@@ -65,6 +65,7 @@ const PATHS = {
   journal: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z M8 7h8 M8 11h8 M8 15h4',
   document: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8',
   archive: 'M21 8v13H3V8 M23 3H1v5h22V3z M10 12h4',
+  share: 'M18 8a3 3 0 1 0-3-3 3 3 0 0 0 3 3z M6 15a3 3 0 1 0-3-3 3 3 0 0 0 3 3z M18 22a3 3 0 1 0-3-3 3 3 0 0 0 3 3z M8.6 13.5l6.8 4 M15.4 6.5l-6.8 4',
 };
 
 export default function Icon({ name, size = 16, ...rest }) {

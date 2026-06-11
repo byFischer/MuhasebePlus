@@ -50,8 +50,11 @@ public class PdfInvoiceService {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
     public byte[] generatePdf(Long invoiceId) {
-        Long companyId = companyContext.getCurrentCompanyId();
-        Invoice invoice = invoiceRepository.findById(invoiceId)
+        return generatePdf(invoiceId, companyContext.getCurrentCompanyId());
+    }
+
+    public byte[] generatePdf(Long invoiceId, Long companyId) {
+        Invoice invoice = invoiceRepository.findByInvoiceIdAndCompanyCompanyId(invoiceId, companyId)
                 .orElseThrow(() -> new RuntimeException("Invoice not found: " + invoiceId));
 
         Customer customer = customerRepository.findByCustomerIdAndCompanyCompanyId(invoice.getCustomerId(), companyId)

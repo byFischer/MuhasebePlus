@@ -181,4 +181,51 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpec
                                  @Param("type") InvoiceType type,
                                  @Param("start") LocalDate start,
                                  @Param("end") LocalDate end);
+
+    // Public paylaşım linki sorguları: taslak faturalar kesinleşmiş belge olmadığı için her zaman hariç
+    @Query(value = "SELECT DISTINCT i FROM Invoice i LEFT JOIN FETCH i.customer " +
+           "WHERE i.company.companyId = :companyId AND i.isDeleted = false " +
+           "AND i.paymentStatus <> com.MuhasebePlus.demo.invoice.entity.PaymentStatus.draft " +
+           "AND (:status IS NULL OR i.paymentStatus = :status) " +
+           "AND (:type IS NULL OR i.invoiceType = :type) " +
+           "AND (CAST(:startDate AS DATE) IS NULL OR i.invoiceDate >= :startDate) " +
+           "AND (CAST(:endDate AS DATE) IS NULL OR i.invoiceDate <= :endDate)",
+           countQuery = "SELECT COUNT(i) FROM Invoice i " +
+           "WHERE i.company.companyId = :companyId AND i.isDeleted = false " +
+           "AND i.paymentStatus <> com.MuhasebePlus.demo.invoice.entity.PaymentStatus.draft " +
+           "AND (:status IS NULL OR i.paymentStatus = :status) " +
+           "AND (:type IS NULL OR i.invoiceType = :type) " +
+           "AND (CAST(:startDate AS DATE) IS NULL OR i.invoiceDate >= :startDate) " +
+           "AND (CAST(:endDate AS DATE) IS NULL OR i.invoiceDate <= :endDate)")
+    Page<Invoice> findPublicShareInvoices(@Param("companyId") Long companyId,
+                                           @Param("status") PaymentStatus status,
+                                           @Param("type") InvoiceType type,
+                                           @Param("startDate") LocalDate startDate,
+                                           @Param("endDate") LocalDate endDate,
+                                           Pageable pageable);
+
+    @Query(value = "SELECT DISTINCT i FROM Invoice i LEFT JOIN FETCH i.customer " +
+           "WHERE i.company.companyId = :companyId AND i.isDeleted = false " +
+           "AND i.paymentStatus <> com.MuhasebePlus.demo.invoice.entity.PaymentStatus.draft " +
+           "AND (LOWER(i.invoiceNumber) LIKE LOWER(CONCAT('%', :q, '%')) " +
+           "OR LOWER(i.description) LIKE LOWER(CONCAT('%', :q, '%')))",
+           countQuery = "SELECT COUNT(i) FROM Invoice i " +
+           "WHERE i.company.companyId = :companyId AND i.isDeleted = false " +
+           "AND i.paymentStatus <> com.MuhasebePlus.demo.invoice.entity.PaymentStatus.draft " +
+           "AND (LOWER(i.invoiceNumber) LIKE LOWER(CONCAT('%', :q, '%')) " +
+           "OR LOWER(i.description) LIKE LOWER(CONCAT('%', :q, '%')))")
+    Page<Invoice> searchPublicShareInvoices(@Param("companyId") Long companyId,
+                                             @Param("q") String query,
+                                             Pageable pageable);
+
+    @Query("SELECT i.invoiceType, COUNT(i), COALESCE(SUM(i.subtotal), 0), " +
+           "COALESCE(SUM(i.vatAmount), 0), COALESCE(SUM(i.totalAmount), 0) FROM Invoice i " +
+           "WHERE i.company.companyId = :companyId AND i.isDeleted = false AND i.cancelled = false " +
+           "AND i.paymentStatus <> com.MuhasebePlus.demo.invoice.entity.PaymentStatus.draft " +
+           "AND (CAST(:startDate AS DATE) IS NULL OR i.invoiceDate >= :startDate) " +
+           "AND (CAST(:endDate AS DATE) IS NULL OR i.invoiceDate <= :endDate) " +
+           "GROUP BY i.invoiceType")
+    List<Object[]> summarizePublicShareByType(@Param("companyId") Long companyId,
+                                               @Param("startDate") LocalDate startDate,
+                                               @Param("endDate") LocalDate endDate);
 }
