@@ -9,13 +9,11 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
+// Admin endpoint'leri /api/admin/users altına taşındı (bkz. admin.controller.AdminUserController)
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -23,57 +21,7 @@ public class UserController {
 
     private final UserService userService;
 
-    //  Admin Endpoints 
-
-    @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<UserResponseDto>> getAllUsers() {
-        return ResponseEntity.ok(userService.getAllUsers());
-    }
-
-    @GetMapping("/{userId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UserResponseDto> getUserById(@PathVariable Long userId) {
-        return ResponseEntity.ok(userService.getUserById(userId));
-    }
-
-    @DeleteMapping("/{userId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteUserById(@PathVariable Long userId) {
-        userService.deleteUserById(userId);
-        return ResponseEntity.noContent().build();
-    }
-
-    @PutMapping("/{userId}/role")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UserResponseDto> updateUserRole(
-            @PathVariable Long userId,
-            @RequestParam String role) {
-        return ResponseEntity.ok(userService.updateUserRole(userId, role));
-    }
-
-    @PutMapping("/{userId}/lock")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> lockUser(@PathVariable Long userId) {
-        userService.lockUser(userId);
-        return ResponseEntity.noContent().build();
-    }
-
-    @PutMapping("/{userId}/unlock")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> unlockUser(@PathVariable Long userId) {
-        userService.unlockUser(userId);
-        return ResponseEntity.noContent().build();
-    }
-
-    @PutMapping("/{userId}/deactivate")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deactivateUser(@PathVariable Long userId) {
-        userService.deactivateUser(userId);
-        return ResponseEntity.noContent().build();
-    }
-
-    //  Registration 
+    //  Registration
 
     @PostMapping("/register")
     public ResponseEntity<UserResponseDto> registerUser(@Valid @RequestBody UserRequestDto dto) {

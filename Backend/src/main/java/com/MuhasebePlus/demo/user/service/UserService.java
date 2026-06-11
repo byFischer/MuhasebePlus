@@ -15,9 +15,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 @Slf4j
 @Service
 @Transactional
@@ -32,26 +29,7 @@ public class UserService {
     private int maxLoginAttempts;
 
 
-    public List<UserResponseDto> getAllUsers() {
-        return userRepository.findAll().stream()
-                .map(this::toResponseDto)
-                .collect(Collectors.toList());
-    }
-
-
-    public UserResponseDto getUserById(Long userId) {
-        User user = findUserById(userId);
-        return toResponseDto(user);
-    }
-
-
-    public void deleteUserById(Long userId) {
-        if (!userRepository.existsById(userId)) {
-            throw new RuntimeException("User not found with id: " + userId);
-        }
-        userRepository.deleteById(userId);
-    }
-
+    // Admin işlemleri (listeleme, silme, rol/kilit/durum yönetimi) admin.service.AdminUserService'e taşındı
 
     public UserResponseDto registerUser(UserRequestDto dto) {
         if (userRepository.existsByEmail(dto.email())) {
@@ -122,34 +100,6 @@ public class UserService {
     }
 
 
-    public UserResponseDto updateUserRole(Long userId, String newRole) {
-        UserRole role;
-        try {
-            role = UserRole.valueOf(newRole.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new RuntimeException("Invalid role: " + newRole);
-        }
-        User user = findUserById(userId);
-        user.setRole(role);
-        return toResponseDto(userRepository.save(user));
-    }
-
-
-    public void lockUser(Long userId) {
-        User user = findUserById(userId);
-        user.setLocked(true);
-        userRepository.save(user);
-    }
-
-
-    public void unlockUser(Long userId) {
-        User user = findUserById(userId);
-        user.setLocked(false);
-        user.setFailedLoginAttempts(0);
-        userRepository.save(user);
-    }
-
-
     public void incrementFailedLoginAttempts(String email) {
         User user = findUserByEmail(email);
         int attempts = user.getFailedLoginAttempts() + 1;
@@ -169,13 +119,6 @@ public class UserService {
     }
 
 
-    public void deactivateUser(Long userId) {
-        User user = findUserById(userId);
-        user.setActive(false);
-        userRepository.save(user);
-    }
-
-
     @Transactional(readOnly = true)
     public User getUserByEmail(String email) {
         return findUserByEmail(email);
@@ -187,11 +130,6 @@ public class UserService {
         return userRepository.existsByEmail(email);
     }
 
-
-    private User findUserById(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
-    }
 
     private User findUserByEmail(String email) {
         return userRepository.findByEmail(email)

@@ -27,6 +27,8 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     List<Customer> findByCompanyCompanyIdAndIsDeletedFalse(Long companyId);
     Page<Customer> findByCompanyCompanyIdAndIsDeletedFalse(Long companyId, Pageable pageable);
 
+    long countByCompanyCompanyIdAndIsDeletedFalse(Long companyId);
+
     List<Customer> findByCompanyCompanyIdAndIsDeletedTrue(Long companyId);
 
     List<Customer> findByTypeAndCompanyCompanyId(CustomerType type, Long companyId);

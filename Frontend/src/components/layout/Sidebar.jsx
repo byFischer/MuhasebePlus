@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import Icon from '@/components/mp/Icon';
 import { NAV } from '@/lib/routes';
@@ -7,7 +7,7 @@ import { toast } from '@/lib/toast';
 import LiveCurrencyRates from '@/components/layout/LiveCurrencyRates';
 
 export default function Sidebar({ onOpenCmdk }) {
-  const { user, logoutUser } = useAuth();
+  const { user } = useAuth();
   const location = useLocation();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState({});
@@ -46,7 +46,7 @@ export default function Sidebar({ onOpenCmdk }) {
         <kbd>⌘K</kbd>
       </div>
       <nav className="nav">
-        {NAV.map((n, i) => n.section ? (
+        {NAV.filter(n => !n.adminOnly || user?.role === 'ADMIN').map((n, i) => n.section ? (
           <div key={i} className="nav-section">{n.section}</div>
         ) : n.children ? (
           <div key={n.to}>

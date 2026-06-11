@@ -1,7 +1,8 @@
-package com.MuhasebePlus.demo.log.controller;
+package com.MuhasebePlus.demo.admin.controller;
 
-import java.time.LocalDate;
-
+import com.MuhasebePlus.demo.admin.dto.AdminLogDto;
+import com.MuhasebePlus.demo.admin.service.AdminLogService;
+import com.MuhasebePlus.demo.log.entity.LogLevel;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,43 +19,43 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.MuhasebePlus.demo.log.dto.response.SystemLogResponseDto;
-import com.MuhasebePlus.demo.log.entity.LogLevel;
-import com.MuhasebePlus.demo.log.service.SystemLogService;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 
 @RestController
-@RequestMapping("/api/logs")
+@RequestMapping("/api/admin/logs")
+@PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
-public class SystemLogController {
+public class AdminLogController {
 
-    private final SystemLogService systemLogService;
+    private final AdminLogService adminLogService;
 
-    // Servis katmanı sonuçları kullanıcının kendi şirketiyle sınırlar;
-    // tüm şirketlerin logları için /api/admin/logs kullanılır.
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<Page<SystemLogResponseDto>> getLogs(
+    public ResponseEntity<Page<AdminLogDto>> getLogs(
+            @RequestParam(required = false) Long companyId,
             @RequestParam(required = false) LogLevel level,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false, defaultValue = "false") boolean auditOnly,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) Long userId,
             @PageableDefault(size = 50, sort = "timestamp", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(systemLogService.getLogs(level, startDate, endDate, userId, pageable));
+        return ResponseEntity.ok(adminLogService.getLogs(companyId, level, userId, auditOnly, startDate, endDate, pageable));
     }
 
     @GetMapping("/export")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<byte[]> exportLogs(
+            @RequestParam(required = false) Long companyId,
             @RequestParam(required = false) LogLevel level,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false, defaultValue = "false") boolean auditOnly,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) Long userId) {
-        String csv = systemLogService.exportLogsAsCsv(level, startDate, endDate, userId);
-        byte[] data = csv.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        String csv = adminLogService.exportLogsAsCsv(companyId, level, userId, auditOnly, startDate, endDate);
+        byte[] data = csv.getBytes(StandardCharsets.UTF_8);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType("text/csv;charset=UTF-8"));
-        headers.setContentDisposition(ContentDisposition.attachment().filename("system_logs.csv").build());
+        headers.setContentDisposition(ContentDisposition.attachment().filename("admin_logs.csv").build());
         headers.setContentLength(data.length);
 
         return ResponseEntity.ok().headers(headers).body(data);

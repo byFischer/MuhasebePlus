@@ -1,6 +1,4 @@
 // MuhasebePlus — SVG Icon component
-import React from 'react';
-
 const PATHS = {
   dashboard: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',
   users: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',
@@ -66,6 +64,8 @@ const PATHS = {
   document: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8',
   archive: 'M21 8v13H3V8 M23 3H1v5h22V3z M10 12h4',
   share: 'M18 8a3 3 0 1 0-3-3 3 3 0 0 0 3 3z M6 15a3 3 0 1 0-3-3 3 3 0 0 0 3 3z M18 22a3 3 0 1 0-3-3 3 3 0 0 0 3 3z M8.6 13.5l6.8 4 M15.4 6.5l-6.8 4',
+  shield: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+  key: 'M21 2l-2 2 M15.5 7.5L19 4 M19 4l3 3-3.5 3.5-3-3 M11.4 11.6a5 5 0 1 0 1 1z M11.4 11.6L15.5 7.5',
 };
 
 export default function Icon({ name, size = 16, ...rest }) {

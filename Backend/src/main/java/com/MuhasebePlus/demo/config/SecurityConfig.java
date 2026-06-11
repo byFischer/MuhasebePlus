@@ -53,6 +53,8 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health").permitAll()
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/api/public/**").permitAll()
+                // Savunma derinliği: /api/admin/** metod seviyesindeki @PreAuthorize'a ek olarak URL seviyesinde de korunur
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex

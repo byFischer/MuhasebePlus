@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
 const Router = import.meta.env.VITE_ROUTER === 'hash' ? HashRouter : BrowserRouter;
 import { Provider } from "@/components/ui/provider";
@@ -5,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import AdminRoute from "@/components/AdminRoute";
 import AppShell from "@/components/layout/AppShell";
 
 import LoginPage from "@/pages/LoginPage";
@@ -33,6 +35,23 @@ import EDefterPage from "@/pages/edefter/EDefterPage";
 import KdvPage from "@/pages/KdvPage";
 import BankaMutabakatPage from "@/pages/BankaMutabakatPage";
 import SabitKiymetPage from "@/pages/SabitKiymetPage";
+
+// Admin sayfaları lazy yüklenir; normal kullanıcının bundle'ına dahil edilmez
+const AdminDashboardPage = lazy(() => import("@/pages/admin/AdminDashboardPage"));
+const AdminUsersPage     = lazy(() => import("@/pages/admin/AdminUsersPage"));
+const AdminCompaniesPage = lazy(() => import("@/pages/admin/AdminCompaniesPage"));
+const AdminSettingsPage  = lazy(() => import("@/pages/admin/AdminSettingsPage"));
+const AdminLogsPage      = lazy(() => import("@/pages/admin/AdminLogsPage"));
+
+function AdminPage({ children }) {
+  return (
+    <AdminRoute>
+      <Suspense fallback={<div className="page"><div className="card" style={{ height: 200 }} /></div>}>
+        {children}
+      </Suspense>
+    </AdminRoute>
+  );
+}
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false, staleTime: 30_000 } },
@@ -73,6 +92,11 @@ export default function App() {
                 <Route path="/kdv"              element={<KdvPage />} />
                 <Route path="/banka-mutabakat" element={<BankaMutabakatPage />} />
                 <Route path="/sabit-kiymet"   element={<SabitKiymetPage />} />
+                <Route path="/admin"              element={<AdminPage><AdminDashboardPage /></AdminPage>} />
+                <Route path="/admin/kullanicilar" element={<AdminPage><AdminUsersPage /></AdminPage>} />
+                <Route path="/admin/sirketler"    element={<AdminPage><AdminCompaniesPage /></AdminPage>} />
+                <Route path="/admin/ayarlar"      element={<AdminPage><AdminSettingsPage /></AdminPage>} />
+                <Route path="/admin/loglar"       element={<AdminPage><AdminLogsPage /></AdminPage>} />
                 <Route index element={<Navigate to="/dashboard" replace />} />
               </Route>
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

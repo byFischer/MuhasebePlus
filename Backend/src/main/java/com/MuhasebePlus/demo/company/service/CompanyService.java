@@ -5,46 +5,17 @@ import com.MuhasebePlus.demo.company.dto.request.CompanyRequestDto;
 import com.MuhasebePlus.demo.company.dto.response.CompanyResponseDto;
 import com.MuhasebePlus.demo.company.entity.Company;
 import com.MuhasebePlus.demo.company.repository.CompanyRepository;
-import com.MuhasebePlus.demo.period.service.AccountingPeriodService;
-import com.MuhasebePlus.demo.accounting.service.ChartOfAccountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
-import java.util.List;
-
+// Cross-tenant admin işlemleri admin.service.AdminCompanyService'e taşındı
 @Service
 @RequiredArgsConstructor
 public class CompanyService {
 
     private final CompanyRepository companyRepository;
     private final CompanyContext companyContext;
-    private final AccountingPeriodService accountingPeriodService;
-    private final ChartOfAccountService chartOfAccountService;
-
-    @Transactional
-    public CompanyResponseDto createCompany(CompanyRequestDto dto) {
-        if (dto.taxNumber() != null && companyRepository.existsByTaxNumber(dto.taxNumber())) {
-            throw new RuntimeException("Tax number already exists: " + dto.taxNumber());
-        }
-
-        Company company = Company.builder()
-                .companyName(dto.companyName())
-                .taxOffice(dto.taxOffice())
-                .taxNumber(dto.taxNumber())
-                .address(dto.address())
-                .city(dto.city())
-                .phone(dto.phone())
-                .email(dto.email())
-                .isActive(true)
-                .build();
-
-        Company savedCompany = companyRepository.save(company);
-        accountingPeriodService.initializePeriodsForCompany(savedCompany.getCompanyId());
-        chartOfAccountService.copyTdhpForCompany(savedCompany.getCompanyId());
-        return mapToResponseDto(savedCompany);
-    }
 
     public CompanyResponseDto getCompanyById(Long id) {
         Long currentCompanyId = companyContext.getCurrentCompanyId();
@@ -55,16 +26,6 @@ public class CompanyService {
         Company company = companyRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Company not found: " + id));
         return mapToResponseDto(company);
-    }
-
-    public List<CompanyResponseDto> getAllCompanies() {
-        // Güvenlik gereği bir kullanıcı tüm şirketleri LİSTELEYEMEZ. 
-        // Sadece kendi şirketini bir liste içinde döndürüyoruz.
-        Long currentCompanyId = companyContext.getCurrentCompanyId();
-        Company company = companyRepository.findById(currentCompanyId)
-                .orElseThrow(() -> new RuntimeException("Company not found"));
-                
-        return Collections.singletonList(mapToResponseDto(company));
     }
 
     @Transactional
@@ -100,21 +61,6 @@ public class CompanyService {
 
         Company updatedCompany = companyRepository.save(company);
         return mapToResponseDto(updatedCompany);
-    }
-
-    @Transactional
-    public void deleteCompany(Long id) {
-        Long currentCompanyId = companyContext.getCurrentCompanyId();
-        if (!currentCompanyId.equals(id)) {
-            throw new RuntimeException("Bu kaydı silme yetkiniz yok. Sadece kendi şirketinizi silebilirsiniz.");
-        }
-
-        Company company = companyRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Company not found: " + id));
-        
-        // Soft delete - is_active'i false yapıyoruz
-        company.setActive(false);
-        companyRepository.save(company);
     }
 
     public CompanyResponseDto getCurrentCompany() {

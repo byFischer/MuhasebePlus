@@ -33,6 +33,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpec
 
     List<Invoice> findByCompanyCompanyIdAndIsDeletedFalse(Long companyId);
     List<Invoice> findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(Long customerId, Long companyId);
+
+    long countByCompanyCompanyIdAndIsDeletedFalse(Long companyId);
     List<Invoice> findByPaymentStatusAndCompanyCompanyIdAndIsDeletedFalse(PaymentStatus paymentStatus, Long companyId);
     List<Invoice> findByInvoiceTypeAndCompanyCompanyIdAndIsDeletedFalse(InvoiceType invoiceType, Long companyId);
     List<Invoice> findByPaymentStatusAndInvoiceTypeAndCompanyCompanyIdAndIsDeletedFalse(PaymentStatus paymentStatus, InvoiceType invoiceType, Long companyId);
