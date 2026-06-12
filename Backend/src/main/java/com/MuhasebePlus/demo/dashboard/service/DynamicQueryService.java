@@ -50,6 +50,21 @@ public class DynamicQueryService {
             "REPORT", Report.class
     );
 
+    // Aggregate'siz/groupBy'sız satır listeleme sorgularında entity'nin tamamı yerine
+    // seçilecek skaler kolonlar. Entity seçmek hem lazy iliskiler yüzünden JSON
+    // serileştirmede patlıyor hem de tüm alanları dışarı sızdırıyor.
+    private static final Map<String, List<String>> LIST_COLUMNS = Map.of(
+            "INVOICE", List.of("invoiceNumber", "customer.name", "invoiceType", "paymentStatus", "dueDate", "totalAmount"),
+            "TRANSACTION", List.of("transactionDate", "transactionType", "category", "description", "amount"),
+            "CUSTOMER", List.of("name", "city", "type", "email", "phoneNumber"),
+            "PRODUCT", List.of("name", "barcode", "unit", "salePrice"),
+            "STOCK", List.of("product.name", "quantity", "minQuantity", "lastCountDate"),
+            "BANK_ACCOUNT", List.of("bankName", "iban", "currency", "currentBalance"),
+            "INVOICE_LINE_ITEM", List.of("invoice.invoiceNumber", "product.name", "quantity", "unitPrice", "lineTotal"),
+            "TEMPLATE", List.of("templateName", "templateType", "period"),
+            "REPORT", List.of("reportType", "format", "startDate", "endDate", "fileSize")
+    );
+
     private static final Map<String, String> FIELD_LABELS;
     static {
         FIELD_LABELS = new java.util.HashMap<>();
@@ -114,6 +129,8 @@ public class DynamicQueryService {
         FIELD_LABELS.put("createdAt",             "Oluşturma Tarihi");
         FIELD_LABELS.put("value",                 "Değer");
         FIELD_LABELS.put("count",                 "Adet");
+        FIELD_LABELS.put("description",           "Açıklama");
+        FIELD_LABELS.put("currentBalance",        "Güncel Bakiye");
     }
 
     public QueryResult executeQuery(QueryConfigDto config, Long companyId) {
@@ -138,15 +155,32 @@ public class DynamicQueryService {
 
         AggregateClause aggregate = config.aggregate();
         List<Selection<?>> selections = new ArrayList<>(groupExpressions);
+        List<ColumnMeta> listColumnMeta = new ArrayList<>();
 
         final String aggregateAlias;
+        final List<String> listColumns;
         if (aggregate != null) {
             aggregateAlias = aggregate.alias() != null ? aggregate.alias() : "value";
             Expression<?> aggExpr = buildAggregate(cb, root, aggregate.function(), aggregate.field());
             selections.add(aggExpr.alias(aggregateAlias));
-        } else {
+            listColumns = List.of();
+        } else if (!groupExpressions.isEmpty()) {
+            // groupBy var ama aggregate yok: sadece grup kolonlarını seç
             aggregateAlias = "value";
-            selections.add(root);
+            listColumns = List.of();
+        } else {
+            // Listeleme modu: veri kaynağına göre tanımlı skaler kolonları seç
+            aggregateAlias = "value";
+            listColumns = LIST_COLUMNS.getOrDefault(config.dataSource(), List.of());
+            if (listColumns.isEmpty()) {
+                throw new IllegalArgumentException("Bu veri kaynağı için satır listeleme desteklenmiyor: " + config.dataSource());
+            }
+            for (String col : listColumns) {
+                Path<?> path = resolveListPath(root, col);
+                selections.add(path);
+                String type = BigDecimal.class.isAssignableFrom(path.getJavaType()) ? "MEASURE" : "DIMENSION";
+                listColumnMeta.add(new ColumnMeta(col, FIELD_LABELS.getOrDefault(col, col), type));
+            }
         }
 
         cq.select(cb.tuple(selections.toArray(new Selection<?>[0])));
@@ -170,7 +204,7 @@ public class DynamicQueryService {
 
         List<Tuple> tuples = typedQuery.getResultList();
         List<Map<String, Object>> rows = tuples.stream()
-                .map(t -> tupleToMap(t, groupByList, aggregateAlias))
+                .map(t -> tupleToMap(t, groupByList, aggregateAlias, listColumns))
                 .collect(Collectors.toList());
 
         // Map.of null value kabul etmez (NPE). Aggregate'siz veya field'sız (COUNT *)
@@ -181,7 +215,10 @@ public class DynamicQueryService {
             aggregateMeta.put("field", aggregate.field());
         }
 
-        return new QueryResult(rows, buildColumnMeta(groupByList, aggregate, aggregateAlias), aggregateMeta, (long) rows.size());
+        List<ColumnMeta> columns = listColumnMeta.isEmpty()
+                ? buildColumnMeta(groupByList, aggregate, aggregateAlias)
+                : listColumnMeta;
+        return new QueryResult(rows, columns, aggregateMeta, (long) rows.size());
     }
 
     private List<Predicate> buildBasePredicates(CriteriaBuilder cb, Root<?> root, Long companyId) {
@@ -302,8 +339,15 @@ public class DynamicQueryService {
         }).filter(Objects::nonNull).collect(Collectors.toList());
     }
 
-    private Map<String, Object> tupleToMap(Tuple tuple, List<GroupByClause> groupByList, String aggregateAlias) {
+    private Map<String, Object> tupleToMap(Tuple tuple, List<GroupByClause> groupByList,
+                                            String aggregateAlias, List<String> listColumns) {
         Map<String, Object> map = new LinkedHashMap<>();
+        if (!listColumns.isEmpty()) {
+            for (int i = 0; i < listColumns.size(); i++) {
+                map.put(listColumns.get(i), tuple.get(i));
+            }
+            return map;
+        }
         int idx = 0;
         for (GroupByClause gb : groupByList) {
             map.put(gb.field(), tuple.get(idx));
@@ -340,6 +384,29 @@ public class DynamicQueryService {
             return path;
         }
         return root.get(field);
+    }
+
+    // Listeleme select'lerinde noktalı alanlar için LEFT JOIN kullan;
+    // örtük join INNER olduğundan ilişkisi boş satırları (örn. müşterisiz fatura) düşürür.
+    private Path<?> resolveListPath(Root<?> root, String field) {
+        if (!field.contains(".")) {
+            return root.get(field);
+        }
+        String[] parts = field.split("\\.");
+        From<?, ?> from = root;
+        for (int i = 0; i < parts.length - 1; i++) {
+            from = getOrCreateLeftJoin(from, parts[i]);
+        }
+        return from.get(parts[parts.length - 1]);
+    }
+
+    private From<?, ?> getOrCreateLeftJoin(From<?, ?> from, String attribute) {
+        for (Join<?, ?> join : from.getJoins()) {
+            if (join.getAttribute().getName().equals(attribute)) {
+                return join;
+            }
+        }
+        return from.join(attribute, JoinType.LEFT);
     }
 
     // These helpers resolve overload ambiguity by binding Path<?> and value to the same type

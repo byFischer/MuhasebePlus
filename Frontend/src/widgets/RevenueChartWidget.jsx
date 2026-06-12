@@ -29,7 +29,7 @@ export default function RevenueChartWidget({ D, mode, variant, config }) {
           </thead>
           <tbody>
             {m.map((mo, i) => (
-              <tr key={mo}>
+              <tr key={`${mo}-${i}`}>
                 <td>{mo}</td>
                 <td className="num mono tnum" style={{ color: 'var(--pos)' }}>{TRY(rev[i])}</td>
                 <td className="num mono tnum" style={{ color: 'var(--neg)' }}>{TRY(exp[i])}</td>

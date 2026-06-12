@@ -7,6 +7,13 @@ public enum FilterOperator {
 
     @JsonCreator
     public static FilterOperator from(String value) {
-        return value == null ? null : FilterOperator.valueOf(value.toUpperCase());
+        if (value == null) return null;
+        String normalized = value.trim().toUpperCase();
+        // AI çıktılarında ara sıra görülen eşdeğer operatörleri kabul et
+        return switch (normalized) {
+            case "BEFORE" -> LT;
+            case "AFTER" -> GT;
+            default -> FilterOperator.valueOf(normalized);
+        };
     }
 }
