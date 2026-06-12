@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -104,7 +105,7 @@ public class TransactionService implements HardDeletable {
 
     public List<TransactionResponseDto> getTransactionsByType(String type) {
         Long companyId = companyContext.getCurrentCompanyId();
-        TransactionType transactionType = TransactionType.valueOf(type.toUpperCase());
+        TransactionType transactionType = TransactionType.valueOf(type.toUpperCase(Locale.ROOT));
         return transactionRepository
                 .findByTransactionTypeAndCompanyCompanyIdAndIsDeletedFalseOrderByTransactionDateDesc(transactionType, companyId)
                 .stream()

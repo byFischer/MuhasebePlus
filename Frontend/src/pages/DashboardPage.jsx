@@ -182,6 +182,8 @@ export default function DashboardPage() {
   const [widgetsData, setWidgetsData] = useState([]);
   const [detail, setDetail] = useState(null);
   const [pickerSlot, setPickerSlot] = useState(null);
+  const [pickerQuery, setPickerQuery] = useState('');
+  const [customDefs, setCustomDefs] = useState([]);
   const [layoutSelectorOpen, setLayoutSelectorOpen] = useState(false);
   const [configOpen, setConfigOpen] = useState(null);
 
@@ -207,6 +209,13 @@ export default function DashboardPage() {
         }
       }
     }).catch(console.error);
+  }, []);
+
+  // Widget-builder'da oluşturulan özel widget tanımları (picker'da göstermek için)
+  useEffect(() => {
+    dashboardService.getWidgetDefinitions()
+      .then(list => setCustomDefs(Array.isArray(list) ? list.filter(d => !d.isSystem) : []))
+      .catch(() => { /* ignore */ });
   }, []);
 
   // Slot → widget map. Built-in widget aynı tipten birden fazla olamayacağı için
@@ -310,12 +319,52 @@ export default function DashboardPage() {
       setWidgetsData(prev => [...prev, w]);
       saveConfigs({ ...configs, [widgetId]: merged });
       toast.ok(`${def.name} eklendi`);
-      setPickerSlot(null);
+      closePicker();
     } catch (e) {
       console.error(e);
       toast.err(e?.response?.data?.message || 'Widget eklenemedi');
     }
   };
+
+  // Custom (widget-builder) widget'ı slota ekle
+  const assignCustomToSlot = async (def) => {
+    if (!layoutId || pickerSlot == null) return;
+    const slot = layout.slots.find(s => s.id === pickerSlot);
+    try {
+      const w = await dashboardService.addWidget(layoutId, {
+        widgetType: def.widgetType,
+        definitionId: def.definitionId,
+        title: def.name,
+        slotIndex: pickerSlot,
+        positionX: 0,
+        positionY: 0,
+        width: 4,
+        height: 3,
+        config: JSON.stringify({ variant: slotSizeToVariant(slot?.size) || 'm' }),
+      });
+      setWidgetsData(prev => [...prev, w]);
+      toast.ok(`${def.name} eklendi`);
+      closePicker();
+    } catch (e) {
+      console.error(e);
+      toast.err(e?.response?.data?.message || 'Widget eklenemedi');
+    }
+  };
+
+  const closePicker = () => { setPickerSlot(null); setPickerQuery(''); };
+
+  // Picker listesi — arama + zaten eklenmiş built-in'leri ele
+  const norm = (s) => (s || '').toLocaleLowerCase('tr');
+  const pickerBuiltins = useMemo(() => {
+    const q = norm(pickerQuery);
+    return WIDGET_REGISTRY
+      .filter(w => !Object.values(slotAssignments).some(a => a.type === 'builtin' && a.id === w.id))
+      .filter(w => !q || norm(w.name).includes(q) || norm(w.desc).includes(q));
+  }, [pickerQuery, slotAssignments]);
+  const pickerCustoms = useMemo(() => {
+    const q = norm(pickerQuery);
+    return customDefs.filter(d => !q || norm(d.name).includes(q) || norm(d.description).includes(q));
+  }, [pickerQuery, customDefs]);
 
   // Render helpers
   const renderBuiltin = (assignment, slot) => {
@@ -454,29 +503,52 @@ export default function DashboardPage() {
 
       {/* Widget picker — slot tıklayınca açılır */}
       {pickerSlot != null && (
-        <div className="cmdk-scrim" onClick={() => setPickerSlot(null)}>
+        <div className="cmdk-scrim" onClick={closePicker}>
           <div className="cmdk widget-picker" onClick={e => e.stopPropagation()}>
             <div className="cmdk-input">
               <Icon name="plus" size={16} style={{ color: 'var(--ink-3)' }} />
-              <input autoFocus placeholder="Widget ara..." />
-              <kbd>esc</kbd>
+              <input
+                autoFocus
+                placeholder="Widget ara..."
+                value={pickerQuery}
+                onChange={e => setPickerQuery(e.target.value)}
+              />
+              <button className="tb-icon-btn" onClick={closePicker} aria-label="Kapat">
+                <Icon name="x" size={16} />
+              </button>
             </div>
             <div className="cmdk-list">
               <div className="cmdk-section">Slot {pickerSlot} için widget seçin</div>
-              {WIDGET_REGISTRY.filter(w => !Object.values(slotAssignments).some(a => a.type === 'builtin' && a.id === w.id)).map(w => (
-                <button
-                  key={w.id}
-                  className="cmdk-item widget-pick-item"
-                  onClick={() => assignWidgetToSlot(w.id)}
-                >
-                  <div className="widget-item-icon"><Icon name={w.icon} size={14} /></div>
-                  <div style={{ flex: 1, textAlign: 'left' }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{w.name}</div>
-                    <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>{w.desc}</div>
-                  </div>
-                  <Icon name="chevRight" size={12} style={{ color: 'var(--ink-3)' }} />
-                </button>
-              ))}
+              <div className="wp-grid">
+                {pickerBuiltins.map(w => (
+                  <button key={w.id} className="wp-card" onClick={() => assignWidgetToSlot(w.id)}>
+                    <div className="wp-card-head">
+                      <span className="wp-card-icon"><Icon name={w.icon} size={13} /></span>
+                      <span className="wp-card-title">{w.name}</span>
+                    </div>
+                    <div className="wp-card-body">
+                      <BuiltinPreview id={w.id} D={D} config={configs[w.id]} />
+                    </div>
+                    {w.desc && <div className="wp-card-desc">{w.desc}</div>}
+                  </button>
+                ))}
+                {pickerCustoms.map(def => (
+                  <button key={def.definitionId} className="wp-card" onClick={() => assignCustomToSlot(def)}>
+                    <div className="wp-card-head">
+                      <span className="wp-card-icon"><Icon name="grid" size={13} /></span>
+                      <span className="wp-card-title">{def.name}</span>
+                      <span className="wp-card-tag">Özel</span>
+                    </div>
+                    <div className="wp-card-body">
+                      <CustomPreview def={def} />
+                    </div>
+                    {def.description && <div className="wp-card-desc">{def.description}</div>}
+                  </button>
+                ))}
+              </div>
+              {pickerBuiltins.length === 0 && pickerCustoms.length === 0 && (
+                <div className="empty" style={{ padding: 24 }}>Eşleşen widget yok</div>
+              )}
             </div>
           </div>
         </div>
@@ -507,6 +579,39 @@ export default function DashboardPage() {
         <AiWidgetChatPanel onClose={() => setAiPanelOpen(false)} />
       )}
     </div>
+  );
+}
+
+// Picker'da built-in widget'ın gerçek kompakt halini canlı render eder
+function BuiltinPreview({ id, D, config }) {
+  const Comp = WIDGET_COMPONENTS[id];
+  if (!Comp) return <div className="wp-skel">—</div>;
+  return <Comp D={D} onNav={() => {}} mode="card" variant="s" config={config} />;
+}
+
+// Picker'da custom (widget-builder) widget'ın önizlemesini previewQuery ile çeker
+function CustomPreview({ def }) {
+  const [st, setSt] = useState({ loading: true });
+  useEffect(() => {
+    let alive = true;
+    if (!def?.queryConfig) { setSt({ loading: false, error: true }); return; }
+    dashboardService.previewQuery(def.queryConfig)
+      .then(res => { if (alive) setSt(res?.success
+        ? { loading: false, data: res.data, columns: res.columns }
+        : { loading: false, error: true }); })
+      .catch(() => { if (alive) setSt({ loading: false, error: true }); });
+    return () => { alive = false; };
+  }, [def]);
+
+  if (st.loading) return <div className="wp-skel">Önizleme yükleniyor…</div>;
+  if (st.error || !st.data || st.data.length === 0) return <div className="wp-skel">Önizleme yok</div>;
+  return (
+    <DataWidget
+      data={{ data: st.data, columns: st.columns }}
+      config={{ visualConfig: def.visualConfig || {} }}
+      mode="card"
+      variant="s"
+    />
   );
 }
 

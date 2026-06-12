@@ -101,14 +101,17 @@ public class UserService {
 
 
     public void incrementFailedLoginAttempts(String email) {
-        User user = findUserByEmail(email);
-        int attempts = user.getFailedLoginAttempts() + 1;
-        user.setFailedLoginAttempts(attempts);
-        if (attempts >= maxLoginAttempts) {
-            user.setLocked(true);
-            log.warn("User account locked after {} failed attempts email={}", attempts, email);
-        }
-        userRepository.save(user);
+        // Kullanıcı yoksa sessizce dön: aksi halde kayıtsız e-posta ile login,
+        // user enumeration'a yol açan 500 + e-posta sızıntısı üretir.
+        userRepository.findByEmail(email).ifPresent(user -> {
+            int attempts = user.getFailedLoginAttempts() + 1;
+            user.setFailedLoginAttempts(attempts);
+            if (attempts >= maxLoginAttempts) {
+                user.setLocked(true);
+                log.warn("User account locked after {} failed attempts email={}", attempts, email);
+            }
+            userRepository.save(user);
+        });
     }
 
 

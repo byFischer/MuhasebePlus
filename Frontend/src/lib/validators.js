@@ -33,7 +33,9 @@ export function validateTCKN(t) {
   const d = s.split('').map(Number);
   const odd = d[0] + d[2] + d[4] + d[6] + d[8];
   const even = d[1] + d[3] + d[5] + d[7];
-  const c10 = (odd * 7 - even) % 10;
+  // JS'te % negatif sonuç verebilir; (7*odd < even) olan geçerli TCKN'ler
+  // yanlışlıkla reddedilmesin diye pozitif modülo kullanılır.
+  const c10 = (((odd * 7 - even) % 10) + 10) % 10;
   const c11 = (d.slice(0, 10).reduce((a, b) => a + b, 0)) % 10;
   if (c10 !== d[9] || c11 !== d[10]) return { ok: false, msg: 'TCKN algoritma hatası' };
   return { ok: true };

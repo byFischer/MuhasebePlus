@@ -1,23 +1,23 @@
 /* MuhasebePlus — design system */
 
 :root {
-  /* Sıcak beyaz — göz yormayan, Claude warm-cream tonu */
-  --bg: oklch(0.975 0.008 68);
-  --bg-elev: oklch(0.968 0.010 68);
-  --bg-2: oklch(0.954 0.013 68);
-  --surface: oklch(0.992 0.005 68);
-  --ink: oklch(0.215 0.010 40);
-  --ink-2: oklch(0.420 0.009 40);
-  --ink-3: oklch(0.605 0.007 40);
-  --line: oklch(0.912 0.010 68);
-  --line-2: oklch(0.878 0.014 68);
+  /* Serin beyaz — nötr/hafif mavi tint (turuncu tint kaldırıldı) */
+  --bg: oklch(0.975 0.006 245);
+  --bg-elev: oklch(0.968 0.008 245);
+  --bg-2: oklch(0.954 0.010 245);
+  --surface: oklch(0.992 0.004 245);
+  --ink: oklch(0.215 0.008 245);
+  --ink-2: oklch(0.420 0.008 245);
+  --ink-3: oklch(0.605 0.006 245);
+  --line: oklch(0.912 0.008 245);
+  --line-2: oklch(0.878 0.012 245);
 
-  /* Claude turuncu — #D97757 */
-  --accent: oklch(0.630 0.148 38);
-  --accent-hover: oklch(0.565 0.155 38);
-  --accent-ink: oklch(0.400 0.140 38);
-  --accent-soft: oklch(0.950 0.030 65);
-  --accent-line: oklch(0.872 0.065 55);
+  /* Mavi accent — dark theme ile uyumlu (hue 245) */
+  --accent: oklch(0.580 0.180 245);
+  --accent-hover: oklch(0.520 0.190 245);
+  --accent-ink: oklch(0.420 0.150 245);
+  --accent-soft: oklch(0.950 0.030 245);
+  --accent-line: oklch(0.872 0.060 245);
 
   --pos: oklch(0.50 0.13 155);
   --pos-soft: oklch(0.96 0.04 155);
@@ -1195,9 +1195,46 @@ button.filter:hover {
   font-family: var(--mono); font-size: 10px;
   background: var(--bg-2); border: 1px solid var(--line); padding: 1px 5px; border-radius: 3px;
 }
-.widget-picker { width: 600px; max-width: 92vw; }
+.widget-picker { width: 760px; max-width: 94vw; }
 .widget-pick-item { padding: 10px 12px; align-items: flex-start; gap: 12px; }
 .widget-pick-item .widget-item-icon { width: 32px; height: 32px; flex: 0 0 32px; border-radius: 8px; }
+
+/* Widget picker — canlı önizlemeli 2 kolon grid */
+.wp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 6px; }
+.wp-card {
+  display: flex; flex-direction: column; text-align: left; padding: 0;
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-md);
+  overflow: hidden; cursor: pointer;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.wp-card:hover { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.wp-card-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-bottom: 1px solid var(--line);
+}
+.wp-card-icon {
+  width: 24px; height: 24px; flex: 0 0 24px; border-radius: 6px;
+  background: var(--accent-soft); color: var(--accent-ink);
+  display: grid; place-items: center;
+}
+.wp-card-title { font-size: 12.5px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wp-card-tag {
+  margin-left: auto; flex: 0 0 auto; font-size: 9px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--accent-ink); background: var(--accent-soft);
+  padding: 2px 6px; border-radius: 999px;
+}
+.wp-card-body {
+  height: 138px; overflow: hidden; padding: 10px;
+  pointer-events: none; background: var(--surface);
+}
+.wp-card-desc {
+  font-size: 11px; color: var(--ink-3);
+  padding: 7px 10px; border-top: 1px solid var(--line);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.wp-skel { height: 100%; display: grid; place-items: center; font-size: 11.5px; color: var(--ink-3); }
+@media (max-width: 560px) { .wp-grid { grid-template-columns: 1fr; } }
 
 /* ============ DAILY BRIEF WIDGET ============ */
 .dbrief { display: flex; flex-direction: column; gap: 6px; }

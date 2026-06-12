@@ -173,10 +173,13 @@ public class DynamicQueryService {
                 .map(t -> tupleToMap(t, groupByList, aggregateAlias))
                 .collect(Collectors.toList());
 
-        Map<String, Object> aggregateMeta = Map.of(
-                "function", aggregate != null ? aggregate.function() : null,
-                "field", aggregate != null ? aggregate.field() : null
-        );
+        // Map.of null value kabul etmez (NPE). Aggregate'siz veya field'sız (COUNT *)
+        // sorgular için null-güvenli HashMap kullan.
+        Map<String, Object> aggregateMeta = new HashMap<>();
+        if (aggregate != null) {
+            aggregateMeta.put("function", aggregate.function());
+            aggregateMeta.put("field", aggregate.field());
+        }
 
         return new QueryResult(rows, buildColumnMeta(groupByList, aggregate, aggregateAlias), aggregateMeta, (long) rows.size());
     }
