@@ -1633,3 +1633,88 @@ button.filter:hover {
     opacity: 1;
   }
 }
+
+/* ============ PANEL (kart benzeri kapsayıcı — builder & widget yöneticisi) ============ */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 20px;
+}
+
+/* ============ WIDGET BUILDER ============ */
+.wb-layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: start; }
+@media (max-width: 980px) { .wb-layout { grid-template-columns: 1fr; } }
+
+.wb-steps { display: flex; align-items: center; gap: 8px; margin-bottom: 22px; }
+.wb-step {
+  display: flex; align-items: center; gap: 8px; padding: 8px 14px;
+  border-radius: 999px; border: 1px solid var(--line); cursor: pointer;
+  background: var(--bg-2); color: var(--ink-3);
+  font-size: 13px; font-weight: 500; transition: background .15s, color .15s, border-color .15s;
+}
+.wb-step:hover { border-color: var(--accent-line); }
+.wb-step.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.wb-step.done   { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent-ink); }
+.wb-step-num {
+  width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--surface); color: var(--ink-3); font-size: 11px; font-weight: 700;
+}
+.wb-step.active .wb-step-num { background: rgba(255,255,255,0.25); color: #fff; }
+.wb-step.done .wb-step-num   { background: var(--accent); color: #fff; }
+.wb-step-bar { flex: 1; height: 2px; border-radius: 1px; background: var(--bg-2); min-width: 12px; }
+.wb-step-bar.filled { background: var(--accent-line); }
+
+.wb-sec { border-top: 1px solid var(--line); padding-top: 16px; margin-top: 4px; }
+.wb-sec-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+.wb-sec-sub { font-size: 12px; color: var(--ink-3); margin-top: 2px; margin-bottom: 10px; }
+
+.wb-opt-grid { display: grid; gap: 10px; }
+.wb-opt-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+.wb-opt-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 560px) { .wb-opt-grid.cols-2, .wb-opt-grid.cols-3 { grid-template-columns: 1fr; } }
+.wb-opt {
+  display: flex; flex-direction: column; gap: 4px; text-align: left;
+  padding: 13px 14px; border-radius: var(--r-md); cursor: pointer;
+  background: var(--bg); border: 1.5px solid var(--line);
+  transition: background .12s, border-color .12s;
+}
+.wb-opt:hover { border-color: var(--accent-line); background: var(--bg-2); }
+.wb-opt.sel { border-color: var(--accent); background: var(--accent-soft); }
+.wb-opt.sel .wb-opt-title { color: var(--accent-ink); }
+.wb-opt-title { font-weight: 600; font-size: 14px; color: var(--ink); }
+.wb-opt-desc { font-size: 11px; color: var(--ink-3); line-height: 1.3; }
+.wb-opt-center { align-items: center; text-align: center; gap: 6px; }
+.wb-opt-center .wb-opt-icon { color: var(--ink-2); }
+.wb-opt-center.sel .wb-opt-icon { color: var(--accent-ink); }
+
+.wb-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.wb-chip {
+  padding: 6px 13px; border-radius: 999px; cursor: pointer;
+  background: var(--bg); border: 1px solid var(--line);
+  font-size: 12.5px; font-weight: 500; color: var(--ink-2);
+  transition: background .12s, color .12s, border-color .12s;
+}
+.wb-chip:hover { border-color: var(--accent-line); }
+.wb-chip.sel { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.wb-swatches { display: flex; gap: 10px; }
+.wb-swatch {
+  width: 30px; height: 30px; border-radius: 50%; cursor: pointer; padding: 0;
+  border: 2px solid transparent; transition: transform .1s;
+}
+.wb-swatch:hover { transform: scale(1.12); }
+.wb-swatch.sel { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
+
+.wb-filter { display: flex; gap: 8px; align-items: center; background: var(--bg-2); padding: 10px; border-radius: var(--r-md); flex-wrap: wrap; }
+
+.wb-field-label { font-size: 12px; font-weight: 500; color: var(--ink-2); }
+
+.wb-nav { display: flex; align-items: center; justify-content: space-between; margin-top: 22px; border-top: 1px solid var(--line); padding-top: 16px; }
+
+.wb-preview { position: sticky; top: 16px; }
+.wb-preview-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.wb-preview-empty {
+  border: 1.5px dashed var(--line); border-radius: var(--r-md);
+  padding: 28px 20px; text-align: center; font-size: 12.5px; color: var(--ink-3); line-height: 1.6;
+}
