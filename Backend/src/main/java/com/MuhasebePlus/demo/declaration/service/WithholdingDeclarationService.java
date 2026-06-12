@@ -39,7 +39,8 @@ public class WithholdingDeclarationService {
                         throw new BusinessException("Bu dönem Muhtasar beyannamesi zaten onaylanmış");
                     existing.setDeleted(true);
                     existing.setDeletedAt(LocalDateTime.now());
-                    repository.save(existing);
+                    // Eski kaydın soft-delete'i yeni INSERT'ten önce DB'ye yazılsın
+                    repository.saveAndFlush(existing);
                 });
 
         List<InvoiceVatSummary> withholdingSummaries =

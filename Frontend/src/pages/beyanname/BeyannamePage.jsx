@@ -34,7 +34,7 @@ function Kdv1Tab() {
       periodType="MONTH"
       typeName="KDV1"
       declarationType="KDV1"
-      onGenerate={({ year, month }) => generate.mutate({ year, month })}
+      onGenerate={({ year, month }, opts) => generate.mutate({ year, month }, opts)}
       isGeneratePending={generate.isPending}
       onFinalize={(id) => finalize.mutate(id)}
       isFinalizePending={finalize.isPending}
@@ -61,7 +61,7 @@ function Kdv2Tab() {
       periodType="MONTH"
       typeName="KDV2"
       declarationType="KDV2"
-      onGenerate={({ year, month }) => generate.mutate({ type: 'KDV2', year, period: month })}
+      onGenerate={({ year, month }, opts) => generate.mutate({ type: 'KDV2', year, period: month }, opts)}
       isGeneratePending={generate.isPending}
       onFinalize={(id) => finalize.mutate(id)}
       isFinalizePending={finalize.isPending}
@@ -87,7 +87,7 @@ function MuhtasarTab() {
       periodType="MONTH"
       typeName="Muhtasar"
       declarationType="MUHTASAR"
-      onGenerate={({ year, month }) => generate.mutate({ year, month })}
+      onGenerate={({ year, month }, opts) => generate.mutate({ year, month }, opts)}
       isGeneratePending={generate.isPending}
       onFinalize={(id) => finalize.mutate(id)}
       isFinalizePending={finalize.isPending}
@@ -113,7 +113,7 @@ function BaBsTab() {
       periodType="MONTH"
       typeName={babsType === 'BA' ? 'Ba Formu (Alış)' : 'Bs Formu (Satış)'}
       declarationType={babsType}
-      onGenerate={({ year, month }) => generate.mutate({ year, month, type: babsType })}
+      onGenerate={({ year, month }, opts) => generate.mutate({ year, month, type: babsType }, opts)}
       isGeneratePending={generate.isPending}
       onFinalize={(id) => finalize.mutate(id)}
       isFinalizePending={finalize.isPending}
@@ -143,7 +143,7 @@ function GeciciVergiTab() {
       periodType="QUARTER"
       typeName="Geçici Vergi"
       declarationType="GECICI_VERGI"
-      onGenerate={({ year, period }) => generate.mutate({ type: 'TEMPORARY_TAX', year, period })}
+      onGenerate={({ year, period }, opts) => generate.mutate({ type: 'TEMPORARY_TAX', year, period }, opts)}
       isGeneratePending={generate.isPending}
       onFinalize={(id) => finalize.mutate(id)}
       isFinalizePending={finalize.isPending}
@@ -168,7 +168,7 @@ function KurumlarTab() {
       periodType="YEAR"
       typeName="Kurumlar Vergisi"
       declarationType="KURUMLAR_VERGISI"
-      onGenerate={({ year }) => generate.mutate({ type: 'CORPORATE_TAX', year, period: 0 })}
+      onGenerate={({ year }, opts) => generate.mutate({ type: 'CORPORATE_TAX', year, period: 0 }, opts)}
       isGeneratePending={generate.isPending}
       onFinalize={(id) => finalize.mutate(id)}
       isFinalizePending={finalize.isPending}

@@ -51,7 +51,9 @@ public class VatDeclarationService {
                     }
                     existing.setDeleted(true);
                     existing.setDeletedAt(LocalDateTime.now());
-                    declarationRepository.save(existing);
+                    // saveAndFlush: eski kaydın is_deleted=true güncellemesi, yeni kaydın
+                    // INSERT'inden ÖNCE DB'ye yazılsın (partial unique index çakışmasını önler)
+                    declarationRepository.saveAndFlush(existing);
                 });
 
         // Satış KDV kırılımları

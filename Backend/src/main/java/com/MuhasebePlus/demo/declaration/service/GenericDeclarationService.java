@@ -48,7 +48,8 @@ public class GenericDeclarationService {
                         throw new BusinessException("Bu dönem " + type + " beyannamesi zaten onaylanmış");
                     existing.setDeleted(true);
                     existing.setDeletedAt(LocalDateTime.now());
-                    repository.save(existing);
+                    // Eski kaydın soft-delete'i yeni INSERT'ten önce DB'ye yazılsın
+                    repository.saveAndFlush(existing);
                 });
 
         Map<String, Object> snapshot;
