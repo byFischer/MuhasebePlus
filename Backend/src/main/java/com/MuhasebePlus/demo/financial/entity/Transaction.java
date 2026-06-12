@@ -66,8 +66,8 @@ public class Transaction extends SoftDeletableEntity {
     private TransactionType transactionType;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "transaction_category", length = 30)
-    private TransactionCategory transactionCategory;
+    @Column(name = "transaction_category", length = 30, nullable = false)
+    private TransactionCategory transactionCategory = TransactionCategory.GENERAL;
 
     @Column(name = "amount", precision = 15, scale = 2)
     private BigDecimal amount;
