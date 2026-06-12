@@ -41,9 +41,7 @@ export default function InvoicePaymentPage() {
   const { data: payments = [] } = useInvoicePayments(selectedInvoiceId);
   const { data: promises = [] } = useInvoicePromises(selectedInvoiceId);
   const { data: lateFeeData } = useLateFee(selectedInvoiceId);
-  const createMut = useCreateInvoicePayment(selectedInvoiceId);
   const deleteMut = useDeleteInvoicePayment(selectedInvoiceId);
-  const createPromiseMut = useCreatePromise(selectedInvoiceId);
   const fulfillPromiseMut = useFulfillPromise(selectedInvoiceId);
 
   const filteredInvoices = useMemo(
@@ -84,14 +82,96 @@ export default function InvoicePaymentPage() {
     setFormOpen(true);
   };
 
-  const cancelPaymentForm = () => {
+  // Form Vazgeç/X → formu kapat, seçili faturanın detayını göstermeye devam et
+  const closeForm = () => setFormOpen(false);
+
+  // Ödeme kaydedildikten sonra: kısmi ödemede detay açık kalır;
+  // fatura tamamen ödendiyse seçim kapatılır (paid fatura listeden de düşer)
+  const handlePaymentSuccess = (fullyPaid) => {
     setFormOpen(false);
-    setSelectedInvoiceId(null);
+    if (fullyPaid) setSelectedInvoiceId(null);
   };
 
-  const closePaymentFormKeepDetail = () => {
-    setFormOpen(false);
-  };
+  // Seçili faturanın detayı — satırın hemen altında inline gösterilir
+  const detailPanel = (selectedInvoice && !formOpen) ? (
+    <div style={{ background: 'var(--bg-2)', padding: '16px 20px', borderBottom: '1px solid var(--line)' }}>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+          {payments.length} {tab === 'sale' ? 'tahsilat' : 'ödeme'} kaydı
+          {' · '}{tab === 'sale' ? 'Tahsil edilen' : 'Ödenen'}: <span className="mono" style={{ color: 'var(--pos)' }}>{TRY(totalPaid)}</span>
+          {' · '}Kalan: <span className="mono" style={{ color: remaining > 0 ? 'var(--neg)' : 'var(--pos)' }}>{TRY(remaining)}</span>
+          {lateFeeData?.lateFee > 0 && (
+            <span style={{ marginLeft: 8, color: 'var(--neg)' }}>{' · '}Gecikme faizi: <span className="mono">{TRY(lateFeeData.lateFee)}</span></span>
+          )}
+        </div>
+        <div className="row gap-8">
+          <button
+            className="btn primary sm"
+            onClick={() => setFormOpen(true)}
+            disabled={selectedInvoice.paymentStatus === 'paid'}
+          >
+            <Icon name="plus" size={12} /> {tab === 'sale' ? 'Yeni Tahsilat' : 'Yeni Ödeme'}
+          </button>
+          <button className="btn ghost sm" onClick={() => setSelectedInvoiceId(null)}>
+            <Icon name="x" size={12} /> Kapat
+          </button>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr><th>ID</th><th>Tarih</th><th>Tutar</th><th>Yöntem</th><th>Hesap</th><th>Notlar</th><th></th></tr>
+            </thead>
+            <tbody>
+              {pagedPayments.map((p) => (
+                <tr key={p.paymentId}>
+                  <td className="mono">{p.paymentId}</td>
+                  <td>{p.paymentDate}</td>
+                  <td className="num mono tnum"><b>{TRY(p.amount)}</b></td>
+                  <td><PaymentMethodPill method={p.paymentMethod} /></td>
+                  <td className="muted">{p.bankAccountName || '—'}</td>
+                  <td className="muted" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.notes || '—'}</td>
+                  <td>
+                    <button className="tb-icon-btn" title="Sil" onClick={() => { if (window.confirm('Bu kaydı silmek istediğinize emin misiniz?')) deleteMut.mutate(p.paymentId); }}>
+                      <Icon name="trash" size={14} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {pagedPayments.length === 0 && <tr><td colSpan="7" className="empty">Henüz {tab === 'sale' ? 'tahsilat' : 'ödeme'} kaydı yok</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        <Pagination page={page} totalPages={paymentTotalPages} setPage={setPage} pageStart={paymentPageStart} pageEnd={paymentPageEnd} total={payments.length} />
+      </div>
+
+      <div className="card">
+        <div className="toolbar">
+          <div style={{ fontSize: 13, fontWeight: 600 }}>Tahsilat Sözleri</div>
+        </div>
+        <div className="table-wrap">
+          <table className="table">
+            <thead><tr><th>Söz Tarihi</th><th className="num">Tutar</th><th>Not</th><th>Durum</th><th></th></tr></thead>
+            <tbody>
+              {promises.map(p => (
+                <tr key={p.promiseId}>
+                  <td>{p.promisedDate}</td>
+                  <td className="num mono tnum">{TRY(p.promisedAmount)}</td>
+                  <td className="muted">{p.notes || '—'}</td>
+                  <td>{p.fulfilled ? <span className="pill pos">✅ Gerçekleşti</span> : <span className="pill warn">⏳ Bekliyor</span>}</td>
+                  <td>{!p.fulfilled && <button className="btn ghost sm" onClick={() => fulfillPromiseMut.mutate(p.promiseId)}>Gerçekleştir</button>}</td>
+                </tr>
+              ))}
+              {promises.length === 0 && <tr><td colSpan="5" className="empty">Henüz tahsilat sözü yok</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        <PromiseForm invoiceId={selectedInvoiceId} />
+      </div>
+    </div>
+  ) : null;
 
   return (
     <div className="page">
@@ -158,10 +238,15 @@ export default function InvoicePaymentPage() {
                             invoice={inv}
                             remaining={invRemaining}
                             invoiceType={tab}
-                            onCancel={cancelPaymentForm}
-                            onSuccess={closePaymentFormKeepDetail}
+                            onCancel={closeForm}
+                            onSuccess={handlePaymentSuccess}
                           />
                         </td>
+                      </tr>
+                    )}
+                    {isSelected && !formOpen && detailPanel && (
+                      <tr>
+                        <td colSpan="8" style={{ padding: 0 }}>{detailPanel}</td>
                       </tr>
                     )}
                   </React.Fragment>
@@ -173,124 +258,6 @@ export default function InvoicePaymentPage() {
         </div>
         <Pagination page={invoicePage} totalPages={invoiceTotalPages} setPage={setInvoicePage} pageStart={invoicePageStart} pageEnd={invoicePageEnd} total={filteredInvoices.length} />
       </div>
-
-      {selectedInvoice && !formOpen && (
-        <>
-          <div className="row gap-12" style={{ marginBottom: 16, flexWrap: 'wrap' }}>
-            <div className="card" style={{ flex: 1, minWidth: 180 }}>
-              <div className="muted" style={{ fontSize: 12 }}>Fatura No</div>
-              <div className="mono" style={{ fontWeight: 600 }}>{selectedInvoice.invoiceNumber}</div>
-            </div>
-            <div className="card" style={{ flex: 1, minWidth: 180 }}>
-              <div className="muted" style={{ fontSize: 12 }}>Toplam Tutar</div>
-              <div className="mono" style={{ fontWeight: 600 }}>{TRY(selectedInvoice.totalAmount)}</div>
-            </div>
-            <div className="card" style={{ flex: 1, minWidth: 180 }}>
-              <div className="muted" style={{ fontSize: 12 }}>{tab === 'sale' ? 'Tahsil Edilen' : 'Ödenen'}</div>
-              <div className="mono" style={{ fontWeight: 600, color: 'var(--pos)' }}>{TRY(totalPaid)}</div>
-            </div>
-            <div className="card" style={{ flex: 1, minWidth: 180 }}>
-              <div className="muted" style={{ fontSize: 12 }}>Kalan</div>
-              <div className="mono" style={{ fontWeight: 600, color: remaining > 0 ? 'var(--neg)' : 'var(--pos)' }}>{TRY(remaining)}</div>
-            </div>
-            {lateFeeData?.lateFee > 0 && (
-              <div className="card" style={{ flex: 1, minWidth: 180 }}>
-                <div className="muted" style={{ fontSize: 12 }}>Gecikme Faizi</div>
-                <div className="mono" style={{ fontWeight: 600, color: 'var(--neg)' }}>{TRY(lateFeeData.lateFee)}</div>
-              </div>
-            )}
-            <div className="card" style={{ flex: 1, minWidth: 140 }}>
-              <div className="muted" style={{ fontSize: 12 }}>Durum</div>
-              <StatusPill status={selectedInvoice.paymentStatus} />
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="toolbar">
-              <div style={{ fontSize: 13, color: 'var(--ink-2)' }}>
-                {payments.length} {tab === 'sale' ? 'tahsilat' : 'ödeme'} kaydı
-                <button className="btn ghost sm" style={{ marginLeft: 12 }} onClick={() => setSelectedInvoiceId(null)}>
-                  <Icon name="x" size={12} /> Kapat
-                </button>
-              </div>
-              <div className="page-actions">
-                <button
-                  className="btn primary"
-                  onClick={() => setFormOpen(true)}
-                  disabled={selectedInvoice.paymentStatus === 'paid'}
-                >
-                  <Icon name="plus" /> {tab === 'sale' ? 'Yeni Tahsilat' : 'Yeni Ödeme'}
-                </button>
-              </div>
-            </div>
-
-            {selectedInvoice.paymentStatus === 'paid' && (
-              <div style={{ padding: '8px 12px', background: 'var(--pos)', color: '#fff', borderRadius: 'var(--r-md)', fontSize: 13, marginBottom: 12 }}>
-                Bu fatura tamamen {tab === 'sale' ? 'tahsil edilmiştir' : 'ödenmiştir'}.
-              </div>
-            )}
-
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Tarih</th>
-                    <th>Tutar</th>
-                    <th>Yöntem</th>
-                    <th>Hesap</th>
-                    <th>Notlar</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pagedPayments.map((p) => (
-                    <tr key={p.paymentId}>
-                      <td className="mono">{p.paymentId}</td>
-                      <td>{p.paymentDate}</td>
-                      <td className="num mono tnum"><b>{TRY(p.amount)}</b></td>
-                      <td><PaymentMethodPill method={p.paymentMethod} /></td>
-                      <td className="muted">{p.bankAccountName || '—'}</td>
-                      <td className="muted" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.notes || '—'}</td>
-                      <td>
-                        <button className="tb-icon-btn" title="Sil" onClick={() => { if (window.confirm('Bu kaydı silmek istediğinize emin misiniz?')) deleteMut.mutate(p.paymentId); }}>
-                          <Icon name="trash" size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {pagedPayments.length === 0 && <tr><td colSpan="7" className="empty">Henüz {tab === 'sale' ? 'tahsilat' : 'ödeme'} kaydı yok</td></tr>}
-                </tbody>
-              </table>
-            </div>
-            <Pagination page={page} totalPages={paymentTotalPages} setPage={setPage} pageStart={paymentPageStart} pageEnd={paymentPageEnd} total={payments.length} />
-          </div>
-
-          <div className="card" style={{ marginTop: 16 }}>
-            <div className="toolbar">
-              <div style={{ fontSize: 13, fontWeight: 600 }}>Tahsilat Sözleri</div>
-            </div>
-            <div className="table-wrap">
-              <table className="table">
-                <thead><tr><th>Söz Tarihi</th><th className="num">Tutar</th><th>Not</th><th>Durum</th><th></th></tr></thead>
-                <tbody>
-                  {promises.map(p => (
-                    <tr key={p.promiseId}>
-                      <td>{p.promisedDate}</td>
-                      <td className="num mono tnum">{TRY(p.promisedAmount)}</td>
-                      <td className="muted">{p.notes || '—'}</td>
-                      <td>{p.fulfilled ? <span className="pill pos">✅ Gerçekleşti</span> : <span className="pill warn">⏳ Bekliyor</span>}</td>
-                      <td>{!p.fulfilled && <button className="btn ghost sm" onClick={() => fulfillPromiseMut.mutate(p.promiseId)}>Gerçekleştir</button>}</td>
-                    </tr>
-                  ))}
-                  {promises.length === 0 && <tr><td colSpan="5" className="empty">Henüz tahsilat sözü yok</td></tr>}
-                </tbody>
-              </table>
-            </div>
-            <PromiseForm invoiceId={selectedInvoiceId} />
-          </div>
-        </>
-      )}
     </div>
   );
 }
@@ -328,13 +295,14 @@ function InlinePaymentForm({ invoice, remaining, invoiceType, onCancel, onSucces
 
   const save = () => {
     if (!valid || !invoice) return;
+    const fullyPaid = f.amountCents >= remainingCents;
     createMut.mutate({
       amount: f.amountCents / 100,
       paymentDate: f.paymentDate,
       paymentMethod: f.paymentMethod,
       bankAccountId: Number(f.bankAccountId),
       notes: f.notes.trim() || undefined,
-    }, { onSuccess });
+    }, { onSuccess: () => onSuccess?.(fullyPaid) });
   };
 
   const isSale = invoiceType === 'sale';

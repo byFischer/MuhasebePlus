@@ -215,7 +215,8 @@ public class InvoicePaymentService implements HardDeletable {
         Invoice invoice = findActiveInvoice(invoiceId, companyId);
 
         PaymentStatus currentStatus = invoice.getPaymentStatus();
-        if (currentStatus == PaymentStatus.draft || currentStatus == PaymentStatus.overdue) {
+        // Taslak faturalar otomatik durum değiştirmez; ödeme de alınamaz.
+        if (currentStatus == PaymentStatus.draft) {
             return;
         }
 
@@ -223,12 +224,15 @@ public class InvoicePaymentService implements HardDeletable {
         BigDecimal totalAmount = invoice.getTotalAmount();
 
         PaymentStatus newStatus;
-        if (paidTotal.compareTo(BigDecimal.ZERO) == 0) {
-            newStatus = PaymentStatus.pending;
-        } else if (paidTotal.compareTo(totalAmount) >= 0) {
+        if (paidTotal.compareTo(totalAmount) >= 0) {
+            // Tam ödendi — vadesi geçmiş (overdue) olsa bile artık paid
             newStatus = PaymentStatus.paid;
+        } else if (paidTotal.compareTo(BigDecimal.ZERO) > 0) {
+            // Kısmen ödendi — hâlâ vadesi geçmişse overdue kalsın, değilse partially_paid
+            newStatus = (currentStatus == PaymentStatus.overdue) ? PaymentStatus.overdue : PaymentStatus.partially_paid;
         } else {
-            newStatus = PaymentStatus.partially_paid;
+            // Hiç ödeme yok (ör. tüm ödemeler silindi) — overdue ise overdue kalsın, değilse pending
+            newStatus = (currentStatus == PaymentStatus.overdue) ? PaymentStatus.overdue : PaymentStatus.pending;
         }
 
         if (newStatus != currentStatus) {
