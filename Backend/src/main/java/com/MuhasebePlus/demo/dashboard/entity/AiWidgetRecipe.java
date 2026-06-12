@@ -6,6 +6,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Data
@@ -22,6 +24,7 @@ public class AiWidgetRecipe extends BaseEntity {
     @Column(name = "user_prompt", columnDefinition = "TEXT")
     private String userPrompt;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "generated_config", columnDefinition = "jsonb")
     private String generatedConfig;
 
