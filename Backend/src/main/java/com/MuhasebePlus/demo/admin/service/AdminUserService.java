@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Cross-tenant kullanıcı yönetimi. Tüm metotlar şirket (company_id) filtresi
@@ -143,7 +144,7 @@ public class AdminUserService {
                 predicates.add(cb.equal(root.get("role"), parseRole(role)));
             }
             if (status != null && !status.isBlank()) {
-                switch (status.toUpperCase()) {
+                switch (status.toUpperCase(Locale.ROOT)) {
                     case "ACTIVE" -> {
                         predicates.add(cb.isTrue(root.get("isActive")));
                         predicates.add(cb.isFalse(root.get("isLocked")));
@@ -159,7 +160,7 @@ public class AdminUserService {
 
     private UserRole parseRole(String role) {
         try {
-            return UserRole.valueOf(role.trim().toUpperCase());
+            return UserRole.valueOf(role.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
             throw new BusinessException("Geçersiz rol: " + role);
         }

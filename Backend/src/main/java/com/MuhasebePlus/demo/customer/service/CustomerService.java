@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -628,7 +629,7 @@ public class CustomerService implements HardDeletable {
     private CustomerType parseCustomerType(String value) {
         if (value == null || value.isBlank()) return CustomerType.CORPORATE;
         try {
-            return CustomerType.valueOf(value.trim().toUpperCase());
+            return CustomerType.valueOf(value.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
             return CustomerType.CORPORATE;
         }
@@ -637,7 +638,7 @@ public class CustomerService implements HardDeletable {
     private CustomerRole parseCustomerRole(String value) {
         if (value == null || value.isBlank()) return CustomerRole.BOTH;
         try {
-            return CustomerRole.valueOf(value.trim().toUpperCase());
+            return CustomerRole.valueOf(value.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
             return CustomerRole.BOTH;
         }
@@ -646,7 +647,7 @@ public class CustomerService implements HardDeletable {
     private Currency parseCurrency(String value) {
         if (value == null || value.isBlank()) return null;
         try {
-            return Currency.valueOf(value.trim().toUpperCase());
+            return Currency.valueOf(value.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
             return null;
         }

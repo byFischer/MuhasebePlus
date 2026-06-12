@@ -52,6 +52,88 @@ class ChartOfAccountServiceTest {
         when(companyRepository.getReferenceById(COMPANY_ID)).thenReturn(company);
     }
 
+    @Test
+    void getAll_returnsCompanyAccountsMappedToResponseDtos() {
+        ChartOfAccount cash = account(1L, "100", "Kasa", AccountType.ASSET, null, true);
+        ChartOfAccount bank = account(2L, "102", "Bankalar", AccountType.ASSET, null, true);
+        when(accountRepository.findByCompanyCompanyIdAndIsDeletedFalseOrderByAccountCodeAsc(COMPANY_ID))
+                .thenReturn(List.of(cash, bank));
+
+        List<ChartOfAccountResponseDto> result = service.getAll();
+
+        assertThat(result).extracting(ChartOfAccountResponseDto::accountCode)
+                .containsExactly("100", "102");
+    }
+
+    @Test
+    void getById_whenAccountBelongsToCompany_returnsAccount() {
+        ChartOfAccount account = account(10L, "320", "Saticilar", AccountType.LIABILITY, null, true);
+        when(accountRepository.findById(10L)).thenReturn(Optional.of(account));
+
+        ChartOfAccountResponseDto result = service.getById(10L);
+
+        assertThat(result.accountId()).isEqualTo(10L);
+        assertThat(result.accountCode()).isEqualTo("320");
+    }
+
+    @Test
+    void getById_whenAccountBelongsToAnotherCompany_throwsBusinessException() {
+        Company otherCompany = new Company();
+        otherCompany.setCompanyId(99L);
+        ChartOfAccount account = account(10L, "320", "Saticilar", AccountType.LIABILITY, null, true);
+        account.setCompany(otherCompany);
+        when(accountRepository.findById(10L)).thenReturn(Optional.of(account));
+
+        assertThatThrownBy(() -> service.getById(10L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("10");
+    }
+
+    @Test
+    void copyTdhpForCompany_whenNoTemplateExists_doesNothing() {
+        when(accountRepository.findByCompanyCompanyId(0L)).thenReturn(List.of());
+
+        service.copyTdhpForCompany(COMPANY_ID);
+
+        verify(companyRepository, never()).getReferenceById(COMPANY_ID);
+        verify(accountRepository, never()).save(any());
+    }
+
+    @Test
+    void findByCode_delegatesToCompanyScopedActiveLookup() {
+        ChartOfAccount account = account(10L, "600", "Yurtici Satislar", AccountType.INCOME, null, true);
+        when(accountRepository.findByCompanyCompanyIdAndAccountCodeAndIsDeletedFalse(COMPANY_ID, "600"))
+                .thenReturn(Optional.of(account));
+
+        assertThat(service.findByCode(COMPANY_ID, "600")).contains(account);
+    }
+
+    @Test
+    void findByAccountId_whenAccountIsActive_returnsAccount() {
+        ChartOfAccount account = account(10L, "100", "Kasa", AccountType.ASSET, null, true);
+        when(accountRepository.findById(10L)).thenReturn(Optional.of(account));
+
+        assertThat(service.findByAccountId(10L)).contains(account);
+    }
+
+    @Test
+    void getOrCreateLeafAccount_whenNoSiblingsOrParent_createsFirstLeafWithoutParentId() {
+        when(accountRepository.findByCompanyCompanyIdAndAccountCodeStartingWithAndIsDeletedFalse(COMPANY_ID, "320."))
+                .thenReturn(List.of());
+        when(accountRepository.findByCompanyCompanyIdAndAccountCodeAndIsDeletedFalse(COMPANY_ID, "320"))
+                .thenReturn(Optional.empty());
+        when(accountRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        String newCode = service.getOrCreateLeafAccount(COMPANY_ID, "320", "ABC Tedarikci", AccountType.LIABILITY);
+
+        assertThat(newCode).isEqualTo("320.00.001");
+        verify(accountRepository).save(org.mockito.ArgumentMatchers.argThat(account ->
+                account.getParentId() == null
+                        && account.getAccountCode().equals("320.00.001")
+                        && account.getAccountType() == AccountType.LIABILITY
+        ));
+    }
+
     // Tests creating a duplicate account code is blocked.
     @Test
     void create_whenAccountCodeExists_throwsBusinessException() {

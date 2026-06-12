@@ -28,6 +28,7 @@ import com.MuhasebePlus.demo.invoice.repository.CollectionPromiseRepository;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceLineItemRepository;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceRepository;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceSeriesRepository;
+import com.MuhasebePlus.demo.invoice.repository.InvoiceVatSummaryRepository;
 import com.MuhasebePlus.demo.log.service.SystemLogService;
 import com.MuhasebePlus.demo.period.service.AccountingPeriodGuard;
 import com.MuhasebePlus.demo.stock.entity.MovementType;
@@ -79,6 +80,7 @@ class InvoiceServiceTest {
     @Mock private CollectionPromiseRepository promiseRepository;
     @Mock private AccountingPeriodGuard periodGuard;
     @Mock private JournalEntryService journalEntryService;
+    @Mock private InvoiceVatSummaryRepository vatSummaryRepository;
 
     @InjectMocks
     private InvoiceService service;
@@ -121,7 +123,7 @@ class InvoiceServiceTest {
         InvoiceRequestDto dto = invoiceRequest(
                 "FTR-001",
                 InvoiceType.sale,
-                List.of(new InvoiceLineItemRequestDto(5, 2, null, null, BigDecimal.ZERO, BigDecimal.ZERO)),
+                List.of(new InvoiceLineItemRequestDto(5, 2, null, null, BigDecimal.ZERO, BigDecimal.ZERO, null, null, null)),
                 DiscountType.PERCENTAGE,
                 new BigDecimal("10.00")
         );
@@ -144,7 +146,7 @@ class InvoiceServiceTest {
     @Test
     void createInvoice_whenPeriodIsClosed_throwsBeforeSaving() {
         InvoiceRequestDto dto = invoiceRequest("FTR-CLOSED", InvoiceType.sale,
-                List.of(new InvoiceLineItemRequestDto(5, 1, null, null, null, null)),
+                List.of(new InvoiceLineItemRequestDto(5, 1, null, null, null, null, null, null, null)),
                 null, null);
         org.mockito.Mockito.doThrow(new ClosedPeriodException(2026, 5))
                 .when(periodGuard).assertOpen(dto.invoiceDate());
@@ -160,7 +162,7 @@ class InvoiceServiceTest {
     void createInvoice_whenCustomerIsBlocked_throwsBusinessException() {
         customer.setStatus(CustomerStatus.BLOCKED);
         InvoiceRequestDto dto = invoiceRequest("FTR-BLOCKED", InvoiceType.sale,
-                List.of(new InvoiceLineItemRequestDto(5, 1, null, null, null, null)),
+                List.of(new InvoiceLineItemRequestDto(5, 1, null, null, null, null, null, null, null)),
                 null, null);
         when(invoiceRepository.existsByInvoiceNumberAndCompanyCompanyId("FTR-BLOCKED", COMPANY_ID)).thenReturn(false);
         when(customerRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(10L, COMPANY_ID))
@@ -189,7 +191,7 @@ class InvoiceServiceTest {
                 .vatRate(new BigDecimal("10.00"))
                 .build();
         InvoiceRequestDto dto = invoiceRequest("ALI-001", InvoiceType.purchase,
-                List.of(new InvoiceLineItemRequestDto(null, 4, newProduct, null, null, null)),
+                List.of(new InvoiceLineItemRequestDto(null, 4, newProduct, null, null, null, null, null, null)),
                 null, null);
         when(invoiceRepository.existsByInvoiceNumberAndCompanyCompanyId("ALI-001", COMPANY_ID)).thenReturn(false);
         when(customerRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(10L, COMPANY_ID))
@@ -247,7 +249,7 @@ class InvoiceServiceTest {
         when(invoiceRepository.findById(100L)).thenReturn(Optional.of(invoice));
 
         assertThatThrownBy(() -> service.updateInvoice(100L, invoiceRequest("FTR-NEW", InvoiceType.sale,
-                List.of(new InvoiceLineItemRequestDto(5, 1, null, null, null, null)), null, null)))
+                List.of(new InvoiceLineItemRequestDto(5, 1, null, null, null, null, null, null, null)), null, null)))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Paid invoices");
 
@@ -326,7 +328,7 @@ class InvoiceServiceTest {
                 .thenReturn(Optional.of(customer));
 
         InvoiceResponseDto result = service.createReturnInvoice(100L, invoiceRequest("IADE-001", InvoiceType.purchase,
-                List.of(new InvoiceLineItemRequestDto(5, 2, null, null, null, null)), null, null));
+                List.of(new InvoiceLineItemRequestDto(5, 2, null, null, null, null, null, null, null)), null, null));
 
         assertThat(result.invoiceType()).isEqualTo("purchase");
         assertThat(result.referenceInvoiceId()).isEqualTo(100L);

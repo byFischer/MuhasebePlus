@@ -45,6 +45,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -871,6 +873,127 @@ class JournalEntryServiceTest {
         ));
     }
 
+    @Test
+    void list_mapsCompanyEntriesToPagedDtos() {
+        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
+        PageRequest pageable = PageRequest.of(0, 20);
+        JournalEntry entry = entryWithLines(JournalSourceType.MANUAL);
+        entry.setEntryId(77L);
+        entry.setEntryNumber("FIS-2026-0007");
+        when(entryRepository.findByCompanyCompanyIdAndIsDeletedFalseOrderByEntryDateDescEntryIdDesc(COMPANY_ID, pageable))
+                .thenReturn(new PageImpl<>(List.of(entry), pageable, 1));
+
+        var result = service.list(pageable);
+
+        assertThat(result.getContent()).singleElement().satisfies(dto -> {
+            assertThat(dto.entryId()).isEqualTo(77L);
+            assertThat(dto.entryNumber()).isEqualTo("FIS-2026-0007");
+        });
+    }
+
+    @Test
+    void getById_whenEntryExists_mapsLineAccountDetails() {
+        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
+        JournalEntry entry = entryWithLines(JournalSourceType.MANUAL);
+        entry.setEntryId(77L);
+        entry.setEntryNumber("FIS-2026-0007");
+        ChartOfAccount cash = new ChartOfAccount();
+        cash.setAccountId(100L);
+        cash.setAccountCode("100");
+        cash.setAccountName("Kasa");
+        entry.getLines().get(0).setAccount(cash);
+        when(entryRepository.findByCompanyCompanyIdAndEntryIdAndIsDeletedFalse(COMPANY_ID, 77L))
+                .thenReturn(Optional.of(entry));
+
+        JournalEntryResponseDto result = service.getById(77L);
+
+        assertThat(result.entryId()).isEqualTo(77L);
+        assertThat(result.lines().get(0).accountCode()).isEqualTo("100");
+        assertThat(result.lines().get(0).accountName()).isEqualTo("Kasa");
+    }
+
+    @Test
+    void getById_whenEntryMissing_throwsBusinessException() {
+        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
+        when(entryRepository.findByCompanyCompanyIdAndEntryIdAndIsDeletedFalse(COMPANY_ID, 404L))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getById(404L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("404");
+    }
+
+    @Test
+    void reverseSourceWrappers_whenNoActiveEntry_doNotSave() {
+        when(entryRepository.findByCompanyCompanyIdAndSourceTypeAndSourceIdAndIsDeletedFalseAndIsReversedFalse(
+                eq(COMPANY_ID), any(JournalSourceType.class), anyLong()))
+                .thenReturn(Optional.empty());
+
+        service.reverseForInvoice(COMPANY_ID, 1L, "Fatura iptali");
+        service.reverseForPayment(COMPANY_ID, 2L, "Odeme iptali");
+        service.reverseForTransaction(COMPANY_ID, 3L, "Islem iptali");
+        service.reverseForCustomerOpening(COMPANY_ID, 4L, "Acilis iptali");
+
+        verify(entryRepository, never()).save(any());
+    }
+
+    @Test
+    void createForCustomerOpening_whenCustomerIsInvalid_returnsNull() {
+        assertThat(service.createForCustomerOpening(null)).isNull();
+
+        Customer missingCompany = new Customer();
+        missingCompany.setCustomerId(1L);
+
+        assertThat(service.createForCustomerOpening(missingCompany)).isNull();
+        verify(entryRepository, never()).save(any());
+    }
+
+    @Test
+    void createForVatSettlement_whenAccountingNotSetup_returnsNull() {
+        VatPeriod period = VatPeriod.builder()
+                .id(80L)
+                .company(company)
+                .year(2026)
+                .month(5)
+                .netPayableVat(new BigDecimal("100.00"))
+                .build();
+        when(chartOfAccountService.isAccountingSetup(COMPANY_ID)).thenReturn(false);
+
+        assertThat(service.createForVatSettlement(period)).isNull();
+        verify(entryRepository, never()).save(any());
+    }
+
+    @Test
+    void getTrialBalance_whenRepositoryReturnsNullRows_returnsEmptyList() {
+        LocalDate start = LocalDate.of(2026, 1, 1);
+        LocalDate end = LocalDate.of(2026, 12, 31);
+        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
+        when(lineRepository.sumByAccountForPeriod(COMPANY_ID, start, end)).thenReturn(null);
+
+        assertThat(service.getTrialBalance(start, end)).isEmpty();
+    }
+
+    @Test
+    void getGeneralLedger_calculatesRunningBalanceInEntryOrder() {
+        LocalDate start = LocalDate.of(2026, 1, 1);
+        LocalDate end = LocalDate.of(2026, 12, 31);
+        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
+
+        JournalEntry firstEntry = ledgerEntry(1L, "FIS-2026-0001", LocalDate.of(2026, 1, 10));
+        JournalEntry secondEntry = ledgerEntry(2L, "FIS-2026-0002", LocalDate.of(2026, 1, 11));
+        JournalEntryLine debit = ledgerLine(10L, firstEntry, "100.00", "0.00", "Acilis");
+        JournalEntryLine credit = ledgerLine(11L, secondEntry, "0.00", "40.00", "Odeme");
+        when(lineRepository.findForGeneralLedger(COMPANY_ID, 100L, start, end))
+                .thenReturn(List.of(debit, credit));
+
+        var result = service.getGeneralLedger(100L, start, end);
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).runningBalance()).isEqualByComparingTo("100.00");
+        assertThat(result.get(1).runningBalance()).isEqualByComparingTo("60.00");
+        assertThat(result.get(1).entryNumber()).isEqualTo("FIS-2026-0002");
+    }
+
     private JournalEntryRequestDto balancedDto() {
         return new JournalEntryRequestDto(
                 LocalDate.now(),
@@ -953,5 +1076,27 @@ class JournalEntryServiceTest {
 
     private Object[] row(Long accountId, String debit, String credit) {
         return new Object[] { accountId, new BigDecimal(debit), new BigDecimal(credit) };
+    }
+
+    private JournalEntry ledgerEntry(Long id, String number, LocalDate date) {
+        JournalEntry entry = new JournalEntry();
+        entry.setEntryId(id);
+        entry.setCompany(company);
+        entry.setEntryNumber(number);
+        entry.setEntryDate(date);
+        entry.setSourceType(JournalSourceType.MANUAL);
+        return entry;
+    }
+
+    private JournalEntryLine ledgerLine(Long id, JournalEntry entry, String debit, String credit, String description) {
+        JournalEntryLine line = new JournalEntryLine();
+        line.setLineId(id);
+        line.setCompany(company);
+        line.setEntry(entry);
+        line.setAccountId(100L);
+        line.setDebitAmount(new BigDecimal(debit));
+        line.setCreditAmount(new BigDecimal(credit));
+        line.setDescription(description);
+        return line;
     }
 }
