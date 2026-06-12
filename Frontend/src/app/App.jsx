@@ -32,7 +32,6 @@ import YevmiyePage from "@/pages/YevmiyePage";
 import DonemPage from "@/pages/DonemPage";
 import BeyannamePage from "@/pages/beyanname/BeyannamePage";
 import EDefterPage from "@/pages/edefter/EDefterPage";
-import KdvPage from "@/pages/KdvPage";
 import BankaMutabakatPage from "@/pages/BankaMutabakatPage";
 import SabitKiymetPage from "@/pages/SabitKiymetPage";
 
@@ -89,7 +88,6 @@ export default function App() {
                 <Route path="/donem"       element={<DonemPage />} />
                 <Route path="/beyanname"   element={<BeyannamePage />} />
                 <Route path="/edefter"     element={<EDefterPage />} />
-                <Route path="/kdv"              element={<KdvPage />} />
                 <Route path="/banka-mutabakat" element={<BankaMutabakatPage />} />
                 <Route path="/sabit-kiymet"   element={<SabitKiymetPage />} />
                 <Route path="/admin"              element={<AdminPage><AdminDashboardPage /></AdminPage>} />

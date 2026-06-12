@@ -22,8 +22,8 @@ public interface InvoiceVatSummaryRepository extends JpaRepository<InvoiceVatSum
               AND i.invoiceType = 'sale'
               AND i.isDeleted = false
               AND i.cancelled = false
-              AND FUNCTION('YEAR', i.invoiceDate) = :year
-              AND FUNCTION('MONTH', i.invoiceDate) = :month
+              AND EXTRACT(YEAR FROM i.invoiceDate) = :year
+              AND EXTRACT(MONTH FROM i.invoiceDate) = :month
             """)
     List<InvoiceVatSummary> findSalesVatSummaryForPeriod(Long companyId, int year, int month);
 
@@ -34,8 +34,8 @@ public interface InvoiceVatSummaryRepository extends JpaRepository<InvoiceVatSum
               AND i.invoiceType = 'purchase'
               AND i.isDeleted = false
               AND i.cancelled = false
-              AND FUNCTION('YEAR', i.invoiceDate) = :year
-              AND FUNCTION('MONTH', i.invoiceDate) = :month
+              AND EXTRACT(YEAR FROM i.invoiceDate) = :year
+              AND EXTRACT(MONTH FROM i.invoiceDate) = :month
             """)
     List<InvoiceVatSummary> findPurchaseVatSummaryForPeriod(Long companyId, int year, int month);
 
@@ -46,8 +46,8 @@ public interface InvoiceVatSummaryRepository extends JpaRepository<InvoiceVatSum
               AND i.isDeleted = false
               AND i.cancelled = false
               AND s.withholdingTaxCodeId IS NOT NULL
-              AND FUNCTION('YEAR', i.invoiceDate) = :year
-              AND FUNCTION('MONTH', i.invoiceDate) = :month
+              AND EXTRACT(YEAR FROM i.invoiceDate) = :year
+              AND EXTRACT(MONTH FROM i.invoiceDate) = :month
             """)
     List<InvoiceVatSummary> findWithholdingsForPeriod(Long companyId, int year, int month);
 
@@ -59,8 +59,8 @@ public interface InvoiceVatSummaryRepository extends JpaRepository<InvoiceVatSum
               AND i.isDeleted = false
               AND i.cancelled = false
               AND s.withholdingTaxCodeId IS NOT NULL
-              AND FUNCTION('YEAR', i.invoiceDate) = :year
-              AND FUNCTION('MONTH', i.invoiceDate) = :month
+              AND EXTRACT(YEAR FROM i.invoiceDate) = :year
+              AND EXTRACT(MONTH FROM i.invoiceDate) = :month
             """)
     List<InvoiceVatSummary> findPurchaseWithholdingsForPeriod(Long companyId, int year, int month);
 }
