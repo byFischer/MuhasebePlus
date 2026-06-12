@@ -43,8 +43,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Locale;
 
 @Service
 @Transactional
@@ -110,7 +111,7 @@ public class ChequeService implements HardDeletable {
 
     public List<ChequeResponseDto> getChequesByStatus(String status) {
         Long companyId = companyContext.getCurrentCompanyId();
-        ChequeStatus chequeStatus = ChequeStatus.valueOf(status.toUpperCase());
+        ChequeStatus chequeStatus = ChequeStatus.valueOf(status.toUpperCase(Locale.ROOT));
         return chequeRepository.findByCompanyCompanyIdAndStatusAndIsDeletedFalse(companyId, chequeStatus)
                 .stream().map(this::toResponseDto).toList();
     }
@@ -323,7 +324,7 @@ public class ChequeService implements HardDeletable {
         for (Cheque c : all) {
             switch (c.getStatus()) {
                 case IN_PORTFOLIO -> { inPortfolioCount++; inPortfolioAmt = inPortfolioAmt.add(c.getAmount());
-                    long days = today.until(c.getDueDate()).getDays();
+                    long days = ChronoUnit.DAYS.between(today, c.getDueDate());
                     if (days <= 30)      { due0To30++;   due0To30Amt   = due0To30Amt.add(c.getAmount()); }
                     else if (days <= 60) { due31To60++;  due31To60Amt  = due31To60Amt.add(c.getAmount()); }
                     else                 { due60Plus++;  due60PlusAmt  = due60PlusAmt.add(c.getAmount()); }

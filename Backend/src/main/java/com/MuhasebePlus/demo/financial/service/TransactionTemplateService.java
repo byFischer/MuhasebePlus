@@ -2,6 +2,7 @@ package com.MuhasebePlus.demo.financial.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -60,7 +61,7 @@ public class TransactionTemplateService implements HardDeletable {
 
     public List<TransactionTemplateResponseDto> getTemplatesByType(String type) {
         Long companyId = companyContext.getCurrentCompanyId();
-        TransactionType transactionType = TransactionType.valueOf(type.toUpperCase());
+        TransactionType transactionType = TransactionType.valueOf(type.toUpperCase(Locale.ROOT));
         return templateRepository
                 .findByTransactionTypeAndCompanyCompanyIdAndIsDeletedFalseOrderByTemplateIdDesc(transactionType, companyId)
                 .stream()

@@ -13,6 +13,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.lang.reflect.Method;
 
@@ -155,6 +156,31 @@ class GlobalExceptionHandlerTest {
     }
 
     // ── Yardımcılar ───────────────────────────────────────────────────────────
+
+    @Test
+    void handleTypeMismatch_whenParameterCannotConvert_returns400WithParameterNameAndValue() {
+        MethodArgumentTypeMismatchException ex = new MethodArgumentTypeMismatchException(
+                "abc", Long.class, "invoiceId", null, new IllegalArgumentException("bad id"));
+
+        ResponseEntity<ErrorResponse> response = handler.handleTypeMismatch(ex, request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().message()).contains("invoiceId", "abc");
+        assertThat(response.getBody().details()).isNull();
+    }
+
+    @Test
+    void handleShareLinkNotFound_returns404WithExceptionMessage() {
+        RuntimeException ex = new com.MuhasebePlus.demo.sharelink.exception.ShareLinkNotFoundException();
+
+        ResponseEntity<ErrorResponse> response = handler.handleShareLinkNotFound(ex, request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().status()).isEqualTo(404);
+        assertThat(response.getBody().message()).isEqualTo(ex.getMessage());
+    }
 
     @SuppressWarnings("unused")
     private void sampleHandlerMethod(String email) {

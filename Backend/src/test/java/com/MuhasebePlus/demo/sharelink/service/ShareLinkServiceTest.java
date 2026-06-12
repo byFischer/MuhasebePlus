@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,6 +52,27 @@ class ShareLinkServiceTest {
     }
 
     @Test
+    void getCurrentReturnsActiveLinkStateWhenLinkExists() {
+        LocalDateTime lastAccessed = LocalDateTime.of(2026, 6, 1, 12, 0);
+        InvoiceShareLink link = InvoiceShareLink.builder()
+                .id(5L)
+                .token("active-token")
+                .isActive(true)
+                .lastAccessedAt(lastAccessed)
+                .accessCount(7)
+                .build();
+        when(shareLinkRepository.findByCompanyCompanyIdAndIsActiveTrue(1L)).thenReturn(Optional.of(link));
+
+        ShareLinkResponseDto dto = shareLinkService.getCurrent();
+
+        assertTrue(dto.exists());
+        assertTrue(dto.active());
+        assertEquals("active-token", dto.token());
+        assertEquals(lastAccessed, dto.lastAccessedAt());
+        assertEquals(7, dto.accessCount());
+    }
+
+    @Test
     void regenerateCreatesUrlSafeTokenAndActiveLink() {
         when(shareLinkRepository.findByCompanyCompanyIdAndIsActiveTrue(1L)).thenReturn(Optional.empty());
 
@@ -88,5 +110,14 @@ class ShareLinkServiceTest {
 
         assertFalse(existing.isActive());
         assertNotNull(existing.getRevokedAt());
+    }
+
+    @Test
+    void revokeWhenNoActiveLinkDoesNothing() {
+        when(shareLinkRepository.findByCompanyCompanyIdAndIsActiveTrue(1L)).thenReturn(Optional.empty());
+
+        shareLinkService.revoke();
+
+        verify(shareLinkRepository, org.mockito.Mockito.never()).save(any());
     }
 }

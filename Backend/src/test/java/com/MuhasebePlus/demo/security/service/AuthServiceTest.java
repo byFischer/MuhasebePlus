@@ -1,11 +1,15 @@
 package com.MuhasebePlus.demo.security.service;
 
 import com.MuhasebePlus.demo.security.dto.request.LoginRequestDto;
+import com.MuhasebePlus.demo.security.dto.request.PasswordResetRequestDto;
 import com.MuhasebePlus.demo.security.dto.response.LoginResponseDto;
+import com.MuhasebePlus.demo.security.dto.response.PasswordResetResponseDto;
 import com.MuhasebePlus.demo.security.util.JwtUtil;
 import com.MuhasebePlus.demo.user.entity.User;
 import com.MuhasebePlus.demo.user.entity.UserRole;
 import com.MuhasebePlus.demo.user.service.UserService;
+import jakarta.mail.Session;
+import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -18,6 +22,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+
+import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -84,12 +90,47 @@ class AuthServiceTest {
         when(mailSenderProvider.getIfAvailable()).thenReturn(null);
 
         assertThatThrownBy(() -> authService.sendPasswordResetTestMail(
-                new com.MuhasebePlus.demo.security.dto.request.PasswordResetRequestDto("x@x.com")))
+                new PasswordResetRequestDto("x@x.com")))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Mail sender is not configured");
     }
 
     // ── Yardımcı ──────────────────────────────────────────────────────────────
+
+    @Test
+    void sendPasswordResetTestMail_whenMailSenderConfigured_sendsPreparedMessage() throws Exception {
+        JavaMailSender mailSender = mock(JavaMailSender.class);
+        MimeMessage message = new MimeMessage(Session.getInstance(new Properties()));
+        when(mailSenderProvider.getIfAvailable()).thenReturn(mailSender);
+        when(mailSender.createMimeMessage()).thenReturn(message);
+        when(environment.getProperty("spring.mail.username")).thenReturn("noreply@muhasebeplus.local");
+
+        PasswordResetResponseDto result = authService.sendPasswordResetTestMail(
+                new PasswordResetRequestDto("user@test.com"));
+
+        assertThat(result.message()).contains("sent successfully");
+        assertThat(message.getSubject()).isEqualTo("Muhasebe+ Password Reset Test");
+        assertThat(message.getAllRecipients()[0].toString()).isEqualTo("user@test.com");
+        assertThat(message.getFrom()[0].toString()).isEqualTo("noreply@muhasebeplus.local");
+        verify(mailSender).send(message);
+    }
+
+    @Test
+    void sendPasswordResetTestMail_whenMessageCannotBePrepared_wrapsMessagingException() {
+        JavaMailSender mailSender = mock(JavaMailSender.class);
+        MimeMessage message = new MimeMessage(Session.getInstance(new Properties()));
+        when(mailSenderProvider.getIfAvailable()).thenReturn(mailSender);
+        when(mailSender.createMimeMessage()).thenReturn(message);
+        when(environment.getProperty("spring.mail.username")).thenReturn("not a valid address");
+
+        assertThatThrownBy(() -> authService.sendPasswordResetTestMail(
+                new PasswordResetRequestDto("user@test.com")))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("could not be prepared")
+                .hasCauseInstanceOf(jakarta.mail.MessagingException.class);
+
+        verify(mailSender, never()).send(any(MimeMessage.class));
+    }
 
     private User buildUser(String email) {
         User u = new User();
