@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Icon from '@/components/mp/Icon';
 import { toast } from '@/lib/toast';
 import dashboardService from '@/services/dashboardService';
+import DataWidget from '@/widgets/DataWidget';
 
 const CHART_TYPE_LABEL = {
   KPI: 'KPI',
@@ -154,12 +155,39 @@ export default function WidgetManagerPage() {
   );
 }
 
+function WidgetDefPreview({ def }) {
+  const [st, setSt] = useState({ loading: true });
+  useEffect(() => {
+    let alive = true;
+    if (!def?.queryConfig) { setSt({ loading: false, error: true }); return; }
+    dashboardService.previewQuery(def.queryConfig)
+      .then(res => { if (alive) setSt(res?.success
+        ? { loading: false, data: res.data, columns: res.columns }
+        : { loading: false, error: true }); })
+      .catch(() => { if (alive) setSt({ loading: false, error: true }); });
+    return () => { alive = false; };
+  }, [def]);
+
+  if (st.loading) return <div className="wm-preview-skel">Önizleme yükleniyor…</div>;
+  if (st.error || !st.data || st.data.length === 0) return <div className="wm-preview-skel">Önizleme yok</div>;
+  return (
+    <DataWidget
+      data={{ data: st.data, columns: st.columns }}
+      config={{ visualConfig: def.visualConfig || {} }}
+      mode="card"
+      variant="s"
+    />
+  );
+}
+
 function DefinitionCard({ def, busy, isSystem, onAdd, onEdit, onDelete, onClone }) {
   const chartType = def.visualConfig?.chartType || 'TABLE';
   const dataSource = def.dataSource;
 
   return (
     <div className="panel" style={{ padding: 16, opacity: busy ? 0.6 : 1 }}>
+      <div className="wm-preview"><WidgetDefPreview def={def} /></div>
+
       <div className="row gap-8" style={{ alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="row gap-8" style={{ alignItems: 'center', marginBottom: 4 }}>

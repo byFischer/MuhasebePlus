@@ -73,7 +73,7 @@ function emptyForm() {
     groupTransform: '',
     filters: [],
     chartType: 'KPI',
-    color: 'accent',
+    color: 'info',
   };
 }
 
@@ -276,7 +276,7 @@ export default function WidgetBuilderPage() {
           <p className="page-sub">
             {isEdit
               ? 'Var olan widget\'ı güncelle'
-              : `${STEPS[step - 1].label} — ${STEPS[step - 1].desc}`}
+              : `Adım ${step}/3 · ${STEPS[step - 1].label} — ${STEPS[step - 1].desc}`}
           </p>
         </div>
         <div className="page-actions">
@@ -286,301 +286,274 @@ export default function WidgetBuilderPage() {
         </div>
       </div>
 
-      {(isEdit || true) && (
-        <div className="row gap-16" style={{ alignItems: 'flex-start' }}>
-          {/* Sol: form */}
-          <div className="panel" style={{ flex: 1, maxWidth: 640 }}>
-            {/* Stepper */}
-            <div className="row gap-8" style={{ alignItems: 'center', marginBottom: 24 }}>
-              {STEPS.map((s, i) => (
-                <React.Fragment key={s.num}>
-                  <button
-                    onClick={() => setStep(s.num)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px',
-                      borderRadius: 20, border: 'none', cursor: 'pointer',
-                      background: step >= s.num ? 'var(--accent)' : 'var(--bg-2)',
-                      color: step >= s.num ? '#fff' : 'var(--ink-3)',
-                      fontSize: 13, fontWeight: 500
-                    }}
-                  >
-                    <span style={{
-                      width: 22, height: 22, borderRadius: '50%', display: 'grid', placeItems: 'center',
-                      background: step >= s.num ? 'rgba(255,255,255,0.25)' : 'var(--surface)',
-                      fontSize: 11, fontWeight: 700
-                    }}>{s.num}</span>
-                    {s.label}
-                  </button>
-                  {i < STEPS.length - 1 && (
-                    <div style={{ flex: 1, height: 2, background: step > s.num ? 'var(--accent)' : 'var(--bg-2)', borderRadius: 1 }} />
-                  )}
-                </React.Fragment>
-              ))}
-            </div>
-
-            {/* ADIM 1 — Veri */}
-            {step === 1 && (
-              <div className="col gap-16">
-                <div>
-                  <h3 style={{ fontSize: 15, fontWeight: 600 }}>1. Hangi veriden?</h3>
-                  <p style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>
-                    Faturalar mı, gelir-gider işlemleri mi?
-                  </p>
-                </div>
-                <div className="grid-2" style={{ gap: 10 }}>
-                  {dataSources.map(ds => (
-                    <button
-                      key={ds.key}
-                      className={`btn ${form.dataSource === ds.key ? 'primary' : 'ghost'}`}
-                      onClick={() => {
-                        const supported = ds.supportedAggregations || [];
-                        const nextFunc = supported.includes(form.metricFunc)
-                          ? form.metricFunc
-                          : (supported[0] || 'COUNT');
-                        update({ dataSource: ds.key, metricFunc: nextFunc, metricField: '', groupField: '', groupTransform: '', filters: [] });
-                      }}
-                      style={{ justifyContent: 'flex-start', textAlign: 'left', height: 'auto', padding: '14px 16px', borderWidth: 2 }}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 14 }}>{ds.label}</div>
-                        <div style={{ fontSize: 11, opacity: 0.75, marginTop: 2 }}>{ds.description}</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-
-                {form.dataSource && (
-                  <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginTop: 8 }}>
-                    <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>2. Neyi hesaplayalım?</h3>
-                    <p style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 10 }}>
-                      Toplam mı, ortalama mı, adet mi?
-                    </p>
-                    <div className="row gap-8" style={{ flexWrap: 'wrap', marginBottom: 12 }}>
-                      {supportedAggKeys.map(k => {
-                        const m = METRIC_LABELS[k];
-                        if (!m) return null;
-                        return (
-                          <button
-                            key={k}
-                            className={`btn sm ${form.metricFunc === k ? 'primary' : 'ghost'}`}
-                            onClick={() => update({ metricFunc: k, metricField: '' })}
-                            title={m.hint}
-                          >
-                            {m.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {form.metricFunc !== 'COUNT' && (
-                      <div className="col gap-6">
-                        <label style={{ fontSize: 12, fontWeight: 500 }}>Hangi alanın {METRIC_LABELS[form.metricFunc]?.label.toLowerCase()}'ı?</label>
-                        <select className="input" value={form.metricField} onChange={e => update({ metricField: e.target.value })}>
-                          <option value="">Alan seçin</option>
-                          {aggregateFields.map(f => (
-                            <option key={f.key} value={f.key}>{f.label}</option>
-                          ))}
-                        </select>
-                        {aggregateFields.length === 0 && (
-                          <span style={{ fontSize: 11, color: 'var(--warn)' }}>
-                            Bu hesaplama için uygun alan yok. Farklı bir hesaplama veya Adet seçin.
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    <div style={{ borderTop: '1px solid var(--line)', paddingTop: 14, marginTop: 14 }}>
-                      <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>3. Gruplama (opsiyonel)</h3>
-                      <p style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 10 }}>
-                        Tek bir değer mi istersin yoksa kategorilere/aylara mı bölünsün?
-                      </p>
-                      <div className="row gap-8">
-                        <select className="input" style={{ flex: 1 }} value={form.groupField} onChange={e => update({ groupField: e.target.value, groupTransform: '' })} disabled={dimensionFields.length === 0}>
-                          <option value="">{dimensionFields.length === 0 ? 'Gruplanabilir alan yok' : 'Gruplama yok (tek değer)'}</option>
-                          {dimensionFields.map(f => (
-                            <option key={f.key} value={f.key}>{f.label}</option>
-                          ))}
-                        </select>
-                        {form.groupField && fields.find(f => f.key === form.groupField)?.type === 'DATE' && (
-                          <select className="input" value={form.groupTransform} onChange={e => update({ groupTransform: e.target.value })}>
-                            <option value="">Günlük</option>
-                            <option value="month">Ay bazında</option>
-                            <option value="year">Yıl bazında</option>
-                          </select>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ADIM 2 — Filtre */}
-            {step === 2 && (
-              <div className="col gap-16">
-                <div>
-                  <h3 style={{ fontSize: 15, fontWeight: 600 }}>Filtre (opsiyonel)</h3>
-                  <p style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>
-                    Yalnızca belirli kayıtları dahil etmek istiyorsan filtre ekle. Boş bırakırsan tüm kayıtlar dahil edilir.
-                  </p>
-                </div>
-
-                {form.filters.length === 0 && (
-                  <div className="empty" style={{ padding: 24 }}>Henüz filtre yok. Tüm kayıtlar dahil edilecek.</div>
-                )}
-
-                {form.filters.map((f, i) => {
-                  const meta = fields.find(fld => fld.key === f.field);
-                  const isEnum = meta?.type === 'ENUM';
-                  const ops = meta?.applicableFilterOps || [];
-                  return (
-                    <div key={i} className="row gap-8" style={{ alignItems: 'center', background: 'var(--bg-2)', padding: 10, borderRadius: 10, flexWrap: 'wrap' }}>
-                      <select className="input" style={{ minWidth: 140, flex: '1 1 140px' }} value={f.field} onChange={e => {
-                        const nextField = e.target.value;
-                        const nextMeta = fields.find(fld => fld.key === nextField);
-                        const nextOps = nextMeta?.applicableFilterOps || [];
-                        setFilter(i, { field: nextField, operator: nextOps[0] || 'EQ', value: '' });
-                      }}>
-                        <option value="">Alan</option>
-                        {fields.map(fld => <option key={fld.key} value={fld.key}>{fld.label}</option>)}
-                      </select>
-                      <select
-                        className="input"
-                        style={{ minWidth: 110 }}
-                        value={f.operator}
-                        onChange={e => setFilter(i, { operator: e.target.value })}
-                        disabled={!f.field}
-                      >
-                        {!f.field && <option value="">Önce alan seçin</option>}
-                        {ops.map(opKey => (
-                          <option key={opKey} value={opKey}>{FILTER_OP_LABELS[opKey] || opKey}</option>
-                        ))}
-                      </select>
-                      {isEnum && meta?.options ? (
-                        <select className="input" style={{ flex: 1, minWidth: 140 }} value={f.value} onChange={e => setFilter(i, { value: e.target.value })}>
-                          <option value="">Seçin</option>
-                          {meta.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                        </select>
-                      ) : (
-                        <input
-                          className="input"
-                          style={{ flex: 1, minWidth: 140 }}
-                          placeholder="Değer"
-                          type={meta?.type === 'NUMBER' ? 'number' : meta?.type === 'DATE' ? 'date' : 'text'}
-                          value={f.value}
-                          onChange={e => setFilter(i, { value: e.target.value })}
-                        />
-                      )}
-                      <button className="tb-icon-btn" onClick={() => removeFilter(i)}><Icon name="x" size={14} /></button>
-                    </div>
-                  );
-                })}
-                <button className="btn ghost sm" onClick={addFilter} style={{ alignSelf: 'flex-start' }}>
-                  <Icon name="plus" size={12} /> Filtre Ekle
+      <div className="wb-layout">
+        {/* Sol: form */}
+        <div className="panel">
+          {/* Stepper */}
+          <div className="wb-steps">
+            {STEPS.map((s, i) => (
+              <React.Fragment key={s.num}>
+                <button
+                  className={`wb-step ${step === s.num ? 'active' : step > s.num ? 'done' : ''}`}
+                  onClick={() => setStep(s.num)}
+                >
+                  <span className="wb-step-num">{step > s.num ? '✓' : s.num}</span>
+                  {s.label}
                 </button>
-              </div>
-            )}
-
-            {/* ADIM 3 — Görünüm */}
-            {step === 3 && (
-              <div className="col gap-16">
-                <div>
-                  <h3 style={{ fontSize: 15, fontWeight: 600 }}>Görünüm</h3>
-                  <p style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>
-                    Widget'ın nasıl görüneceğini seç.
-                  </p>
-                </div>
-                <div className="grid-3" style={{ gap: 10 }}>
-                  {CHART_OPTIONS.map(c => (
-                    <button
-                      key={c.key}
-                      className={`btn ${form.chartType === c.key ? 'primary' : 'ghost'}`}
-                      onClick={() => update({ chartType: c.key })}
-                      style={{ flexDirection: 'column', gap: 6, padding: '14px 10px', height: 'auto', borderWidth: 2 }}
-                    >
-                      <Icon name={c.icon} size={20} />
-                      <span style={{ fontSize: 12, fontWeight: 600 }}>{c.label}</span>
-                      <span style={{ fontSize: 10, opacity: 0.7, lineHeight: 1.2 }}>{c.desc}</span>
-                    </button>
-                  ))}
-                </div>
-
-                <div style={{ borderTop: '1px solid var(--line)', paddingTop: 14, marginTop: 6 }}>
-                  <div className="col gap-8" style={{ marginBottom: 12 }}>
-                    <label style={{ fontSize: 12, fontWeight: 500 }}>İsim <span style={{ color: 'var(--neg)' }}>*</span></label>
-                    <input className="input" placeholder="Örn: Vadesi Geçen Faturalar" value={form.name} onChange={e => update({ name: e.target.value })} />
-                  </div>
-                  <div className="col gap-8" style={{ marginBottom: 12 }}>
-                    <label style={{ fontSize: 12, fontWeight: 500 }}>Açıklama (opsiyonel)</label>
-                    <input className="input" placeholder="Kısa açıklama" value={form.description} onChange={e => update({ description: e.target.value })} />
-                  </div>
-                  <div className="col gap-8">
-                    <label style={{ fontSize: 12, fontWeight: 500 }}>Renk</label>
-                    <div className="row gap-10">
-                      {COLORS.map(c => (
-                        <button
-                          key={c.key}
-                          onClick={() => update({ color: c.key })}
-                          title={c.label}
-                          style={{
-                            width: 32, height: 32, borderRadius: '50%',
-                            background: c.hex,
-                            border: form.color === c.key ? '3px solid var(--ink)' : '3px solid transparent',
-                            cursor: 'pointer',
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Navigation */}
-            <div className="row gap-8" style={{ justifyContent: 'space-between', marginTop: 24, borderTop: '1px solid var(--line)', paddingTop: 14 }}>
-              <button className="btn ghost" onClick={() => setStep(s => Math.max(1, s - 1))} disabled={step === 1}>
-                <Icon name="chevLeft" size={14} /> Geri
-              </button>
-              {step < 3 ? (
-                <button className="btn primary" onClick={() => setStep(s => s + 1)}>
-                  İleri <Icon name="chevRight" size={14} />
-                </button>
-              ) : (
-                <button className="btn primary" onClick={save} disabled={saving}>
-                  <Icon name="check" size={14} /> {saving ? 'Kaydediliyor...' : (isEdit ? 'Kaydet' : 'Oluştur ve Dashboard\'a Ekle')}
-                </button>
-              )}
-            </div>
+                {i < STEPS.length - 1 && <div className={`wb-step-bar ${step > s.num ? 'filled' : ''}`} />}
+              </React.Fragment>
+            ))}
           </div>
 
-          {/* Sağ: önizleme */}
-          <div className="panel" style={{ width: 420, position: 'sticky', top: 20 }}>
-            <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>
-                <Icon name="eye" size={14} /> Canlı Önizleme
-              </h3>
-              <button className="btn primary sm" onClick={runPreview} disabled={!canPreview || previewLoading}>
-                {previewLoading ? <Icon name="refresh" size={12} /> : <Icon name="play" size={12} />}
-                {previewLoading ? ' Yükleniyor' : ' Çalıştır'}
+          {/* ADIM 1 — Veri */}
+          {step === 1 && (
+            <div className="col gap-16">
+              <div>
+                <div className="wb-sec-title">1. Hangi veriden?</div>
+                <div className="wb-sec-sub">Faturalar mı, gelir-gider işlemleri mi?</div>
+              </div>
+              <div className="wb-opt-grid cols-2">
+                {dataSources.map(ds => (
+                  <button
+                    key={ds.key}
+                    className={`wb-opt ${form.dataSource === ds.key ? 'sel' : ''}`}
+                    onClick={() => {
+                      const supported = ds.supportedAggregations || [];
+                      const nextFunc = supported.includes(form.metricFunc)
+                        ? form.metricFunc
+                        : (supported[0] || 'COUNT');
+                      update({ dataSource: ds.key, metricFunc: nextFunc, metricField: '', groupField: '', groupTransform: '', filters: [] });
+                    }}
+                  >
+                    <span className="wb-opt-title">{ds.label}</span>
+                    <span className="wb-opt-desc">{ds.description}</span>
+                  </button>
+                ))}
+                {dataSources.length === 0 && (
+                  <div className="empty" style={{ gridColumn: '1 / -1', padding: 20 }}>Veri kaynakları yükleniyor…</div>
+                )}
+              </div>
+
+              {form.dataSource && (
+                <div className="wb-sec">
+                  <div className="wb-sec-title">2. Neyi hesaplayalım?</div>
+                  <div className="wb-sec-sub">Toplam mı, ortalama mı, adet mi?</div>
+                  <div className="wb-chips" style={{ marginBottom: 12 }}>
+                    {supportedAggKeys.map(k => {
+                      const m = METRIC_LABELS[k];
+                      if (!m) return null;
+                      return (
+                        <button
+                          key={k}
+                          className={`wb-chip ${form.metricFunc === k ? 'sel' : ''}`}
+                          onClick={() => update({ metricFunc: k, metricField: '' })}
+                          title={m.hint}
+                        >
+                          {m.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {form.metricFunc !== 'COUNT' && (
+                    <div className="col gap-6">
+                      <label className="wb-field-label">Hangi alanın {METRIC_LABELS[form.metricFunc]?.label.toLowerCase()}'ı?</label>
+                      <select className="input" value={form.metricField} onChange={e => update({ metricField: e.target.value })}>
+                        <option value="">Alan seçin</option>
+                        {aggregateFields.map(f => (
+                          <option key={f.key} value={f.key}>{f.label}</option>
+                        ))}
+                      </select>
+                      {aggregateFields.length === 0 && (
+                        <span style={{ fontSize: 11, color: 'var(--warn)' }}>
+                          Bu hesaplama için uygun alan yok. Farklı bir hesaplama veya Adet seçin.
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="wb-sec">
+                    <div className="wb-sec-title">3. Gruplama (opsiyonel)</div>
+                    <div className="wb-sec-sub">Tek bir değer mi istersin yoksa kategorilere/aylara mı bölünsün?</div>
+                    <div className="row gap-8">
+                      <select className="input" style={{ flex: 1 }} value={form.groupField} onChange={e => update({ groupField: e.target.value, groupTransform: '' })} disabled={dimensionFields.length === 0}>
+                        <option value="">{dimensionFields.length === 0 ? 'Gruplanabilir alan yok' : 'Gruplama yok (tek değer)'}</option>
+                        {dimensionFields.map(f => (
+                          <option key={f.key} value={f.key}>{f.label}</option>
+                        ))}
+                      </select>
+                      {form.groupField && fields.find(f => f.key === form.groupField)?.type === 'DATE' && (
+                        <select className="input" value={form.groupTransform} onChange={e => update({ groupTransform: e.target.value })}>
+                          <option value="">Günlük</option>
+                          <option value="month">Ay bazında</option>
+                          <option value="year">Yıl bazında</option>
+                        </select>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ADIM 2 — Filtre */}
+          {step === 2 && (
+            <div className="col gap-16">
+              <div>
+                <div className="wb-sec-title">Filtre (opsiyonel)</div>
+                <div className="wb-sec-sub">
+                  Yalnızca belirli kayıtları dahil etmek istiyorsan filtre ekle. Boş bırakırsan tüm kayıtlar dahil edilir.
+                </div>
+              </div>
+
+              {form.filters.length === 0 && (
+                <div className="empty" style={{ padding: 24 }}>Henüz filtre yok. Tüm kayıtlar dahil edilecek.</div>
+              )}
+
+              {form.filters.map((f, i) => {
+                const meta = fields.find(fld => fld.key === f.field);
+                const isEnum = meta?.type === 'ENUM';
+                const ops = meta?.applicableFilterOps || [];
+                return (
+                  <div key={i} className="wb-filter">
+                    <select className="input" style={{ minWidth: 140, flex: '1 1 140px' }} value={f.field} onChange={e => {
+                      const nextField = e.target.value;
+                      const nextMeta = fields.find(fld => fld.key === nextField);
+                      const nextOps = nextMeta?.applicableFilterOps || [];
+                      setFilter(i, { field: nextField, operator: nextOps[0] || 'EQ', value: '' });
+                    }}>
+                      <option value="">Alan</option>
+                      {fields.map(fld => <option key={fld.key} value={fld.key}>{fld.label}</option>)}
+                    </select>
+                    <select
+                      className="input"
+                      style={{ minWidth: 110 }}
+                      value={f.operator}
+                      onChange={e => setFilter(i, { operator: e.target.value })}
+                      disabled={!f.field}
+                    >
+                      {!f.field && <option value="">Önce alan seçin</option>}
+                      {ops.map(opKey => (
+                        <option key={opKey} value={opKey}>{FILTER_OP_LABELS[opKey] || opKey}</option>
+                      ))}
+                    </select>
+                    {isEnum && meta?.options ? (
+                      <select className="input" style={{ flex: 1, minWidth: 140 }} value={f.value} onChange={e => setFilter(i, { value: e.target.value })}>
+                        <option value="">Seçin</option>
+                        {meta.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                      </select>
+                    ) : (
+                      <input
+                        className="input"
+                        style={{ flex: 1, minWidth: 140 }}
+                        placeholder="Değer"
+                        type={meta?.type === 'NUMBER' ? 'number' : meta?.type === 'DATE' ? 'date' : 'text'}
+                        value={f.value}
+                        onChange={e => setFilter(i, { value: e.target.value })}
+                      />
+                    )}
+                    <button className="tb-icon-btn" onClick={() => removeFilter(i)}><Icon name="x" size={14} /></button>
+                  </div>
+                );
+              })}
+              <button className="btn ghost sm" onClick={addFilter} style={{ alignSelf: 'flex-start' }}>
+                <Icon name="plus" size={12} /> Filtre Ekle
               </button>
             </div>
-            {!form.dataSource && <div className="empty" style={{ padding: 24 }}>Önce bir veri kaynağı seç.</div>}
-            {form.dataSource && !previewData && !previewLoading && (
-              <div className="empty" style={{ padding: 24, fontSize: 12, lineHeight: 1.5 }}>
-                Ayarlarını yaptıktan sonra <b>Çalıştır</b>'a basarak gerçek verilerle önizle.
+          )}
+
+          {/* ADIM 3 — Görünüm */}
+          {step === 3 && (
+            <div className="col gap-16">
+              <div>
+                <div className="wb-sec-title">Görünüm</div>
+                <div className="wb-sec-sub">Widget'ın nasıl görüneceğini seç.</div>
               </div>
-            )}
-            {previewData && (
-              <DataWidget
-                data={previewData}
-                config={{ visualConfig: { chartType: form.chartType, title: form.name || 'Önizleme', color: form.color } }}
-                mode="card"
-                variant="m"
-              />
+              <div className="wb-opt-grid cols-3">
+                {CHART_OPTIONS.map(c => (
+                  <button
+                    key={c.key}
+                    className={`wb-opt wb-opt-center ${form.chartType === c.key ? 'sel' : ''}`}
+                    onClick={() => update({ chartType: c.key })}
+                  >
+                    <span className="wb-opt-icon"><Icon name={c.icon} size={20} /></span>
+                    <span className="wb-opt-title" style={{ fontSize: 13 }}>{c.label}</span>
+                    <span className="wb-opt-desc">{c.desc}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="wb-sec">
+                <div className="col gap-8" style={{ marginBottom: 14 }}>
+                  <label className="wb-field-label">İsim <span style={{ color: 'var(--neg)' }}>*</span></label>
+                  <input className="input" placeholder="Örn: Vadesi Geçen Faturalar" value={form.name} onChange={e => update({ name: e.target.value })} />
+                </div>
+                <div className="col gap-8" style={{ marginBottom: 14 }}>
+                  <label className="wb-field-label">Açıklama (opsiyonel)</label>
+                  <input className="input" placeholder="Kısa açıklama" value={form.description} onChange={e => update({ description: e.target.value })} />
+                </div>
+                <div className="col gap-8">
+                  <label className="wb-field-label">Renk</label>
+                  <div className="wb-swatches">
+                    {COLORS.map(c => (
+                      <button
+                        key={c.key}
+                        className={`wb-swatch ${form.color === c.key ? 'sel' : ''}`}
+                        onClick={() => update({ color: c.key })}
+                        title={c.label}
+                        style={{ background: c.hex }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Navigation */}
+          <div className="wb-nav">
+            <button className="btn ghost" onClick={() => setStep(s => Math.max(1, s - 1))} disabled={step === 1}>
+              <Icon name="chevLeft" size={14} /> Geri
+            </button>
+            {step < 3 ? (
+              <button className="btn primary" onClick={() => setStep(s => s + 1)}>
+                İleri <Icon name="chevRight" size={14} />
+              </button>
+            ) : (
+              <button className="btn primary" onClick={save} disabled={saving}>
+                <Icon name="check" size={14} /> {saving ? 'Kaydediliyor...' : (isEdit ? 'Kaydet' : 'Oluştur ve Dashboard\'a Ekle')}
+              </button>
             )}
           </div>
         </div>
-      )}
+
+        {/* Sağ: önizleme */}
+        <div className="panel wb-preview">
+          <div className="wb-preview-head">
+            <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="eye" size={14} /> Canlı Önizleme
+            </h3>
+            <button className="btn primary sm" onClick={runPreview} disabled={!canPreview || previewLoading}>
+              {previewLoading ? <Icon name="refresh" size={12} /> : <Icon name="play" size={12} />}
+              {previewLoading ? ' Yükleniyor' : ' Çalıştır'}
+            </button>
+          </div>
+          {!form.dataSource && <div className="wb-preview-empty">Önce bir veri kaynağı seç.</div>}
+          {form.dataSource && !previewData && !previewLoading && (
+            <div className="wb-preview-empty">
+              Ayarlarını yaptıktan sonra <b>Çalıştır</b>'a basarak gerçek verilerle önizle.
+            </div>
+          )}
+          {previewData && (
+            <DataWidget
+              data={previewData}
+              config={{ visualConfig: { chartType: form.chartType, title: form.name || 'Önizleme', color: form.color } }}
+              mode="card"
+              variant="m"
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 }

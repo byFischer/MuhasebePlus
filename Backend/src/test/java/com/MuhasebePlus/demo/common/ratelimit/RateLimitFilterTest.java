@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -96,6 +97,22 @@ class RateLimitFilterTest {
                 .isEqualTo(429);
     }
 
+    @Test
+    void doFilter_whenXRealIpHeaderPresent_usesItAsClientKey() throws Exception {
+        for (int i = 0; i < AUTH_LIMIT; i++) {
+            MockHttpServletRequest request = request("/api/auth/login", "192.168.1." + i);
+            request.addHeader("X-Real-IP", "198.51.100.10");
+            filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+        }
+
+        MockHttpServletRequest request = request("/api/auth/login", "192.168.1.99");
+        request.addHeader("X-Real-IP", "198.51.100.10");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        filter.doFilter(request, response, new MockFilterChain());
+
+        assertThat(response.getStatus()).isEqualTo(429);
+    }
+
     // ── Limit dışı yollar ─────────────────────────────────────────────────────
 
     @Test
@@ -104,6 +121,27 @@ class RateLimitFilterTest {
             MockHttpServletResponse response = perform("/actuator/health", "10.0.0.6");
             assertThat(response.getStatus()).as("request #%d", i + 1).isEqualTo(200);
         }
+    }
+
+    @Test
+    void doFilter_whenUsersRegisterPath_usesAuthLimit() throws Exception {
+        for (int i = 0; i < AUTH_LIMIT; i++) {
+            MockHttpServletResponse response = perform("/api/users/register", "10.0.0.9");
+            assertThat(response.getStatus()).as("request #%d", i + 1).isEqualTo(200);
+        }
+
+        assertThat(perform("/api/users/register", "10.0.0.9").getStatus()).isEqualTo(429);
+    }
+
+    @Test
+    void doFilter_whenCleanupWindowElapsed_runsCleanupBeforeContinuing() throws Exception {
+        ReflectionTestUtils.setField(filter, "lastCleanup", System.currentTimeMillis() - 61_000);
+
+        MockHttpServletResponse response = perform("/api/customers", "10.0.0.10");
+
+        assertThat(response.getStatus()).isEqualTo(200);
+        assertThat((long) ReflectionTestUtils.getField(filter, "lastCleanup"))
+                .isGreaterThan(System.currentTimeMillis() - 10_000);
     }
 
     // ── Yol kategorisine göre limitler ────────────────────────────────────────

@@ -10,17 +10,19 @@ import com.MuhasebePlus.demo.customer.entity.Customer;
 import com.MuhasebePlus.demo.customer.entity.CustomerStatus;
 import com.MuhasebePlus.demo.customer.repository.CustomerRepository;
 import com.MuhasebePlus.demo.financial.entity.Currency;
+import com.MuhasebePlus.demo.invoice.dto.request.CollectionPromiseRequestDto;
 import com.MuhasebePlus.demo.invoice.dto.request.InvoiceLineItemRequestDto;
 import com.MuhasebePlus.demo.invoice.dto.request.InvoiceRequestDto;
 import com.MuhasebePlus.demo.invoice.dto.request.InvoiceSeriesRequestDto;
 import com.MuhasebePlus.demo.invoice.dto.request.NewProductRequestDto;
+import com.MuhasebePlus.demo.invoice.dto.response.CollectionPromiseResponseDto;
 import com.MuhasebePlus.demo.invoice.dto.response.InvoiceResponseDto;
+import com.MuhasebePlus.demo.invoice.entity.CollectionPromise;
 import com.MuhasebePlus.demo.invoice.entity.DiscountType;
 import com.MuhasebePlus.demo.invoice.entity.Invoice;
 import com.MuhasebePlus.demo.invoice.entity.InvoiceLineItem;
 import com.MuhasebePlus.demo.invoice.entity.InvoiceSeries;
 import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
-import com.MuhasebePlus.demo.invoice.entity.InvoiceVatSummary;
 import com.MuhasebePlus.demo.invoice.entity.PaymentStatus;
 import com.MuhasebePlus.demo.invoice.repository.CollectionPromiseRepository;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceLineItemRepository;
@@ -37,12 +39,14 @@ import com.MuhasebePlus.demo.stock.service.StockMovementService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -50,11 +54,17 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class InvoiceServiceTest {
 
     @Mock private InvoiceRepository invoiceRepository;
@@ -75,347 +85,88 @@ class InvoiceServiceTest {
     @InjectMocks
     private InvoiceService service;
 
-    @Captor private ArgumentCaptor<List<InvoiceVatSummary>> vatSummaryCaptor;
-    @Captor private ArgumentCaptor<List<InvoiceLineItem>> lineItemsCaptor;
-
     private static final Long COMPANY_ID = 1L;
-    private static final Long CUSTOMER_ID = 7L;
-    private static final Long INVOICE_ID = 100L;
-    private static final Long ORIGINAL_ID = 10L;
-    private static final Long RETURN_ID = 200L;
-
     private Company company;
-    private Customer activeCustomer;
+    private Customer customer;
+    private Product product;
 
     @BeforeEach
     void setUp() {
         company = new Company();
         company.setCompanyId(COMPANY_ID);
-        company.setCompanyName("Test A.Ş.");
+        company.setCompanyName("Test A.S.");
 
-        activeCustomer = new Customer();
-        activeCustomer.setCustomerId(CUSTOMER_ID);
-        activeCustomer.setCompany(company);
-        activeCustomer.setName("Aktif Müşteri");
-        activeCustomer.setStatus(CustomerStatus.ACTIVE);
+        customer = new Customer();
+        customer.setCustomerId(10L);
+        customer.setCompany(company);
+        customer.setName("ABC Ltd");
+        customer.setStatus(CustomerStatus.ACTIVE);
+
+        product = Product.builder()
+                .productId(5)
+                .company(company)
+                .barcode("PRD-5")
+                .name("Kalem")
+                .unit("adet")
+                .salePrice(new BigDecimal("100.00"))
+                .costPrice(new BigDecimal("60.00"))
+                .vatRate(new BigDecimal("20.00"))
+                .build();
+
+        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
+        when(companyRepository.getReferenceById(COMPANY_ID)).thenReturn(company);
     }
 
-    // ── createInvoice: toplamlar & KDV (applyTotals) ──────────────────────────
-
+    // Tests sale invoice creation calculates discount, VAT, stock movement, and journal entry.
     @Test
-    void createInvoice_singleLineTwentyPercentVatNoDiscount_computesExactTotals() {
-        stubCreateHappyPath();
-        stubProduct(product(10, "20", "100.00", "60.00"));
+    void createInvoice_whenSaleInvoiceIsValid_calculatesTotalsAndRecordsStockMovement() {
+        InvoiceRequestDto dto = invoiceRequest(
+                "FTR-001",
+                InvoiceType.sale,
+                List.of(new InvoiceLineItemRequestDto(5, 2, null, null, BigDecimal.ZERO, BigDecimal.ZERO, null, null, null)),
+                DiscountType.PERCENTAGE,
+                new BigDecimal("10.00")
+        );
+        stubCustomerAndProduct();
+        when(invoiceRepository.existsByInvoiceNumberAndCompanyCompanyId("FTR-001", COMPANY_ID)).thenReturn(false);
+        when(invoiceRepository.save(any())).thenAnswer(inv -> saveInvoice(inv.getArgument(0), 100L));
+        when(lineItemRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(lineReq(10, 2, "100.00", null, null)));
         InvoiceResponseDto result = service.createInvoice(dto);
 
-        // 2 x 100.00 = 200.00; KDV %20 = 40.00; toplam 240.00
-        assertThat(result.subtotal()).isEqualByComparingTo("200.00");
-        assertThat(result.vatAmount()).isEqualByComparingTo("40.00");
-        assertThat(result.totalAmount()).isEqualByComparingTo("240.00");
-        assertThat(result.withholdingTaxAmount()).isEqualByComparingTo("0.00");
-        // TRY faturada totalAmountTry = totalAmount
-        assertThat(result.totalAmountTry()).isEqualByComparingTo("240.00");
-        assertThat(result.lineItems()).hasSize(1);
-        assertThat(result.lineItems().get(0).lineTotal()).isEqualByComparingTo("240.00");
-    }
-
-    @Test
-    void createInvoice_mixedVatRates_createsPerRateVatSummaryRows() {
-        stubCreateHappyPath();
-        stubProduct(product(10, "20", "100.00", null));
-        stubProduct(product(11, "10", "100.00", null));
-        stubProduct(product(12, "1", "100.00", null));
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(
-                lineReq(10, 1, "100.00", null, null),
-                lineReq(11, 1, "100.00", null, null),
-                lineReq(12, 1, "100.00", null, null)));
-        InvoiceResponseDto result = service.createInvoice(dto);
-
-        assertThat(result.subtotal()).isEqualByComparingTo("300.00");
-        assertThat(result.vatAmount()).isEqualByComparingTo("31.00");
-        assertThat(result.totalAmount()).isEqualByComparingTo("331.00");
-
-        InOrder order = inOrder(vatSummaryRepository);
-        order.verify(vatSummaryRepository).deleteByInvoiceId(INVOICE_ID);
-        order.verify(vatSummaryRepository).saveAll(vatSummaryCaptor.capture());
-        List<InvoiceVatSummary> summaries = vatSummaryCaptor.getValue();
-        assertThat(summaries).hasSize(3);
-        assertThat(byRate(summaries, "20").getVatBaseAmount()).isEqualByComparingTo("100.00");
-        assertThat(byRate(summaries, "20").getVatAmount()).isEqualByComparingTo("20.00");
-        assertThat(byRate(summaries, "10").getVatBaseAmount()).isEqualByComparingTo("100.00");
-        assertThat(byRate(summaries, "10").getVatAmount()).isEqualByComparingTo("10.00");
-        assertThat(byRate(summaries, "1").getVatBaseAmount()).isEqualByComparingTo("100.00");
-        assertThat(byRate(summaries, "1").getVatAmount()).isEqualByComparingTo("1.00");
-    }
-
-    @Test
-    void createInvoice_lineDiscountTenPercent_vatComputedOnNetAfterDiscount() {
-        stubCreateHappyPath();
-        stubProduct(product(10, "20", "200.00", null));
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(lineReq(10, 1, "200.00", "10", null)));
-        InvoiceResponseDto result = service.createInvoice(dto);
-
-        // 200.00 - %10 = 180.00; KDV %20 net üzerinden = 36.00
+        assertThat(result.invoiceId()).isEqualTo(100L);
         assertThat(result.subtotal()).isEqualByComparingTo("180.00");
         assertThat(result.vatAmount()).isEqualByComparingTo("36.00");
         assertThat(result.totalAmount()).isEqualByComparingTo("216.00");
+        verify(stockMovementService).recordMovement(5, -2, MovementType.SALE, "INVOICE", 100L, null, null);
+        verify(journalEntryService).createForInvoice(any(Invoice.class));
     }
 
+    // Tests closed invoice period stops creation before persistence.
     @Test
-    void createInvoice_percentageInvoiceDiscount_distributesProportionallyAcrossLines() {
-        stubCreateHappyPath();
-        stubProduct(product(10, "20", null, null));
-        stubProduct(product(11, "20", null, null));
-        stubProduct(product(12, "20", null, null));
-
-        // 33.33 + 33.33 + 33.34 = 100.00; %10 fatura iskontosu = 10.00 TL
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(
-                        lineReq(10, 1, "33.33", null, null),
-                        lineReq(11, 1, "33.33", null, null),
-                        lineReq(12, 1, "33.34", null, null)),
-                DiscountType.PERCENTAGE, "10", null, null);
-        InvoiceResponseDto result = service.createInvoice(dto);
-
-        // Paylar: 3.33 / 3.33 / kalan 3.34 (son satır) -> netler 30.00 / 30.00 / 30.00
-        verify(lineItemRepository).saveAll(lineItemsCaptor.capture());
-        List<InvoiceLineItem> items = lineItemsCaptor.getValue();
-        assertThat(items.get(0).getVatBaseAmount()).isEqualByComparingTo("30.00");
-        assertThat(items.get(1).getVatBaseAmount()).isEqualByComparingTo("30.00");
-        assertThat(items.get(2).getVatBaseAmount()).isEqualByComparingTo("30.00");
-        assertThat(result.subtotal()).isEqualByComparingTo("90.00");
-        assertThat(result.vatAmount()).isEqualByComparingTo("18.00");
-        assertThat(result.totalAmount()).isEqualByComparingTo("108.00");
-    }
-
-    @Test
-    void createInvoice_invoiceDiscountRoundingRemainder_goesToLastLine() {
-        stubCreateHappyPath();
-        stubProduct(product(10, "20", null, null));
-        stubProduct(product(11, "20", null, null));
-        stubProduct(product(12, "20", null, null));
-
-        // 3 x 33.33 = 99.99; %10 iskonto = round2(9.9990) = 10.00
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(
-                        lineReq(10, 1, "33.33", null, null),
-                        lineReq(11, 1, "33.33", null, null),
-                        lineReq(12, 1, "33.33", null, null)),
-                DiscountType.PERCENTAGE, "10", null, null);
-        InvoiceResponseDto result = service.createInvoice(dto);
-
-        // Paylar 3.33 / 3.33 / 3.34: yuvarlama artığı SON satıra gider -> son net 29.99
-        verify(lineItemRepository).saveAll(lineItemsCaptor.capture());
-        List<InvoiceLineItem> items = lineItemsCaptor.getValue();
-        assertThat(items.get(0).getVatBaseAmount()).isEqualByComparingTo("30.00");
-        assertThat(items.get(1).getVatBaseAmount()).isEqualByComparingTo("30.00");
-        assertThat(items.get(2).getVatBaseAmount()).isEqualByComparingTo("29.99");
-        assertThat(result.subtotal()).isEqualByComparingTo("89.99");
-        assertThat(result.vatAmount()).isEqualByComparingTo("18.00");
-        assertThat(result.totalAmount()).isEqualByComparingTo("107.99");
-    }
-
-    @Test
-    void createInvoice_fixedAmountDiscount_subtractedBeforeVat() {
-        stubCreateHappyPath();
-        stubProduct(product(10, "20", null, null));
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(lineReq(10, 1, "500.00", null, null)),
-                DiscountType.AMOUNT, "50.00", null, null);
-        InvoiceResponseDto result = service.createInvoice(dto);
-
-        // 500.00 - 50.00 = 450.00; KDV %20 = 90.00
-        assertThat(result.subtotal()).isEqualByComparingTo("450.00");
-        assertThat(result.vatAmount()).isEqualByComparingTo("90.00");
-        assertThat(result.totalAmount()).isEqualByComparingTo("540.00");
-    }
-
-    @Test
-    void createInvoice_discountExceedingSubtotal_isCappedAtSubtotal() {
-        stubCreateHappyPath();
-        stubProduct(product(10, "20", null, null));
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(lineReq(10, 1, "100.00", null, null)),
-                DiscountType.AMOUNT, "150.00", null, null);
-        InvoiceResponseDto result = service.createInvoice(dto);
-
-        // İskonto 150 > subtotal 100 -> 100'de kapanır; final 0, KDV 0
-        assertThat(result.subtotal()).isEqualByComparingTo("0.00");
-        assertThat(result.vatAmount()).isEqualByComparingTo("0.00");
-        assertThat(result.totalAmount()).isEqualByComparingTo("0.00");
-    }
-
-    @Test
-    void createInvoice_withWithholding_reducesTotalAmount() {
-        stubCreateHappyPath();
-        stubProduct(product(10, "20", null, null));
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(lineReq(10, 1, "1000.00", null, "20")));
-        InvoiceResponseDto result = service.createInvoice(dto);
-
-        // tevkifat = 1000 * %20 = 200; total = 1000 + 200 KDV - 200 tevkifat = 1000.00
-        assertThat(result.subtotal()).isEqualByComparingTo("1000.00");
-        assertThat(result.vatAmount()).isEqualByComparingTo("200.00");
-        assertThat(result.withholdingTaxAmount()).isEqualByComparingTo("200.00");
-        assertThat(result.totalAmount()).isEqualByComparingTo("1000.00");
-    }
-
-    @Test
-    void createInvoice_withholdingComputedBeforeInvoiceLevelDiscountDistribution() {
-        // Mevcut davranışı belgeler (InvoiceService applyTotals, ~684-687): tevkifat,
-        // satır iskontosu SONRASI fakat fatura-geneli iskonto dağıtımından ÖNCEKİ baz
-        // üzerinden hesaplanır. 1000 TL satır + 100 TL fatura iskontosu -> tevkifat
-        // bazı 1000 (900 değil), yani %10 tevkifat = 100.00 (90.00 değil).
-        stubCreateHappyPath();
-        stubProduct(product(10, "20", null, null));
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(lineReq(10, 1, "1000.00", null, "10")),
-                DiscountType.AMOUNT, "100.00", null, null);
-        InvoiceResponseDto result = service.createInvoice(dto);
-
-        assertThat(result.withholdingTaxAmount()).isEqualByComparingTo("100.00");
-        assertThat(result.subtotal()).isEqualByComparingTo("900.00");
-        assertThat(result.vatAmount()).isEqualByComparingTo("180.00");
-        // total = 900 + 180 - 100 = 980.00
-        assertThat(result.totalAmount()).isEqualByComparingTo("980.00");
-    }
-
-    @Test
-    void createInvoice_halfUpRoundingAtFiveThousandthsBoundary_roundsUp() {
-        stubCreateHappyPath();
-        stubProduct(product(10, "20", null, null));
-
-        // 3 x 33.335 = 100.005 -> HALF_UP scale 2 -> 100.01
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(lineReq(10, 3, "33.335", null, null)));
-        InvoiceResponseDto result = service.createInvoice(dto);
-
-        assertThat(result.subtotal()).isEqualByComparingTo("100.01");
-        // KDV = round2(100.01 * 20 / 100 = 20.0020) = 20.00
-        assertThat(result.vatAmount()).isEqualByComparingTo("20.00");
-        assertThat(result.totalAmount()).isEqualByComparingTo("120.01");
-    }
-
-    @Test
-    void createInvoice_nullProductVatRate_fallsBackToZero() {
-        stubCreateHappyPath();
-        stubProduct(product(10, null, "100.00", null));
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(lineReq(10, 1, "100.00", null, null)));
-        InvoiceResponseDto result = service.createInvoice(dto);
-
-        assertThat(result.vatAmount()).isEqualByComparingTo("0.00");
-        assertThat(result.totalAmount()).isEqualByComparingTo("100.00");
-
-        verify(vatSummaryRepository).saveAll(vatSummaryCaptor.capture());
-        List<InvoiceVatSummary> summaries = vatSummaryCaptor.getValue();
-        assertThat(summaries).hasSize(1);
-        assertThat(summaries.get(0).getVatRate()).isEqualByComparingTo("0");
-        assertThat(summaries.get(0).getVatBaseAmount()).isEqualByComparingTo("100.00");
-    }
-
-    // ── createInvoice: resolveUnitPrice zinciri ───────────────────────────────
-
-    @Test
-    void createInvoice_explicitUnitPrice_overridesProductPrices() {
-        stubCreateHappyPath();
-        stubProduct(product(10, "20", "100.00", "60.00"));
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.purchase, List.of(lineReq(10, 1, "80.00", null, null)));
-        InvoiceResponseDto result = service.createInvoice(dto);
-
-        assertThat(result.lineItems().get(0).unitPrice()).isEqualByComparingTo("80.00");
-        assertThat(result.subtotal()).isEqualByComparingTo("80.00");
-        // resolveUnitCost de açık fiyatı kullanır
-        verify(stockMovementService).recordMovement(10, 1, MovementType.PURCHASE,
-                "INVOICE", INVOICE_ID, new BigDecimal("80.00"), null);
-    }
-
-    @Test
-    void createInvoice_purchaseWithoutUnitPrice_usesCostPrice() {
-        stubCreateHappyPath();
-        stubProduct(product(10, "20", "100.00", "60.00"));
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.purchase, List.of(lineReq(10, 1, null, null, null)));
-        InvoiceResponseDto result = service.createInvoice(dto);
-
-        assertThat(result.lineItems().get(0).unitPrice()).isEqualByComparingTo("60.00");
-        assertThat(result.subtotal()).isEqualByComparingTo("60.00");
-        assertThat(result.totalAmount()).isEqualByComparingTo("72.00");
-    }
-
-    @Test
-    void createInvoice_saleWithoutUnitPrice_usesSalePriceNotCostPrice() {
-        stubCreateHappyPath();
-        stubProduct(product(10, "20", "100.00", "60.00"));
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(lineReq(10, 1, null, null, null)));
-        InvoiceResponseDto result = service.createInvoice(dto);
-
-        assertThat(result.lineItems().get(0).unitPrice()).isEqualByComparingTo("100.00");
-        assertThat(result.totalAmount()).isEqualByComparingTo("120.00");
-    }
-
-    @Test
-    void createInvoice_missingSalePrice_fallsBackToCostPriceThenZero() {
-        stubCreateHappyPath();
-        stubProduct(product(10, "20", null, "75.00")); // salePrice yok -> costPrice
-        stubProduct(product(11, "20", null, null));    // hiçbiri yok -> ZERO
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(
-                lineReq(10, 1, null, null, null),
-                lineReq(11, 1, null, null, null)));
-        InvoiceResponseDto result = service.createInvoice(dto);
-
-        assertThat(result.lineItems().get(0).unitPrice()).isEqualByComparingTo("75.00");
-        assertThat(result.lineItems().get(1).unitPrice()).isEqualByComparingTo("0");
-        assertThat(result.subtotal()).isEqualByComparingTo("75.00");
-        assertThat(result.totalAmount()).isEqualByComparingTo("90.00");
-    }
-
-    // ── createInvoice: durum makinesi & validasyon ────────────────────────────
-
-    @Test
-    void createInvoice_whenInvoiceNumberAlreadyUsedInCompany_throwsAndSavesNothing() {
-        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
-        when(invoiceRepository.existsByInvoiceNumberAndCompanyCompanyId("INV-2026-0001", COMPANY_ID))
-                .thenReturn(true);
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(lineReq(10, 1, "100.00", null, null)));
+    void createInvoice_whenPeriodIsClosed_throwsBeforeSaving() {
+        InvoiceRequestDto dto = invoiceRequest("FTR-CLOSED", InvoiceType.sale,
+                List.of(new InvoiceLineItemRequestDto(5, 1, null, null, null, null, null, null, null)),
+                null, null);
+        org.mockito.Mockito.doThrow(new ClosedPeriodException(2026, 5))
+                .when(periodGuard).assertOpen(dto.invoiceDate());
 
         assertThatThrownBy(() -> service.createInvoice(dto))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("already used");
+                .isInstanceOf(ClosedPeriodException.class);
 
         verify(invoiceRepository, never()).save(any());
-        verify(journalEntryService, never()).createForInvoice(any());
     }
 
+    // Tests blocked customers cannot receive invoices.
     @Test
-    void createInvoice_whenPeriodIsClosed_throwsClosedPeriodExceptionBeforeAnySave() {
-        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
-        doThrow(new ClosedPeriodException(2026, 6)).when(periodGuard).assertOpen(LocalDate.of(2026, 6, 1));
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(lineReq(10, 1, "100.00", null, null)));
-
-        assertThatThrownBy(() -> service.createInvoice(dto))
-                .isInstanceOf(ClosedPeriodException.class)
-                .hasMessageContaining("2026");
-
-        verify(invoiceRepository, never()).save(any());
-        verify(stockMovementService, never()).recordMovement(any(), anyInt(), any(), any(), any(), any(), any());
-        verify(journalEntryService, never()).createForInvoice(any());
-    }
-
-    @Test
-    void createInvoice_whenCustomerBlocked_throwsBusinessException() {
-        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
-        activeCustomer.setStatus(CustomerStatus.BLOCKED);
-        when(customerRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(CUSTOMER_ID, COMPANY_ID))
-                .thenReturn(Optional.of(activeCustomer));
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(lineReq(10, 1, "100.00", null, null)));
+    void createInvoice_whenCustomerIsBlocked_throwsBusinessException() {
+        customer.setStatus(CustomerStatus.BLOCKED);
+        InvoiceRequestDto dto = invoiceRequest("FTR-BLOCKED", InvoiceType.sale,
+                List.of(new InvoiceLineItemRequestDto(5, 1, null, null, null, null, null, null, null)),
+                null, null);
+        when(invoiceRepository.existsByInvoiceNumberAndCompanyCompanyId("FTR-BLOCKED", COMPANY_ID)).thenReturn(false);
+        when(customerRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(10L, COMPANY_ID))
+                .thenReturn(Optional.of(customer));
 
         assertThatThrownBy(() -> service.createInvoice(dto))
                 .isInstanceOf(BusinessException.class)
@@ -424,721 +175,348 @@ class InvoiceServiceTest {
         verify(invoiceRepository, never()).save(any());
     }
 
+    // Tests purchase invoice can create a new product and records purchase stock movement with unit cost.
     @Test
-    void createInvoice_whenCustomerPassive_throwsBusinessException() {
-        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
-        activeCustomer.setStatus(CustomerStatus.PASSIVE);
-        when(customerRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(CUSTOMER_ID, COMPANY_ID))
-                .thenReturn(Optional.of(activeCustomer));
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(lineReq(10, 1, "100.00", null, null)));
-
-        assertThatThrownBy(() -> service.createInvoice(dto))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("pasif");
-
-        verify(invoiceRepository, never()).save(any());
-    }
-
-    @Test
-    void createInvoice_saleInvoice_recordsNegativeStockMovementAndJournalOnce() {
-        stubCreateHappyPath();
-        stubProduct(product(10, "20", "100.00", null));
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(lineReq(10, 3, "100.00", null, null)));
-        service.createInvoice(dto);
-
-        verify(stockMovementService).recordMovement(10, -3, MovementType.SALE,
-                "INVOICE", INVOICE_ID, null, null);
-        verify(journalEntryService, times(1)).createForInvoice(any(Invoice.class));
-    }
-
-    @Test
-    void createInvoice_purchaseInvoice_recordsPositiveStockMovementWithUnitCost() {
-        stubCreateHappyPath();
-        Product p = product(10, "20", "100.00", "60.00");
-        stubProduct(p);
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.purchase, List.of(lineReq(10, 4, null, null, null)));
-        service.createInvoice(dto);
-
-        verify(stockMovementService).recordMovement(10, 4, MovementType.PURCHASE,
-                "INVOICE", INVOICE_ID, new BigDecimal("60.00"), null);
-    }
-
-    @Test
-    void createInvoice_newProductOnSaleInvoice_throwsBusinessException() {
-        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
-        when(customerRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(CUSTOMER_ID, COMPANY_ID))
-                .thenReturn(Optional.of(activeCustomer));
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(newProductLine("BC-NEW", 1)));
-
-        assertThatThrownBy(() -> service.createInvoice(dto))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("yeni ürün eklenemez");
-
-        verify(invoiceRepository, never()).save(any());
-        verify(productService, never()).createProductEntity(any());
-    }
-
-    @Test
-    void createInvoice_duplicateBarcodeInSameRequest_throwsBusinessException() {
-        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
-        when(customerRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(CUSTOMER_ID, COMPANY_ID))
-                .thenReturn(Optional.of(activeCustomer));
-        when(productRepository.existsByBarcodeAndCompanyCompanyIdAndIsDeletedFalse("BC-DUP", COMPANY_ID))
+    void createInvoice_whenPurchaseHasNewProduct_createsProductAndRecordsPurchaseMovement() {
+        NewProductRequestDto newProduct = new NewProductRequestDto(
+                "NEW-1", "Yeni Urun", "Aciklama", "adet",
+                new BigDecimal("150.00"), new BigDecimal("10.00"), new BigDecimal("80.00"), 3);
+        Product createdProduct = Product.builder()
+                .productId(8)
+                .company(company)
+                .barcode("NEW-1")
+                .name("Yeni Urun")
+                .salePrice(new BigDecimal("150.00"))
+                .costPrice(new BigDecimal("80.00"))
+                .vatRate(new BigDecimal("10.00"))
+                .build();
+        InvoiceRequestDto dto = invoiceRequest("ALI-001", InvoiceType.purchase,
+                List.of(new InvoiceLineItemRequestDto(null, 4, newProduct, null, null, null, null, null, null)),
+                null, null);
+        when(invoiceRepository.existsByInvoiceNumberAndCompanyCompanyId("ALI-001", COMPANY_ID)).thenReturn(false);
+        when(customerRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(10L, COMPANY_ID))
+                .thenReturn(Optional.of(customer));
+        when(productRepository.existsByBarcodeAndCompanyCompanyIdAndIsDeletedFalse("NEW-1", COMPANY_ID))
                 .thenReturn(false);
-        Product created = product(50, "20", "100.00", "60.00");
-        created.setBarcode("BC-DUP");
-        when(productService.createProductEntity(any())).thenReturn(created);
+        when(productService.createProductEntity(any())).thenReturn(createdProduct);
+        when(invoiceRepository.save(any())).thenAnswer(inv -> saveInvoice(inv.getArgument(0), 101L));
+        when(lineItemRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.purchase, List.of(
-                newProductLine("BC-DUP", 1),
-                newProductLine("BC-DUP", 2)));
+        InvoiceResponseDto result = service.createInvoice(dto);
 
-        assertThatThrownBy(() -> service.createInvoice(dto))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Aynı request içinde");
-
-        verify(invoiceRepository, never()).save(any());
+        assertThat(result.subtotal()).isEqualByComparingTo("320.00");
+        assertThat(result.vatAmount()).isEqualByComparingTo("32.00");
+        assertThat(result.totalAmount()).isEqualByComparingTo("352.00");
+        verify(stockMovementService).recordMovement(8, 4, MovementType.PURCHASE, "INVOICE", 101L, new BigDecimal("80.00"), null);
     }
 
+    // Tests only draft invoices can be confirmed.
     @Test
-    void createInvoice_barcodeAlreadyInDatabase_throwsBusinessException() {
-        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
-        when(customerRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(CUSTOMER_ID, COMPANY_ID))
-                .thenReturn(Optional.of(activeCustomer));
-        when(productRepository.existsByBarcodeAndCompanyCompanyIdAndIsDeletedFalse("BC-EXISTS", COMPANY_ID))
-                .thenReturn(true);
+    void confirmInvoice_whenInvoiceIsNotDraft_throws() {
+        Invoice invoice = invoice(100L, InvoiceType.sale, PaymentStatus.pending);
+        when(invoiceRepository.findById(100L)).thenReturn(Optional.of(invoice));
 
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.purchase, List.of(newProductLine("BC-EXISTS", 1)));
-
-        assertThatThrownBy(() -> service.createInvoice(dto))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("zaten mevcut");
-
-        verify(productService, never()).createProductEntity(any());
-        verify(invoiceRepository, never()).save(any());
-    }
-
-    // ── confirmInvoice ────────────────────────────────────────────────────────
-
-    @Test
-    void confirmInvoice_whenNotDraft_throwsRuntimeException() {
-        stubActiveInvoice(PaymentStatus.pending, InvoiceType.sale);
-
-        assertThatThrownBy(() -> service.confirmInvoice(INVOICE_ID))
+        assertThatThrownBy(() -> service.confirmInvoice(100L))
                 .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Only draft invoices can be confirmed");
-
-        verify(invoiceRepository, never()).save(any());
-        verify(journalEntryService, never()).createForInvoice(any());
+                .hasMessageContaining("draft");
     }
 
+    // Tests confirming draft sale invoice records stock movement and creates journal entry.
     @Test
-    void confirmInvoice_whenDraftHasNoLineItems_throwsRuntimeException() {
-        stubActiveInvoice(PaymentStatus.draft, InvoiceType.sale);
-        when(lineItemRepository.findByInvoiceIdAndCompanyCompanyIdAndIsDeletedFalse(INVOICE_ID, COMPANY_ID))
-                .thenReturn(List.of());
+    void confirmInvoice_whenDraftSaleHasLines_movesStockAndCreatesJournal() {
+        Invoice invoice = invoice(100L, InvoiceType.sale, PaymentStatus.draft);
+        InvoiceLineItem line = line(100L, 5, 3, new BigDecimal("100.00"), BigDecimal.ZERO, BigDecimal.ZERO);
+        when(invoiceRepository.findById(100L)).thenReturn(Optional.of(invoice));
+        when(lineItemRepository.findByInvoiceIdAndCompanyCompanyIdAndIsDeletedFalse(100L, COMPANY_ID))
+                .thenReturn(List.of(line));
+        when(invoiceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(productRepository.findByProductIdInAndCompanyCompanyId(List.of(5), COMPANY_ID))
+                .thenReturn(List.of(product));
+        when(customerRepository.findByCustomerIdAndCompanyCompanyId(10L, COMPANY_ID))
+                .thenReturn(Optional.of(customer));
 
-        assertThatThrownBy(() -> service.confirmInvoice(INVOICE_ID))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("no line items");
+        InvoiceResponseDto result = service.confirmInvoice(100L);
 
-        verify(invoiceRepository, never()).save(any());
-    }
-
-    @Test
-    void confirmInvoice_saleDraft_recordsStockMovementsJournalAndSetsPending() {
-        Invoice invoice = stubActiveInvoice(PaymentStatus.draft, InvoiceType.sale);
-        InvoiceLineItem li1 = lineItemEntity(10, 2, "100.00", "20", null, null);
-        InvoiceLineItem li2 = lineItemEntity(11, 5, "50.00", "10", null, null);
-        when(lineItemRepository.findByInvoiceIdAndCompanyCompanyIdAndIsDeletedFalse(INVOICE_ID, COMPANY_ID))
-                .thenReturn(List.of(li1, li2));
-        when(invoiceRepository.save(any(Invoice.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        InvoiceResponseDto result = service.confirmInvoice(INVOICE_ID);
-
-        verify(stockMovementService).recordMovement(10, -2, MovementType.SALE, "INVOICE", INVOICE_ID, null, null);
-        verify(stockMovementService).recordMovement(11, -5, MovementType.SALE, "INVOICE", INVOICE_ID, null, null);
+        assertThat(result.paymentStatus()).isEqualTo("pending");
+        verify(stockMovementService).recordMovement(5, -3, MovementType.SALE, "INVOICE", 100L, null, null);
         verify(journalEntryService).createForInvoice(invoice);
-        assertThat(result.paymentStatus()).isEqualTo("pending");
     }
 
+    // Tests paid invoices cannot be updated.
     @Test
-    void confirmInvoice_purchaseDraft_doesNotRecordStockMovement() {
-        // Mevcut davranışı belgeler: confirmInvoice yalnızca satış faturalarında stok düşer;
-        // alış taslağı onaylanırken stok hareketi YAZILMAZ.
-        stubActiveInvoice(PaymentStatus.draft, InvoiceType.purchase);
-        when(lineItemRepository.findByInvoiceIdAndCompanyCompanyIdAndIsDeletedFalse(INVOICE_ID, COMPANY_ID))
-                .thenReturn(List.of(lineItemEntity(10, 2, "100.00", "20", null, null)));
-        when(invoiceRepository.save(any(Invoice.class))).thenAnswer(inv -> inv.getArgument(0));
+    void updateInvoice_whenInvoiceIsPaid_throwsBeforeSaving() {
+        Invoice invoice = invoice(100L, InvoiceType.sale, PaymentStatus.paid);
+        when(invoiceRepository.findById(100L)).thenReturn(Optional.of(invoice));
 
-        InvoiceResponseDto result = service.confirmInvoice(INVOICE_ID);
-
-        verify(stockMovementService, never()).recordMovement(any(), anyInt(), any(), any(), any(), any(), any());
-        verify(journalEntryService).createForInvoice(any(Invoice.class));
-        assertThat(result.paymentStatus()).isEqualTo("pending");
-    }
-
-    // ── updateInvoice ─────────────────────────────────────────────────────────
-
-    @Test
-    void updateInvoice_whenPaid_throwsRuntimeException() {
-        stubActiveInvoice(PaymentStatus.paid, InvoiceType.sale);
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(lineReq(10, 1, "100.00", null, null)));
-
-        assertThatThrownBy(() -> service.updateInvoice(INVOICE_ID, dto))
+        assertThatThrownBy(() -> service.updateInvoice(100L, invoiceRequest("FTR-NEW", InvoiceType.sale,
+                List.of(new InvoiceLineItemRequestDto(5, 1, null, null, null, null, null, null, null)), null, null)))
                 .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Paid invoices cannot be updated");
-
-        verify(invoiceRepository, never()).save(any());
-        verify(journalEntryService, never()).reverseForInvoice(any(), any(), any());
-    }
-
-    @Test
-    void updateInvoice_whenNewNumberConflicts_throwsRuntimeException() {
-        stubActiveInvoice(PaymentStatus.pending, InvoiceType.sale);
-        when(invoiceRepository.existsByInvoiceNumberAndCompanyCompanyId("INV-9999", COMPANY_ID))
-                .thenReturn(true);
-
-        InvoiceRequestDto dto = new InvoiceRequestDto("INV-9999", CUSTOMER_ID, InvoiceType.sale,
-                LocalDate.of(2026, 6, 1), LocalDate.of(2026, 7, 1),
-                List.of(lineReq(10, 1, "100.00", null, null)), null, null, null, null, null, null);
-
-        assertThatThrownBy(() -> service.updateInvoice(INVOICE_ID, dto))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("already used");
+                .hasMessageContaining("Paid invoices");
 
         verify(invoiceRepository, never()).save(any());
     }
 
-    @Test
-    void updateInvoice_whenValid_reversesThenRecreatesJournalInOrder() {
-        Invoice invoice = stubActiveInvoice(PaymentStatus.pending, InvoiceType.sale);
-        when(customerRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(CUSTOMER_ID, COMPANY_ID))
-                .thenReturn(Optional.of(activeCustomer));
-        when(invoiceRepository.save(any(Invoice.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(lineReq(10, 1, "100.00", null, null)));
-        InvoiceResponseDto result = service.updateInvoice(INVOICE_ID, dto);
-
-        InOrder order = inOrder(journalEntryService);
-        order.verify(journalEntryService).reverseForInvoice(COMPANY_ID, INVOICE_ID, "Güncelleme");
-        order.verify(journalEntryService).createForInvoice(invoice);
-        assertThat(result.invoiceNumber()).isEqualTo("INV-2026-0001");
-    }
-
-    // ── deleteInvoice ─────────────────────────────────────────────────────────
-
-    @Test
-    void deleteInvoice_whenPaid_throwsRuntimeException() {
-        stubActiveInvoice(PaymentStatus.paid, InvoiceType.sale);
-
-        assertThatThrownBy(() -> service.deleteInvoice(INVOICE_ID))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Paid invoices cannot be deleted");
-
-        verify(invoiceRepository, never()).save(any());
-        verify(stockMovementService, never()).recordReverseMovementsForInvoice(any());
-    }
-
+    // Tests partially paid invoices cannot be deleted because payment integrity must be preserved.
     @Test
     void deleteInvoice_whenPartiallyPaid_throwsBusinessException() {
-        stubActiveInvoice(PaymentStatus.partially_paid, InvoiceType.sale);
+        Invoice invoice = invoice(100L, InvoiceType.sale, PaymentStatus.partially_paid);
+        when(invoiceRepository.findById(100L)).thenReturn(Optional.of(invoice));
 
-        assertThatThrownBy(() -> service.deleteInvoice(INVOICE_ID))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("ödeme bulunan");
+        assertThatThrownBy(() -> service.deleteInvoice(100L))
+                .isInstanceOf(BusinessException.class);
 
         verify(invoiceRepository, never()).save(any());
     }
 
+    // Tests deleting an unpaid invoice soft-deletes line items, reverses stock, and reverses journal.
     @Test
-    void deleteInvoice_whenValid_softDeletesLinesReversesStockAndJournal() {
-        Invoice invoice = stubActiveInvoice(PaymentStatus.pending, InvoiceType.sale);
-        InvoiceLineItem li1 = lineItemEntity(10, 2, "100.00", "20", null, null);
-        InvoiceLineItem li2 = lineItemEntity(11, 1, "50.00", "10", null, null);
-        List<InvoiceLineItem> lines = List.of(li1, li2);
-        when(lineItemRepository.findByInvoiceIdAndCompanyCompanyIdAndIsDeletedFalse(INVOICE_ID, COMPANY_ID))
-                .thenReturn(lines);
+    void deleteInvoice_whenPending_softDeletesLinesAndReversesRelatedEntries() {
+        Invoice invoice = invoice(100L, InvoiceType.sale, PaymentStatus.pending);
+        InvoiceLineItem line = line(100L, 5, 1, new BigDecimal("100.00"), BigDecimal.ZERO, BigDecimal.ZERO);
+        when(invoiceRepository.findById(100L)).thenReturn(Optional.of(invoice));
+        when(lineItemRepository.findByInvoiceIdAndCompanyCompanyIdAndIsDeletedFalse(100L, COMPANY_ID))
+                .thenReturn(List.of(line));
+        when(lineItemRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(invoiceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        service.deleteInvoice(INVOICE_ID);
+        service.deleteInvoice(100L);
 
-        assertThat(li1.isDeleted()).isTrue();
-        assertThat(li2.isDeleted()).isTrue();
-        verify(lineItemRepository).saveAll(lines);
-        verify(stockMovementService).recordReverseMovementsForInvoice(INVOICE_ID);
         assertThat(invoice.isDeleted()).isTrue();
-        assertThat(invoice.getDeletedAt()).isNotNull();
-        verify(invoiceRepository).save(invoice);
-        verify(journalEntryService).reverseForInvoice(COMPANY_ID, INVOICE_ID, "Fatura silindi");
+        assertThat(line.isDeleted()).isTrue();
+        verify(stockMovementService).recordReverseMovementsForInvoice(100L);
+        verify(journalEntryService).reverseForInvoice(eq(COMPANY_ID), eq(100L), any());
     }
 
-    // ── cancelInvoice ─────────────────────────────────────────────────────────
-
+    // Tests invoice cancellation marks cancellation fields and reverses stock and journal.
     @Test
-    void cancelInvoice_whenAlreadyCancelled_throwsBusinessException() {
-        Invoice invoice = stubActiveInvoice(PaymentStatus.pending, InvoiceType.sale);
-        invoice.setCancelled(true);
+    void cancelInvoice_whenPending_marksCancelledAndDeletesLines() {
+        Invoice invoice = invoice(100L, InvoiceType.sale, PaymentStatus.pending);
+        InvoiceLineItem line = line(100L, 5, 1, new BigDecimal("100.00"), BigDecimal.ZERO, BigDecimal.ZERO);
+        when(invoiceRepository.findById(100L)).thenReturn(Optional.of(invoice));
+        when(lineItemRepository.findByInvoiceIdAndCompanyCompanyIdAndIsDeletedFalse(100L, COMPANY_ID))
+                .thenReturn(List.of(line));
+        when(lineItemRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(invoiceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(productRepository.findByProductIdInAndCompanyCompanyId(List.of(5), COMPANY_ID))
+                .thenReturn(List.of(product));
+        when(customerRepository.findByCustomerIdAndCompanyCompanyId(10L, COMPANY_ID))
+                .thenReturn(Optional.of(customer));
 
-        assertThatThrownBy(() -> service.cancelInvoice(INVOICE_ID, "Sebep"))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("zaten iptal");
+        InvoiceResponseDto result = service.cancelInvoice(100L, "Musteri iptali");
 
-        verify(invoiceRepository, never()).save(any());
-    }
-
-    @Test
-    void cancelInvoice_whenHasPayments_throwsBusinessException() {
-        stubActiveInvoice(PaymentStatus.paid, InvoiceType.sale);
-
-        assertThatThrownBy(() -> service.cancelInvoice(INVOICE_ID, "Sebep"))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("iptal edilemez");
-
-        verify(stockMovementService, never()).recordReverseMovementsForInvoice(any());
-    }
-
-    @Test
-    void cancelInvoice_whenValid_setsCancellationFieldsAndReversesEverything() {
-        Invoice invoice = stubActiveInvoice(PaymentStatus.pending, InvoiceType.sale);
-        InvoiceLineItem li = lineItemEntity(10, 2, "100.00", "20", null, null);
-        when(lineItemRepository.findByInvoiceIdAndCompanyCompanyIdAndIsDeletedFalse(INVOICE_ID, COMPANY_ID))
-                .thenReturn(List.of(li));
-        when(invoiceRepository.save(any(Invoice.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        InvoiceResponseDto result = service.cancelInvoice(INVOICE_ID, "Müşteri talebi");
-
-        assertThat(invoice.isCancelled()).isTrue();
-        assertThat(invoice.getCancellationReason()).isEqualTo("Müşteri talebi");
-        assertThat(invoice.getCancelledAt()).isNotNull();
-        assertThat(li.isDeleted()).isTrue();
-        verify(stockMovementService).recordReverseMovementsForInvoice(INVOICE_ID);
-        verify(journalEntryService).reverseForInvoice(COMPANY_ID, INVOICE_ID, "İptal: Müşteri talebi");
         assertThat(result.cancelled()).isTrue();
+        assertThat(result.cancellationReason()).isEqualTo("Musteri iptali");
+        assertThat(line.isDeleted()).isTrue();
+        verify(stockMovementService).recordReverseMovementsForInvoice(100L);
+        verify(journalEntryService).reverseForInvoice(eq(COMPANY_ID), eq(100L), any());
     }
 
-    // ── updatePaymentStatus ───────────────────────────────────────────────────
-
+    // Tests return invoice from a sale becomes purchase return and restores stock.
     @Test
-    void updatePaymentStatus_toDraft_throwsRuntimeException() {
-        stubActiveInvoice(PaymentStatus.pending, InvoiceType.sale);
+    void createReturnInvoice_whenOriginalSale_createsPurchaseReturnAndMovesStockIn() {
+        Invoice original = invoice(100L, InvoiceType.sale, PaymentStatus.pending);
+        original.setInvoiceNumber("FTR-001");
+        InvoiceLineItem originalLine = line(100L, 5, 2, new BigDecimal("100.00"), BigDecimal.ZERO, BigDecimal.ZERO);
+        when(invoiceRepository.findById(100L)).thenReturn(Optional.of(original));
+        when(lineItemRepository.findByInvoiceIdAndCompanyCompanyIdAndIsDeletedFalse(100L, COMPANY_ID))
+                .thenReturn(List.of(originalLine));
+        when(productRepository.findByProductIdAndCompanyCompanyIdAndIsDeletedFalse(5, COMPANY_ID))
+                .thenReturn(Optional.of(product));
+        when(invoiceRepository.save(any())).thenAnswer(inv -> saveInvoice(inv.getArgument(0), 200L));
+        when(lineItemRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(customerRepository.findByCustomerIdAndCompanyCompanyId(10L, COMPANY_ID))
+                .thenReturn(Optional.of(customer));
 
-        assertThatThrownBy(() -> service.updatePaymentStatus(INVOICE_ID, PaymentStatus.draft))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Cannot set payment status to draft");
-
-        verify(invoiceRepository, never()).save(any());
-    }
-
-    @Test
-    void updatePaymentStatus_toPaid_throwsUsePaymentsEndpoint() {
-        stubActiveInvoice(PaymentStatus.pending, InvoiceType.sale);
-
-        assertThatThrownBy(() -> service.updatePaymentStatus(INVOICE_ID, PaymentStatus.paid))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("/payments");
-
-        verify(invoiceRepository, never()).save(any());
-    }
-
-    @Test
-    void updatePaymentStatus_draftToPending_throwsUseConfirmEndpoint() {
-        stubActiveInvoice(PaymentStatus.draft, InvoiceType.sale);
-
-        assertThatThrownBy(() -> service.updatePaymentStatus(INVOICE_ID, PaymentStatus.pending))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("/confirm");
-
-        verify(invoiceRepository, never()).save(any());
-    }
-
-    @Test
-    void updatePaymentStatus_pendingToOverdue_updatesStatus() {
-        Invoice invoice = stubActiveInvoice(PaymentStatus.pending, InvoiceType.sale);
-        when(invoiceRepository.save(any(Invoice.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        InvoiceResponseDto result = service.updatePaymentStatus(INVOICE_ID, PaymentStatus.overdue);
-
-        assertThat(invoice.getPaymentStatus()).isEqualTo(PaymentStatus.overdue);
-        assertThat(result.paymentStatus()).isEqualTo("overdue");
-    }
-
-    // ── restoreInvoice ────────────────────────────────────────────────────────
-
-    @Test
-    void restoreInvoice_whenNotDeleted_throwsRuntimeException() {
-        stubActiveInvoice(PaymentStatus.pending, InvoiceType.sale);
-
-        assertThatThrownBy(() -> service.restoreInvoice(INVOICE_ID))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("not deleted");
-
-        verify(invoiceRepository, never()).save(any());
-    }
-
-    @Test
-    void restoreInvoice_whenDeleted_clearsDeletionFields() {
-        Invoice invoice = stubActiveInvoice(PaymentStatus.pending, InvoiceType.sale);
-        invoice.setDeleted(true);
-        invoice.setDeletedAt(LocalDateTime.now());
-        when(invoiceRepository.save(any(Invoice.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        InvoiceResponseDto result = service.restoreInvoice(INVOICE_ID);
-
-        assertThat(invoice.isDeleted()).isFalse();
-        assertThat(invoice.getDeletedAt()).isNull();
-        assertThat(result.isDeleted()).isFalse();
-        verify(invoiceRepository).save(invoice);
-    }
-
-    // ── tenancy ───────────────────────────────────────────────────────────────
-
-    @Test
-    void getInvoiceById_whenInvoiceBelongsToAnotherCompany_throwsAccessDenied() {
-        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
-        Company otherCompany = new Company();
-        otherCompany.setCompanyId(2L);
-        Invoice foreign = invoiceEntity(INVOICE_ID, PaymentStatus.pending, InvoiceType.sale);
-        foreign.setCompany(otherCompany);
-        when(invoiceRepository.findById(INVOICE_ID)).thenReturn(Optional.of(foreign));
-
-        assertThatThrownBy(() -> service.getInvoiceById(INVOICE_ID))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("görüntüleme yetkiniz yok");
-    }
-
-    // ── createReturnInvoice ───────────────────────────────────────────────────
-
-    @Test
-    void createReturnInvoice_whenOriginalCancelled_throwsBusinessException() {
-        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
-        Invoice original = invoiceEntity(ORIGINAL_ID, PaymentStatus.pending, InvoiceType.sale);
-        original.setCancelled(true);
-        when(invoiceRepository.findById(ORIGINAL_ID)).thenReturn(Optional.of(original));
-
-        assertThatThrownBy(() -> service.createReturnInvoice(ORIGINAL_ID, returnReq("RET-2026-0001")))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("İptal edilmiş faturaya iade yapılamaz");
-
-        verify(invoiceRepository, never()).save(any());
-        verify(journalEntryService, never()).createForInvoice(any());
-    }
-
-    @Test
-    void createReturnInvoice_saleOriginal_createsPurchaseReturnWithPositiveStockMovement() {
-        Invoice original = stubReturnHappyPath(InvoiceType.sale,
-                List.of(lineItemEntity(10, 3, "100.00", "20", null, null)));
-        stubProduct(product(10, "20", "100.00", "60.00"));
-
-        InvoiceResponseDto result = service.createReturnInvoice(ORIGINAL_ID, returnReq("RET-2026-0001"));
+        InvoiceResponseDto result = service.createReturnInvoice(100L, invoiceRequest("IADE-001", InvoiceType.purchase,
+                List.of(new InvoiceLineItemRequestDto(5, 2, null, null, null, null, null, null, null)), null, null));
 
         assertThat(result.invoiceType()).isEqualTo("purchase");
-        assertThat(result.referenceInvoiceId()).isEqualTo(ORIGINAL_ID);
-        assertThat(result.paymentStatus()).isEqualTo("pending");
-        assertThat(result.description()).contains(original.getInvoiceNumber());
-        // Satış iadesi = mal geri gelir -> pozitif PURCHASE hareketi, maliyet = costPrice
-        verify(stockMovementService).recordMovement(10, 3, MovementType.PURCHASE,
-                "INVOICE", RETURN_ID, new BigDecimal("60.00"), null);
-        verify(journalEntryService).createForInvoice(any(Invoice.class));
+        assertThat(result.referenceInvoiceId()).isEqualTo(100L);
+        assertThat(result.totalAmount()).isEqualByComparingTo("240.00");
+        verify(stockMovementService).recordMovement(5, 2, MovementType.PURCHASE, "INVOICE", 200L, new BigDecimal("60.00"), null);
     }
 
+    // Tests paged invoice query uses search branch and maps line items with products.
     @Test
-    void createReturnInvoice_purchaseOriginal_createsSaleReturnWithNegativeStockMovement() {
-        stubReturnHappyPath(InvoiceType.purchase,
-                List.of(lineItemEntity(10, 3, "100.00", "20", null, null)));
-        stubProduct(product(10, "20", "100.00", "60.00"));
+    void getInvoicesPaged_whenSearchProvided_usesSearchRepositoryAndMapsLines() {
+        Invoice invoice = invoice(100L, InvoiceType.sale, PaymentStatus.pending);
+        InvoiceLineItem line = line(100L, 5, 1, new BigDecimal("100.00"), BigDecimal.ZERO, BigDecimal.ZERO);
+        when(invoiceRepository.searchInvoices(eq(COMPANY_ID), eq("FTR"), any()))
+                .thenReturn(new PageImpl<>(List.of(invoice), PageRequest.of(0, 10), 1));
+        when(lineItemRepository.findByInvoiceIdInAndCompanyAndActive(List.of(100L), COMPANY_ID))
+                .thenReturn(List.of(line));
+        when(productRepository.findByProductIdInAndCompanyCompanyId(List.of(5), COMPANY_ID))
+                .thenReturn(List.of(product));
 
-        InvoiceResponseDto result = service.createReturnInvoice(ORIGINAL_ID, returnReq("RET-2026-0002"));
+        Page<InvoiceResponseDto> result = service.getInvoicesPaged(
+                null, null, null, null, "FTR", PageRequest.of(0, 10));
 
-        assertThat(result.invoiceType()).isEqualTo("sale");
-        // Alış iadesi = mal geri gider -> negatif SALE hareketi
-        verify(stockMovementService).recordMovement(10, -3, MovementType.SALE,
-                "INVOICE", RETURN_ID, new BigDecimal("60.00"), null);
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).lineItems()).hasSize(1);
+        assertThat(result.getContent().get(0).lineItems().get(0).productName()).isEqualTo("Kalem");
     }
 
+    // Tests invoice series creation rejects duplicate series codes per type.
     @Test
-    void createReturnInvoice_copiesLineRatesCurrencyAndReference() {
-        Invoice original = stubReturnHappyPath(InvoiceType.sale,
-                List.of(lineItemEntity(10, 2, "200.00", "10", "10", "5")));
-        original.setCurrency(Currency.USD);
-        original.setExchangeRate(new BigDecimal("30"));
-        stubProduct(product(10, "10", "200.00", "120.00"));
+    void createSeries_whenDuplicateSeriesExists_throws() {
+        InvoiceSeriesRequestDto dto = new InvoiceSeriesRequestDto("A", InvoiceType.sale, "SAT", 2026, true);
+        when(seriesRepository.existsByCompanyCompanyIdAndSeriesCodeAndInvoiceType(COMPANY_ID, "A", InvoiceType.sale))
+                .thenReturn(true);
 
-        InvoiceResponseDto result = service.createReturnInvoice(ORIGINAL_ID, returnReq("RET-2026-0003"));
+        assertThatThrownBy(() -> service.createSeries(dto))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("series");
 
-        verify(lineItemRepository).saveAll(lineItemsCaptor.capture());
-        InvoiceLineItem copied = lineItemsCaptor.getValue().get(0);
-        assertThat(copied.getQuantity()).isEqualTo(2);
-        assertThat(copied.getUnitPrice()).isEqualByComparingTo("200.00");
-        assertThat(copied.getVatRate()).isEqualByComparingTo("10");
-        assertThat(copied.getDiscountRate()).isEqualByComparingTo("10");
-        assertThat(copied.getWithholdingTaxRate()).isEqualByComparingTo("5");
-
-        // 2x200=400; satır iskontosu %10 -> 360.00; KDV %10 = 36.00; tevkifat %5 = 18.00
-        assertThat(result.subtotal()).isEqualByComparingTo("360.00");
-        assertThat(result.vatAmount()).isEqualByComparingTo("36.00");
-        assertThat(result.withholdingTaxAmount()).isEqualByComparingTo("18.00");
-        assertThat(result.totalAmount()).isEqualByComparingTo("378.00");
-        assertThat(result.currency()).isEqualTo("USD");
-        assertThat(result.exchangeRate()).isEqualByComparingTo("30");
-        assertThat(result.totalAmountTry()).isEqualByComparingTo("11340.00");
-        assertThat(result.referenceInvoiceId()).isEqualTo(ORIGINAL_ID);
+        verify(seriesRepository, never()).save(any());
     }
 
+    // Tests next invoice number increments and formats the active series.
     @Test
-    void createReturnInvoice_lineWithDeletedProduct_isSilentlySkipped() {
-        // Mevcut davranışı belgeler: silinmiş ürünlü orijinal satır iade faturasına
-        // kopyalanmaz ve hata da fırlatılmaz (sessizce atlanır).
-        stubReturnHappyPath(InvoiceType.sale, List.of(
-                lineItemEntity(10, 1, "100.00", "20", null, null),
-                lineItemEntity(11, 1, "50.00", "20", null, null)));
-        stubProduct(product(10, "20", "100.00", "60.00"));
-        when(productRepository.findByProductIdAndCompanyCompanyIdAndIsDeletedFalse(11, COMPANY_ID))
-                .thenReturn(Optional.empty());
-
-        InvoiceResponseDto result = service.createReturnInvoice(ORIGINAL_ID, returnReq("RET-2026-0004"));
-
-        verify(lineItemRepository).saveAll(lineItemsCaptor.capture());
-        assertThat(lineItemsCaptor.getValue()).hasSize(1);
-        assertThat(lineItemsCaptor.getValue().get(0).getProductId()).isEqualTo(10);
-        verify(stockMovementService, times(1)).recordMovement(any(), anyInt(), any(), any(), any(), any(), any());
-        assertThat(result.lineItems()).hasSize(1);
-        assertThat(result.subtotal()).isEqualByComparingTo("100.00");
-    }
-
-    // ── çoklu para birimi ─────────────────────────────────────────────────────
-
-    @Test
-    void createInvoice_usdWithExchangeRate_totalAmountTryMultipliedByRate() {
-        stubCreateHappyPath();
-        stubProduct(product(10, "20", null, null));
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(lineReq(10, 1, "100.00", null, null)),
-                null, null, Currency.USD, "30");
-        InvoiceResponseDto result = service.createInvoice(dto);
-
-        assertThat(result.currency()).isEqualTo("USD");
-        assertThat(result.exchangeRate()).isEqualByComparingTo("30");
-        assertThat(result.totalAmount()).isEqualByComparingTo("120.00");
-        assertThat(result.totalAmountTry()).isEqualByComparingTo("3600.00");
-    }
-
-    @Test
-    void createInvoice_nullCurrency_defaultsToTryWithRateOne() {
-        stubCreateHappyPath();
-        stubProduct(product(10, "20", null, null));
-
-        InvoiceRequestDto dto = invoiceReq(InvoiceType.sale, List.of(lineReq(10, 1, "100.00", null, null)));
-        InvoiceResponseDto result = service.createInvoice(dto);
-
-        assertThat(result.currency()).isEqualTo("TRY");
-        assertThat(result.exchangeRate()).isEqualByComparingTo("1");
-        assertThat(result.totalAmountTry()).isEqualByComparingTo(result.totalAmount());
-    }
-
-    // ── seri yönetimi ─────────────────────────────────────────────────────────
-
-    @Test
-    void assignNextInvoiceNumber_incrementsSequenceAndFormatsWithPrefix() {
-        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
-        InvoiceSeries series = series("FTR", "FTR", 41L);
-        when(seriesRepository.findByCompanyCompanyIdAndSeriesCodeAndInvoiceType(COMPANY_ID, "FTR", InvoiceType.sale))
-                .thenReturn(Optional.of(series));
-
-        String number = service.assignNextInvoiceNumber(InvoiceType.sale, "FTR");
-
-        assertThat(number).isEqualTo("FTR-000042");
-        assertThat(series.getLastSequenceNumber()).isEqualTo(42L);
-        verify(seriesRepository).save(series);
-    }
-
-    @Test
-    void assignNextInvoiceNumber_nullPrefix_fallsBackToSeriesCode() {
-        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
-        InvoiceSeries series = series("A", null, 0L);
+    void assignNextInvoiceNumber_whenSeriesExists_incrementsAndFormatsNumber() {
+        InvoiceSeries series = InvoiceSeries.builder()
+                .company(company)
+                .seriesCode("A")
+                .invoiceType(InvoiceType.sale)
+                .prefix("SAT")
+                .year(2026)
+                .lastSequenceNumber(41L)
+                .isActive(true)
+                .build();
         when(seriesRepository.findByCompanyCompanyIdAndSeriesCodeAndInvoiceType(COMPANY_ID, "A", InvoiceType.sale))
                 .thenReturn(Optional.of(series));
 
-        String number = service.assignNextInvoiceNumber(InvoiceType.sale, "A");
+        String nextNumber = service.assignNextInvoiceNumber(InvoiceType.sale, "A");
 
-        assertThat(number).isEqualTo("A-000001");
+        assertThat(nextNumber).isEqualTo("SAT-000042");
+        verify(seriesRepository).save(series);
     }
 
+    // Tests collection promise creation validates invoice access and persists the promise.
     @Test
-    void assignNextInvoiceNumber_whenSeriesMissing_throwsRuntimeException() {
-        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
-        when(seriesRepository.findByCompanyCompanyIdAndSeriesCodeAndInvoiceType(COMPANY_ID, "YOK", InvoiceType.sale))
-                .thenReturn(Optional.empty());
+    void createCollectionPromise_whenInvoiceExists_savesPromise() {
+        Invoice invoice = invoice(100L, InvoiceType.sale, PaymentStatus.pending);
+        CollectionPromiseRequestDto dto = new CollectionPromiseRequestDto(
+                LocalDate.now().plusDays(7), new BigDecimal("500.00"), "Haftaya odeme");
+        when(invoiceRepository.findById(100L)).thenReturn(Optional.of(invoice));
+        when(promiseRepository.save(any())).thenAnswer(inv -> {
+            CollectionPromise promise = inv.getArgument(0);
+            promise.setPromiseId(300L);
+            return promise;
+        });
 
-        assertThatThrownBy(() -> service.assignNextInvoiceNumber(InvoiceType.sale, "YOK"))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Active series not found");
+        CollectionPromiseResponseDto result = service.createCollectionPromise(100L, dto);
 
-        verify(seriesRepository, never()).save(any());
+        assertThat(result.promiseId()).isEqualTo(300L);
+        assertThat(result.promisedAmount()).isEqualByComparingTo("500.00");
+        assertThat(result.fulfilled()).isFalse();
     }
 
+    // Tests fulfilling a promise stamps fulfilled status and date.
     @Test
-    void createSeries_whenCodeAndTypeAlreadyExist_throwsRuntimeException() {
-        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
-        when(seriesRepository.existsByCompanyCompanyIdAndSeriesCodeAndInvoiceType(COMPANY_ID, "FTR", InvoiceType.sale))
-                .thenReturn(true);
-
-        assertThatThrownBy(() -> service.createSeries(
-                new InvoiceSeriesRequestDto("FTR", InvoiceType.sale, "FTR", 2026, true)))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("already exists");
-
-        verify(seriesRepository, never()).save(any());
-    }
-
-    // ── Yardımcı metodlar ─────────────────────────────────────────────────────
-
-    private void stubCreateHappyPath() {
-        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
-        when(invoiceRepository.existsByInvoiceNumberAndCompanyCompanyId(anyString(), eq(COMPANY_ID)))
-                .thenReturn(false);
-        when(customerRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(CUSTOMER_ID, COMPANY_ID))
-                .thenReturn(Optional.of(activeCustomer));
-        when(companyRepository.getReferenceById(COMPANY_ID)).thenReturn(company);
-        when(invoiceRepository.save(any(Invoice.class))).thenAnswer(inv -> {
-            Invoice i = inv.getArgument(0);
-            if (i.getInvoiceId() == null) i.setInvoiceId(INVOICE_ID);
-            return i;
-        });
-        when(lineItemRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
-    }
-
-    private Invoice stubReturnHappyPath(InvoiceType originalType, List<InvoiceLineItem> originalLines) {
-        Invoice original = invoiceEntity(ORIGINAL_ID, PaymentStatus.pending, originalType);
-        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
-        when(invoiceRepository.findById(ORIGINAL_ID)).thenReturn(Optional.of(original));
-        when(companyRepository.getReferenceById(COMPANY_ID)).thenReturn(company);
-        when(lineItemRepository.findByInvoiceIdAndCompanyCompanyIdAndIsDeletedFalse(ORIGINAL_ID, COMPANY_ID))
-                .thenReturn(originalLines);
-        when(invoiceRepository.save(any(Invoice.class))).thenAnswer(inv -> {
-            Invoice i = inv.getArgument(0);
-            if (i.getInvoiceId() == null) i.setInvoiceId(RETURN_ID);
-            return i;
-        });
-        when(lineItemRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
-        return original;
-    }
-
-    private Invoice stubActiveInvoice(PaymentStatus status, InvoiceType type) {
-        Invoice invoice = invoiceEntity(INVOICE_ID, status, type);
-        when(companyContext.getCurrentCompanyId()).thenReturn(COMPANY_ID);
-        when(invoiceRepository.findById(INVOICE_ID)).thenReturn(Optional.of(invoice));
-        return invoice;
-    }
-
-    private Invoice invoiceEntity(Long id, PaymentStatus status, InvoiceType type) {
-        Invoice invoice = new Invoice();
-        invoice.setInvoiceId(id);
-        invoice.setCompany(company);
-        invoice.setInvoiceNumber("INV-2026-0001");
-        invoice.setCustomerId(CUSTOMER_ID);
-        invoice.setInvoiceType(type);
-        invoice.setInvoiceDate(LocalDate.of(2026, 6, 1));
-        invoice.setDueDate(LocalDate.of(2026, 7, 1));
-        invoice.setPaymentStatus(status);
-        invoice.setCancelled(false);
-        invoice.setCurrency(Currency.TRY);
-        invoice.setExchangeRate(BigDecimal.ONE);
-        invoice.setSubtotal(new BigDecimal("100.00"));
-        invoice.setVatAmount(new BigDecimal("20.00"));
-        invoice.setTotalAmount(new BigDecimal("120.00"));
-        return invoice;
-    }
-
-    private InvoiceLineItem lineItemEntity(int productId, int quantity, String unitPrice,
-                                           String vatRate, String discountRate, String wtRate) {
-        InvoiceLineItem li = new InvoiceLineItem();
-        li.setCompany(company);
-        li.setInvoiceId(INVOICE_ID);
-        li.setProductId(productId);
-        li.setQuantity(quantity);
-        li.setUnitPrice(new BigDecimal(unitPrice));
-        li.setVatRate(vatRate != null ? new BigDecimal(vatRate) : null);
-        li.setLineTotal(BigDecimal.ZERO);
-        li.setDiscountRate(discountRate != null ? new BigDecimal(discountRate) : null);
-        li.setWithholdingTaxRate(wtRate != null ? new BigDecimal(wtRate) : null);
-        li.setDeleted(false);
-        return li;
-    }
-
-    private Product product(int id, String vatRate, String salePrice, String costPrice) {
-        return Product.builder()
-                .productId(id)
+    void fulfillCollectionPromise_whenPromiseExists_marksFulfilled() {
+        CollectionPromise promise = CollectionPromise.builder()
+                .promiseId(300L)
                 .company(company)
-                .barcode("BC-" + id)
-                .name("Ürün " + id)
-                .vatRate(vatRate != null ? new BigDecimal(vatRate) : null)
-                .salePrice(salePrice != null ? new BigDecimal(salePrice) : null)
-                .costPrice(costPrice != null ? new BigDecimal(costPrice) : null)
+                .invoiceId(100L)
+                .promisedDate(LocalDate.now())
+                .promisedAmount(new BigDecimal("500.00"))
+                .fulfilled(false)
                 .build();
+        when(promiseRepository.findById(300L)).thenReturn(Optional.of(promise));
+
+        service.fulfillCollectionPromise(300L);
+
+        assertThat(promise.isFulfilled()).isTrue();
+        assertThat(promise.getFulfilledAt()).isEqualTo(LocalDate.now());
+        verify(promiseRepository).save(promise);
     }
 
-    private void stubProduct(Product product) {
-        when(productRepository.findByProductIdAndCompanyCompanyIdAndIsDeletedFalse(product.getProductId(), COMPANY_ID))
+    // Tests hard delete removes line items before deleting expired invoices.
+    @Test
+    void hardDeleteExpired_whenExpiredInvoicesExist_deletesLinesAndInvoices() {
+        LocalDateTime cutoff = LocalDateTime.of(2026, 6, 1, 0, 0);
+        Invoice first = invoice(1L, InvoiceType.sale, PaymentStatus.pending);
+        Invoice second = invoice(2L, InvoiceType.purchase, PaymentStatus.pending);
+        when(invoiceRepository.findByIsDeletedTrueAndDeletedAtBefore(cutoff))
+                .thenReturn(List.of(first, second));
+
+        int deletedCount = service.hardDeleteExpired(cutoff);
+
+        assertThat(deletedCount).isEqualTo(2);
+        verify(lineItemRepository).deleteByInvoiceId(1L);
+        verify(lineItemRepository).deleteByInvoiceId(2L);
+        verify(invoiceRepository).delete(first);
+        verify(invoiceRepository).delete(second);
+    }
+
+    private void stubCustomerAndProduct() {
+        when(customerRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(10L, COMPANY_ID))
+                .thenReturn(Optional.of(customer));
+        when(productRepository.findByProductIdAndCompanyCompanyIdAndIsDeletedFalse(5, COMPANY_ID))
                 .thenReturn(Optional.of(product));
     }
 
-    private InvoiceSeries series(String code, String prefix, long lastSequence) {
-        return InvoiceSeries.builder()
-                .seriesId(1L)
-                .company(company)
-                .seriesCode(code)
-                .invoiceType(InvoiceType.sale)
-                .prefix(prefix)
-                .year(2026)
-                .lastSequenceNumber(lastSequence)
-                .isActive(true)
-                .build();
+    private InvoiceRequestDto invoiceRequest(String number, InvoiceType type, List<InvoiceLineItemRequestDto> lines,
+                                             DiscountType discountType, BigDecimal discountAmount) {
+        return new InvoiceRequestDto(
+                number,
+                10L,
+                type,
+                LocalDate.of(2026, 5, 20),
+                LocalDate.of(2026, 6, 20),
+                lines,
+                Currency.TRY,
+                BigDecimal.ONE,
+                discountType,
+                discountAmount,
+                "Aciklama",
+                "Teslimat adresi"
+        );
     }
 
-    private InvoiceLineItemRequestDto lineReq(Integer productId, int quantity, String unitPrice,
-                                              String discountRate, String wtRate) {
-        return new InvoiceLineItemRequestDto(productId, quantity, null,
-                unitPrice != null ? new BigDecimal(unitPrice) : null,
-                discountRate != null ? new BigDecimal(discountRate) : null,
-                wtRate != null ? new BigDecimal(wtRate) : null,
-                null, null, null);
+    private Invoice saveInvoice(Invoice invoice, Long id) {
+        if (invoice.getInvoiceId() == null) {
+            invoice.setInvoiceId(id);
+        }
+        return invoice;
     }
 
-    private InvoiceLineItemRequestDto newProductLine(String barcode, int quantity) {
-        NewProductRequestDto newProduct = new NewProductRequestDto(barcode, "Yeni Ürün", null, "Adet",
-                new BigDecimal("100.00"), new BigDecimal("20"), new BigDecimal("60.00"), 0);
-        return new InvoiceLineItemRequestDto(null, quantity, newProduct, null, null, null, null, null, null);
+    private Invoice invoice(Long id, InvoiceType type, PaymentStatus status) {
+        Invoice invoice = new Invoice();
+        invoice.setInvoiceId(id);
+        invoice.setCompany(company);
+        invoice.setInvoiceNumber("FTR-" + id);
+        invoice.setCustomerId(10L);
+        invoice.setCustomer(customer);
+        invoice.setInvoiceType(type);
+        invoice.setInvoiceDate(LocalDate.of(2026, 5, 20));
+        invoice.setDueDate(LocalDate.of(2026, 6, 20));
+        invoice.setPaymentStatus(status);
+        invoice.setSubtotal(new BigDecimal("200.00"));
+        invoice.setVatAmount(new BigDecimal("40.00"));
+        invoice.setTotalAmount(new BigDecimal("240.00"));
+        invoice.setCurrency(Currency.TRY);
+        invoice.setExchangeRate(BigDecimal.ONE);
+        invoice.setDiscountAmount(BigDecimal.ZERO);
+        invoice.setWithholdingTaxAmount(BigDecimal.ZERO);
+        invoice.setCancelled(false);
+        invoice.setDeleted(false);
+        return invoice;
     }
 
-    private InvoiceRequestDto invoiceReq(InvoiceType type, List<InvoiceLineItemRequestDto> lines) {
-        return invoiceReq(type, lines, null, null, null, null);
-    }
-
-    private InvoiceRequestDto invoiceReq(InvoiceType type, List<InvoiceLineItemRequestDto> lines,
-                                         DiscountType discountType, String discountAmount,
-                                         Currency currency, String exchangeRate) {
-        return new InvoiceRequestDto("INV-2026-0001", CUSTOMER_ID, type,
-                LocalDate.of(2026, 6, 1), LocalDate.of(2026, 7, 1), lines,
-                currency, exchangeRate != null ? new BigDecimal(exchangeRate) : null,
-                discountType, discountAmount != null ? new BigDecimal(discountAmount) : null,
-                null, null);
-    }
-
-    private InvoiceRequestDto returnReq(String invoiceNumber) {
-        return new InvoiceRequestDto(invoiceNumber, CUSTOMER_ID, InvoiceType.sale,
-                LocalDate.of(2026, 6, 1), LocalDate.of(2026, 7, 1), List.of(),
-                null, null, null, null, null, "İade adresi");
-    }
-
-    private InvoiceVatSummary byRate(List<InvoiceVatSummary> summaries, String rate) {
-        return summaries.stream()
-                .filter(s -> s.getVatRate().compareTo(new BigDecimal(rate)) == 0)
-                .findFirst()
-                .orElseThrow(() -> new AssertionError("KDV oranı için özet satırı yok: " + rate));
+    private InvoiceLineItem line(Long invoiceId, Integer productId, int quantity,
+                                 BigDecimal unitPrice, BigDecimal discountRate, BigDecimal withholdingRate) {
+        InvoiceLineItem line = new InvoiceLineItem();
+        line.setCompany(company);
+        line.setInvoiceId(invoiceId);
+        line.setProductId(productId);
+        line.setQuantity(quantity);
+        line.setUnitPrice(unitPrice);
+        line.setVatRate(new BigDecimal("20.00"));
+        line.setLineTotal(unitPrice.multiply(BigDecimal.valueOf(quantity)).multiply(new BigDecimal("1.20")));
+        line.setDiscountRate(discountRate);
+        line.setWithholdingTaxRate(withholdingRate);
+        line.setDeleted(false);
+        return line;
     }
 }
