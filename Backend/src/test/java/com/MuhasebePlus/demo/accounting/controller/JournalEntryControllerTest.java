@@ -4,7 +4,6 @@ import com.MuhasebePlus.demo.TestcontainersConfiguration;
 import com.MuhasebePlus.demo.accounting.dto.response.JournalEntryResponseDto;
 import com.MuhasebePlus.demo.accounting.entity.JournalSourceType;
 import com.MuhasebePlus.demo.accounting.service.JournalEntryService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,7 +35,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class JournalEntryControllerTest {
 
     @Autowired WebApplicationContext wac;
-    @Autowired ObjectMapper objectMapper;
 
     @MockitoBean JournalEntryService journalEntryService;
 

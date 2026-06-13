@@ -32,6 +32,7 @@ class JournalEntryRepositoryTest {
 
     private Company company;
     private Company otherCompany;
+    private int entrySeq = 0;
 
     @BeforeEach
     void setUp() {
@@ -134,7 +135,7 @@ class JournalEntryRepositoryTest {
     private JournalEntry entry(Company c, LocalDate date, boolean deleted) {
         JournalEntry e = new JournalEntry();
         e.setCompany(c);
-        e.setEntryNumber("FIS-2025-0001");
+        e.setEntryNumber("FIS-2025-" + String.format("%04d", ++entrySeq));
         e.setEntryDate(date);
         e.setSourceType(JournalSourceType.MANUAL);
         e.setDeleted(deleted);

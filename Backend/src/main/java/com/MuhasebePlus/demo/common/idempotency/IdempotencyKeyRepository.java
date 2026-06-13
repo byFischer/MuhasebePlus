@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 
 public interface IdempotencyKeyRepository extends JpaRepository<IdempotencyKey, String> {
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("DELETE FROM IdempotencyKey i WHERE i.expiresAt < :now")
     int deleteExpired(LocalDateTime now);
 }

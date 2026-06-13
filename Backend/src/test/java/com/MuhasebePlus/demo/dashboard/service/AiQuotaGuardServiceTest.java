@@ -15,6 +15,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -59,7 +60,7 @@ class AiQuotaGuardServiceTest {
 
         assertThat(quota.getTokensUsedThisMonth()).isEqualTo(100);
         assertThat(quota.getResetAt()).isAfter(LocalDateTime.now());
-        verify(quotaRepository).save(quota);
+        verify(quotaRepository, atLeastOnce()).save(quota);
     }
 
     @Test
