@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Icon from '@/components/mp/Icon';
 import {
   useFixedAssets, useCategories, useDepreciationSchedule,
-  useCreateAsset, useUpdateAsset, useDeleteAsset,
+  useCreateAsset, useUpdateAsset,
   useCreateCategory, useRunDepreciation, useDisposeAsset,
 } from '@/hooks/useFixedAssets';
 import { useAuth } from '@/context/AuthContext';
@@ -30,7 +30,6 @@ export default function SabitKiymetPage() {
 
   const createAsset   = useCreateAsset();
   const updateAsset   = useUpdateAsset();
-  const deleteAsset   = useDeleteAsset();
   const createCat     = useCreateCategory();
   const runDep        = useRunDepreciation();
   const disposeAsset  = useDisposeAsset();

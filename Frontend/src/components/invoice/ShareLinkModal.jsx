@@ -1,4 +1,3 @@
-import React from 'react';
 import Icon from '@/components/mp/Icon';
 import { toast } from '@/lib/toast';
 import { useShareLink, useRegenerateShareLink, useRevokeShareLink } from '@/hooks/useShareLink';

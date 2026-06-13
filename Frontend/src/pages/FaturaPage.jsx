@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Icon from '@/components/mp/Icon';
 import Pagination from '@/components/mp/Pagination';
 import Drawer from '@/components/mp/Drawer';
@@ -79,7 +79,7 @@ export default function FaturaPage() {
       a.download = 'fatura-' + invoiceId + '.pdf';
       a.click();
       URL.revokeObjectURL(url);
-    } catch (e) {
+    } catch {
       toast.err('PDF indirilemedi');
     }
   };
@@ -92,7 +92,7 @@ export default function FaturaPage() {
       if (w) {
         w.onload = () => { w.print(); };
       }
-    } catch (e) {
+    } catch {
       toast.err('PDF yazdırılamadı');
     }
   };
@@ -115,6 +115,7 @@ export default function FaturaPage() {
   }), [list, q, tab]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [totalPages]);
   useEffect(() => { setPage(1); }, [q, tab]);
   const pageStart = (page - 1) * PAGE_SIZE;
@@ -365,6 +366,7 @@ function InvoiceDrawer({ open, onClose, customers, products, seriesList }) {
 
   useEffect(() => {
     if (!open) { setF(EMPTY); setLines([EMPTY_LINE()]); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const isPurchase = f.invoiceType === 'purchase';
@@ -664,7 +666,7 @@ function InvoiceDrawer({ open, onClose, customers, products, seriesList }) {
   );
 }
 
-function ReturnInvoiceDrawer({ original, customers, onClose }) {
+function ReturnInvoiceDrawer({ original, onClose }) {
   const returnMut = useCreateReturnInvoice();
   const [invoiceNumber, setInvoiceNumber] = useState('IADE-' + (original.invoiceNumber || original.invoiceId));
 

@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Icon from '@/components/mp/Icon';
 import Pagination from '@/components/mp/Pagination';
 import Drawer from '@/components/mp/Drawer';
-import { DropdownFilter, CityFilter } from '@/components/mp/DropdownFilter';
+import { CityFilter } from '@/components/mp/DropdownFilter';
 import { TRY } from '@/lib/format';
 import { validateEmail, validateTaxNumberByType } from '@/lib/validators';
 import { useCustomers, useCreateCustomer, useUpdateCustomer, useDeleteCustomer, useImportCustomers, useCustomerActivity } from '@/hooks/useCustomers';
@@ -12,28 +12,20 @@ import customerService from '@/services/customerService';
 import reportService from '@/services/reportService';
 
 export default function CariPage() {
-  const emptyForm = {
-    name: '', email: '', phoneNumber: '', taxNumber: '', city: '', address: '', type: 'INDIVIDUAL',
-    accountCode: '', openingBalance: '', openingBalanceDate: '', taxOffice: '', identityNumber: '',
-    iban: '', currency: 'TRY', creditLimit: '', customerRole: 'BOTH', status: 'ACTIVE', customerGroup: '',
-  };
-
   const { data: list = [], isLoading, isError, refetch } = useCustomers();
   const createMut = useCreateCustomer();
   const updateMut = useUpdateCustomer();
   const deleteMut = useDeleteCustomer();
   const importMut = useImportCustomers();
 
-  const [form, setForm] = useState(emptyForm);
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState('hepsi');
   const [roleFilter, setRoleFilter] = useState('hepsi');
   const [statusFilter, setStatusFilter] = useState('hepsi');
-  const [groupFilter, setGroupFilter] = useState('hepsi');
+  const [groupFilter] = useState('hepsi');
   const [city, setCity] = useState('hepsi');
   const [cityOpen, setCityOpen] = useState(false);
   const [drawer, setDrawer] = useState(null);
-  const [sel, setSel] = useState(null);
   const [page, setPage] = useState(1);
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState(null);
@@ -45,7 +37,6 @@ export default function CariPage() {
   const [detailStart, setDetailStart] = useState(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10));
   const [detailEnd, setDetailEnd] = useState(now.toISOString().slice(0, 10));
 
-  const { data: customerDetail } = useCustomers();
   const selCustomer = useMemo(() => list.find(c => c.customerId === selCustomerId), [list, selCustomerId]);
   const { data: activity = [], isLoading: actLoading } = useCustomerActivity(selCustomerId, detailStart, detailEnd);
   const { data: customerInvoices = [] } = useInvoicesByCustomer(selCustomerId);
@@ -70,6 +61,7 @@ export default function CariPage() {
   }), [list, q, filter, roleFilter, statusFilter, groupFilter, city]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [totalPages]);
   useEffect(() => { setPage(1); }, [q, filter, roleFilter, statusFilter, groupFilter, city]);
   const pageStart = (page - 1) * PAGE_SIZE;
@@ -95,7 +87,7 @@ export default function CariPage() {
       a.download = 'musteri-listesi.xlsx';
       a.click();
       URL.revokeObjectURL(url);
-    } catch (e) {
+    } catch {
       toast.err('Excel aktarılamadı');
     }
   };
@@ -105,7 +97,7 @@ export default function CariPage() {
       const blob = await customerService.exportPdf();
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
-    } catch (e) {
+    } catch {
       toast.err('PDF aktarılamadı');
     }
   };
@@ -273,7 +265,7 @@ function CustomerDetailDrawer({ customer, activity, actLoading, openInvoices, ov
       const blob = await reportService.downloadStatementPdf(customer.customerId, detailStart, detailEnd);
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
-    } catch (e) {
+    } catch {
       toast.err('PDF indirilemedi');
     }
   };

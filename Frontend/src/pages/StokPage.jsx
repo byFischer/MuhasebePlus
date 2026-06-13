@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Icon from '@/components/mp/Icon';
 import Pagination from '@/components/mp/Pagination';
 import Drawer from '@/components/mp/Drawer';
@@ -39,6 +39,7 @@ export default function StokPage() {
   }), [list, q, filter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [totalPages]);
   useEffect(() => { setPage(1); }, [q, filter]);
   const pageStart = (page - 1) * PAGE_SIZE;
@@ -254,6 +255,7 @@ function ProductDrawer({ open, onClose, editingProduct = null }) {
     } else {
       setF(EMPTY);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, isEdit, editingProduct]);
 
   const save = () => {

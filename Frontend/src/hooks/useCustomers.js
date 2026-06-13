@@ -33,7 +33,7 @@ export function useDeleteCustomer() {
 export function useImportCustomers() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (file) => customerService.importFile(file),
-    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['customers'] }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['customers'] }); },
     onError: (e) => toast.err(e?.response?.data?.message || 'İçe aktarma başarısız'),
   });
 }

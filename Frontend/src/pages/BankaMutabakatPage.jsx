@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import Icon from '@/components/mp/Icon';
 import { TRY } from '@/lib/format';
 import {

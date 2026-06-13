@@ -1,4 +1,3 @@
-import React from 'react';
 import { TRY } from '@/lib/format';
 
 export default function Donut({ segments, size = 140 }) {

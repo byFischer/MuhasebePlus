@@ -1,4 +1,3 @@
-import React from 'react';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { TRY } from '@/lib/format';
 
@@ -72,7 +71,7 @@ function KpiRenderer({ data, config }) {
   );
 }
 
-function TableRenderer({ data, config }) {
+function TableRenderer({ data }) {
   const rows = data?.data || [];
   const columns = data?.columns || [];
   if (rows.length === 0) return <Empty />;
@@ -155,7 +154,7 @@ function LineChartRenderer({ data, config }) {
   );
 }
 
-function PieChartRenderer({ data, config }) {
+function PieChartRenderer({ data }) {
   const rows = data?.data || [];
   if (rows.length === 0) return <Empty />;
   const keys = Object.keys(rows[0]);
@@ -225,7 +224,7 @@ function formatCell(value, type) {
   return translateValue(value);
 }
 
-export default function DataWidget({ data, config, mode, variant }) {
+export default function DataWidget({ data, config }) {
   const cfg = config || {};
   const visual = cfg.visualConfig || cfg || {};
   const chartType = (visual.chartType || cfg.chartType || 'TABLE').toString().toUpperCase();

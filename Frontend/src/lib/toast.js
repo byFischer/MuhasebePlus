@@ -1,7 +1,6 @@
 // MuhasebePlus — toast adapter (wraps Chakra toaster)
 import { toaster } from '@/components/ui/toaster';
 
-const TYPE_MAP = { ok: 'success', err: 'error', info: 'info', warn: 'warning' };
 
 export const toast = {
   ok:   (msg, opts = {}) => toaster.create({ title: msg, type: 'success',  duration: opts.duration || 3000 }),

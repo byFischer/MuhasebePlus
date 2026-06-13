@@ -1,8 +1,5 @@
-import React from 'react';
-import declarationService from '@/services/declarationService';
 
 const TRY = (v) => v == null ? '—' : Number(v).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 2 });
-const NUM = (v) => v == null ? '—' : Number(v).toLocaleString('tr-TR', { minimumFractionDigits: 2 });
 
 const MONTHS_TR = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
 
@@ -150,7 +147,6 @@ export default function BeyannameDetailDrawer({
   const d = declaration;
   const isDraft      = d.status === 'DRAFT';
   const isFinalized  = d.status === 'FINALIZED';
-  const isSubmitted  = d.status === 'SUBMITTED';
 
   const handleDownloadXml = async () => {
     try {

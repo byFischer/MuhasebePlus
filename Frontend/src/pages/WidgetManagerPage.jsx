@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '@/components/mp/Icon';
 import { toast } from '@/lib/toast';
@@ -64,20 +64,6 @@ export default function WidgetManagerPage() {
     }
   };
 
-  const cloneDef = async (def) => {
-    setBusyId(def.definitionId);
-    try {
-      const created = await dashboardService.cloneWidgetDefinition(def.definitionId);
-      toast.ok(`"${created.name}" kopyalandı`);
-      await load();
-    } catch (e) {
-      console.error(e);
-      toast.err('Kopyalanamadı: ' + (e?.response?.data?.message || e.message));
-    } finally {
-      setBusyId(null);
-    }
-  };
-
   const removeDef = async (def) => {
     if (!window.confirm(`"${def.name}" silinsin mi? Bu işlem geri alınamaz.`)) return;
     setBusyId(def.definitionId);
@@ -97,19 +83,18 @@ export default function WidgetManagerPage() {
     onNav(`/widget-builder?edit=${def.definitionId}`);
   };
 
-  const systemDefs = definitions.filter(d => d.isSystem);
   const userDefs = definitions.filter(d => !d.isSystem);
 
   return (
     <div className="page">
       <div className="page-head">
         <div>
-          <h1 className="page-title">Widget'larım</h1>
-          <p className="page-sub">Oluşturduğun özel widget'ları yönet</p>
+          <h1 className="page-title">Widget&apos;larım</h1>
+          <p className="page-sub">Oluşturduğun özel widget&apos;ları yönet</p>
         </div>
         <div className="page-actions">
           <button className="btn ghost" onClick={() => onNav('/dashboard')}>
-            <Icon name="chevLeft" size={14} /> Dashboard'a Dön
+            <Icon name="chevLeft" size={14} /> Dashboard&apos;a Dön
           </button>
           <button className="btn primary" onClick={() => onNav('/widget-builder')}>
             <Icon name="plus" size={14} /> Yeni Widget Oluştur
@@ -126,14 +111,14 @@ export default function WidgetManagerPage() {
           {/* Kullanıcının kendi widget'ları */}
           <section style={{ marginBottom: 32 }}>
             <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
-              Benim Widget'larım
+              Benim Widget&apos;larım
               <span className="muted" style={{ fontSize: 12, fontWeight: 400, marginLeft: 8 }}>
                 ({userDefs.length})
               </span>
             </h2>
             {userDefs.length === 0 && (
               <div className="empty" style={{ padding: 32 }}>
-                Henüz kendi widget'ın yok. <button className="btn ghost sm" onClick={() => onNav('/widget-builder')} style={{ marginLeft: 8 }}>Hemen oluştur</button>
+                Henüz kendi widget&apos;ın yok. <button className="btn ghost sm" onClick={() => onNav('/widget-builder')} style={{ marginLeft: 8 }}>Hemen oluştur</button>
               </div>
             )}
             <div className="grid-2" style={{ gap: 12 }}>
@@ -206,7 +191,7 @@ function DefinitionCard({ def, busy, isSystem, onAdd, onEdit, onDelete, onClone 
 
       <div className="row gap-8" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)' }}>
         <button className="btn primary sm" onClick={onAdd} disabled={busy}>
-          <Icon name="plus" size={12} /> Dashboard'a Ekle
+          <Icon name="plus" size={12} /> Dashboard&apos;a Ekle
         </button>
         {isSystem ? (
           <button className="btn ghost sm" onClick={onClone} disabled={busy} title="Kopyala ve düzenle">

@@ -1,4 +1,3 @@
-import React from 'react';
 
 export default function BarLineChart({ months = [], revenue = [], expense = [] }) {
   const w = 720, h = 200, pad = 28;

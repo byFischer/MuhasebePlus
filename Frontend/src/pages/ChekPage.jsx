@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Icon from '@/components/mp/Icon';
 import Drawer from '@/components/mp/Drawer';
 import { TRY, fmtDate, toIsoDate } from '@/lib/format';
 import {
-  useCheques, useCreateCheque, useUpdateCheque, useDeleteCheque,
+  useCheques, useCreateCheque, useDeleteCheque,
   useDepositCheque, useCollectCheque, useBounceCheque, useCancelCheque,
   usePortfolioSummary,
 } from '@/hooks/useCheques';

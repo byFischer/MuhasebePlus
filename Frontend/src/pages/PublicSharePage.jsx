@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import Icon from '@/components/mp/Icon';
 import Pagination from '@/components/mp/Pagination';

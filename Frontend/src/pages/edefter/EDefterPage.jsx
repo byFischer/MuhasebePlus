@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import MonthCard from './components/MonthCard';
 import eDefterService from '@/services/eDefterService';
 import { useEDefterByYear, useGenerateEDefter, useRegenerateEDefter, useDeleteEDefter } from '@/hooks/useEDefter';

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Drawer from '@/components/mp/Drawer';
 import Icon from '@/components/mp/Icon';
 import { useCreateTemplate, useUpdateTemplate } from '@/hooks/useTemplates';

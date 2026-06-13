@@ -1,4 +1,3 @@
-import React from 'react';
 import Spark from '@/components/mp/charts/Spark';
 import { TRY } from '@/lib/format';
 

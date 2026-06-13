@@ -1,4 +1,3 @@
-import React from 'react';
 import BarLineChart from '@/components/mp/charts/BarLineChart';
 import Spark from '@/components/mp/charts/Spark';
 import { TRY } from '@/lib/format';

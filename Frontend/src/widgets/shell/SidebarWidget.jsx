@@ -1,9 +1,5 @@
-import React from 'react';
-import Icon from '@/components/mp/Icon';
-
 export default function SidebarWidget({
   title,
-  icon,
   badge,
   children,
   footer,

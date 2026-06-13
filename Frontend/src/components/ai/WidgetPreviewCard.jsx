@@ -1,4 +1,3 @@
-import React from 'react';
 import DataWidget from '@/widgets/DataWidget';
 
 export default function WidgetPreviewCard({ widgetDefinition, previewData, previewColumns, previewError }) {
