@@ -4,6 +4,7 @@ import com.MuhasebePlus.demo.dashboard.dto.query.QueryConfigDto;
 import com.MuhasebePlus.demo.dashboard.entity.WidgetType;
 import com.MuhasebePlus.demo.dashboard.service.DynamicQueryService;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -15,7 +16,8 @@ import java.util.Map;
 public class DataQueryProvider implements WidgetDataProvider {
 
     private final DynamicQueryService dynamicQueryService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     @Override
     public boolean supports(WidgetType type) {

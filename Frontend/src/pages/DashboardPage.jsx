@@ -520,8 +520,14 @@ export default function DashboardPage() {
             <div className="cmdk-list">
               <div className="cmdk-section">Slot {pickerSlot} için widget seçin</div>
               <div className="wp-grid">
+                {/* Kart button olamaz: canlı önizlemeler kendi butonlarını render
+                    edebiliyor ve button içinde button geçersiz DOM üretiyor */}
                 {pickerBuiltins.map(w => (
-                  <button key={w.id} className="wp-card" onClick={() => assignWidgetToSlot(w.id)}>
+                  <div
+                    key={w.id} className="wp-card" role="button" tabIndex={0}
+                    onClick={() => assignWidgetToSlot(w.id)}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); assignWidgetToSlot(w.id); } }}
+                  >
                     <div className="wp-card-head">
                       <span className="wp-card-icon"><Icon name={w.icon} size={13} /></span>
                       <span className="wp-card-title">{w.name}</span>
@@ -530,10 +536,14 @@ export default function DashboardPage() {
                       <BuiltinPreview id={w.id} D={D} config={configs[w.id]} />
                     </div>
                     {w.desc && <div className="wp-card-desc">{w.desc}</div>}
-                  </button>
+                  </div>
                 ))}
                 {pickerCustoms.map(def => (
-                  <button key={def.definitionId} className="wp-card" onClick={() => assignCustomToSlot(def)}>
+                  <div
+                    key={def.definitionId} className="wp-card" role="button" tabIndex={0}
+                    onClick={() => assignCustomToSlot(def)}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); assignCustomToSlot(def); } }}
+                  >
                     <div className="wp-card-head">
                       <span className="wp-card-icon"><Icon name="grid" size={13} /></span>
                       <span className="wp-card-title">{def.name}</span>
@@ -543,7 +553,7 @@ export default function DashboardPage() {
                       <CustomPreview def={def} />
                     </div>
                     {def.description && <div className="wp-card-desc">{def.description}</div>}
-                  </button>
+                  </div>
                 ))}
               </div>
               {pickerBuiltins.length === 0 && pickerCustoms.length === 0 && (
@@ -589,13 +599,26 @@ function BuiltinPreview({ id, D, config }) {
   return <Comp D={D} onNav={() => {}} mode="card" variant="s" config={config} />;
 }
 
+// Önizleme sonuçlarını tanım bazında önbelleğe al — picker her açılışta aynı
+// sorguları tekrar çalıştırıp rate limit'i (60 istek/dk) doldurmasın.
+const customPreviewCache = new Map();
+function fetchCustomPreview(def) {
+  const key = `${def.definitionId}:${def.updatedAt || ''}`;
+  if (!customPreviewCache.has(key)) {
+    const promise = dashboardService.previewQuery(def.queryConfig)
+      .catch(err => { customPreviewCache.delete(key); throw err; });
+    customPreviewCache.set(key, promise);
+  }
+  return customPreviewCache.get(key);
+}
+
 // Picker'da custom (widget-builder) widget'ın önizlemesini previewQuery ile çeker
 function CustomPreview({ def }) {
   const [st, setSt] = useState({ loading: true });
   useEffect(() => {
     let alive = true;
     if (!def?.queryConfig) { setSt({ loading: false, error: true }); return; }
-    dashboardService.previewQuery(def.queryConfig)
+    fetchCustomPreview(def)
       .then(res => { if (alive) setSt(res?.success
         ? { loading: false, data: res.data, columns: res.columns }
         : { loading: false, error: true }); })

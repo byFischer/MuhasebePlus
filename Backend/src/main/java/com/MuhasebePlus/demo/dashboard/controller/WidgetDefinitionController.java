@@ -9,6 +9,7 @@ import com.MuhasebePlus.demo.dashboard.repository.WidgetDefinitionRepository;
 import com.MuhasebePlus.demo.dashboard.dto.query.QueryConfigDto;
 import com.MuhasebePlus.demo.dashboard.service.DynamicQueryService;
 import com.MuhasebePlus.demo.user.repository.UserRepository;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +35,8 @@ public class WidgetDefinitionController {
     private final DynamicQueryService dynamicQueryService;
     private final CompanyRepository companyRepository;
     private final UserRepository userRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
@@ -118,9 +120,9 @@ public class WidgetDefinitionController {
     @PostMapping("/preview")
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public ResponseEntity<Map<String, Object>> previewQuery(@RequestBody Map<String, Object> body) {
-        QueryConfigDto config = objectMapper.convertValue(body.get("queryConfig"), QueryConfigDto.class);
         Long companyId = companyContext.getCurrentCompanyId();
         try {
+            QueryConfigDto config = objectMapper.convertValue(body.get("queryConfig"), QueryConfigDto.class);
             DynamicQueryService.QueryResult result = dynamicQueryService.executeQuery(config, companyId);
             return ResponseEntity.ok(Map.of(
                     "success", true,
@@ -130,7 +132,8 @@ public class WidgetDefinitionController {
                     "totalCount", result.totalCount()
             ));
         } catch (Exception e) {
-            return ResponseEntity.ok(Map.of("success", false, "message", e.getMessage()));
+            String message = e.getMessage() != null ? e.getMessage() : "Sorgu çalıştırılamadı";
+            return ResponseEntity.ok(Map.of("success", false, "message", message));
         }
     }
 
