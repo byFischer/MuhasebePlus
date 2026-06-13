@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useCreateStockMovement } from '@/hooks/useStock';
 import {
   MOVEMENT_CATEGORIES,

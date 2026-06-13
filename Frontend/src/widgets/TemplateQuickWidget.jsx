@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Icon from '@/components/mp/Icon';
 import { TRY } from '@/lib/format';
 import { useApplyTemplate } from '@/hooks/useTemplates';
@@ -33,7 +33,7 @@ function PayloadPreview({ type, payload }) {
   return null;
 }
 
-export default function TemplateQuickWidget({ D, onNav, mode, variant, config }) {
+export default function TemplateQuickWidget({ D, onNav, mode, variant }) {
   const v = variant || (mode === 'detail' ? 'l' : 'm');
   const applyMut = useApplyTemplate();
   const [appliedId, setAppliedId] = useState(null);

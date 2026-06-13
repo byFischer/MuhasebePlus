@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Icon from '@/components/mp/Icon';
 import BarLineChart from '@/components/mp/charts/BarLineChart';
 import {
@@ -164,6 +164,79 @@ function PreviewSectionView({ section, loading }) {
   );
 }
 
+function StatementPreview({ data, loading }) {
+  if (loading) return <div className="empty">Yükleniyor…</div>;
+  if (!data) return <div className="empty">Veri yok</div>;
+  const lines = data.lines || [];
+  return (
+    <div className="col gap-12">
+      <div className="grid-2" style={{ gap: 8 }}>
+        <div className="field"><label>Açılış Bakiyesi</label><b className="mono">{TRY(data.openingBalance)}</b></div>
+        <div className="field"><label>Kapanış Bakiyesi</label><b className="mono">{TRY(data.closingBalance)}</b></div>
+        <div className="field"><label>Toplam Borç</label><b className="mono">{TRY(data.totalDebit)}</b></div>
+        <div className="field"><label>Toplam Alacak</label><b className="mono">{TRY(data.totalCredit)}</b></div>
+      </div>
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
+            <tr><th>Tarih</th><th>Açıklama</th><th>Belge</th><th>Borç</th><th>Alacak</th><th>Bakiye</th></tr>
+          </thead>
+          <tbody>
+            {lines.length === 0 && <tr><td colSpan="6" className="empty">Hareket yok</td></tr>}
+            {lines.map((l, i) => (
+              <tr key={i}>
+                <td className="muted">{fmtDate(l.date)}</td>
+                <td>{l.description}</td>
+                <td className="mono">{l.documentNumber || '—'}</td>
+                <td className="mono">{TRY(l.debit)}</td>
+                <td className="mono">{TRY(l.credit)}</td>
+                <td className="mono">{TRY(l.balance)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function ReconciliationPreview({ data, loading }) {
+  if (loading) return <div className="empty">Yükleniyor…</div>;
+  if (!data) return <div className="empty">Veri yok</div>;
+  const items = data.openItems || [];
+  return (
+    <div className="col gap-12">
+      <div className="grid-2" style={{ gap: 8 }}>
+        <div className="field"><label>Açılış Bakiyesi</label><b className="mono">{TRY(data.openingBalance)}</b></div>
+        <div className="field"><label>Kapanış Bakiyesi</label><b className="mono">{TRY(data.closingBalance)}</b></div>
+        <div className="field"><label>Toplam Faturalanan</label><b className="mono">{TRY(data.totalInvoiced)}</b></div>
+        <div className="field"><label>Toplam Tahsil Edilen</label><b className="mono">{TRY(data.totalCollected)}</b></div>
+      </div>
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
+            <tr><th>Fatura</th><th>Tarih</th><th>Vade</th><th>Tutar</th><th>Ödenen</th><th>Kalan</th><th>Gecikme</th></tr>
+          </thead>
+          <tbody>
+            {items.length === 0 && <tr><td colSpan="7" className="empty">Açık kalem yok</td></tr>}
+            {items.map((it, i) => (
+              <tr key={i}>
+                <td className="mono">{it.invoiceNumber}</td>
+                <td className="muted">{fmtDate(it.invoiceDate)}</td>
+                <td className="muted">{fmtDate(it.dueDate)}</td>
+                <td className="mono">{TRY(it.totalAmount)}</td>
+                <td className="mono">{TRY(it.paidAmount)}</td>
+                <td className="mono">{TRY(it.remainingAmount)}</td>
+                <td className="muted">{it.daysOverdue > 0 ? `${it.daysOverdue} gün` : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function RaporPage() {
   const [reportType, setReportType] = useState('PROFIT_LOSS');
   const [period, setPeriod] = useState('Bu ay');
@@ -188,9 +261,9 @@ export default function RaporPage() {
   );
 
   const { data: reports = [], isLoading: reportsLoading, isError: reportsError, refetch: refetchReports } = useReports();
+  // Hook her zaman çağrılır (rules-of-hooks); müşteri bazlı raporlarda enabled=false ile devre dışı bırakılır
   const { data: preview, isLoading: previewLoading, isError: previewError, refetch: refetchPreview } =
-    CUSTOMER_TYPES.has(reportType) ? { data: null, isLoading: false, isError: false, refetch: () => {} }
-    : useReportPreview(previewDto);
+    useReportPreview(previewDto, !CUSTOMER_TYPES.has(reportType));
 
   const { data: statementData, isLoading: statementLoading } = useStatement(
     customerId, startDate, endDate,

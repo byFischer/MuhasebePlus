@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import Icon from '@/components/mp/Icon';
 
 export default function WidgetConfigModal({ def, config, onSave, onClose }) {
   const [draft, setDraft] = useState(() => ({ ...config }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const fields = def.configFields || {};
 
   const canSave = useMemo(() => {

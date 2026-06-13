@@ -1,4 +1,3 @@
-import React from 'react';
 import { TRY } from '@/lib/format';
 
 function InvoicePill({ status }) {

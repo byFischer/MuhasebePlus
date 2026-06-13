@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import GenerateConfirmModal from './GenerateConfirmModal';
 import BeyannameDetailDrawer from './BeyannameDetailDrawer';
 
@@ -100,7 +100,7 @@ export default function BeyannameTabView({
       ) : declarations.length === 0 ? (
         <div className="empty" style={{ padding: 32, textAlign: 'center' }}>
           Bu dönem için henüz beyanname üretmediniz.<br />
-          <span className="muted" style={{ fontSize: 12 }}>Yıl ve dönem seçip "Üret" butonuna basın.</span>
+          <span className="muted" style={{ fontSize: 12 }}>Yıl ve dönem seçip &quot;Üret&quot; butonuna basın.</span>
         </div>
       ) : (
         <table className="tbl" style={{ width: '100%' }}>

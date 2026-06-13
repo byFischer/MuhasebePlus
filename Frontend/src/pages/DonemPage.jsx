@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Icon from '@/components/mp/Icon';
 import { useAccountingPeriods, useClosePeriod, useReopenPeriod, useCloseYear } from '@/hooks/useAccountingPeriods';
 import { useAuth } from '@/context/AuthContext';

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Icon from '@/components/mp/Icon';
 import Pagination from '@/components/mp/Pagination';
 import Drawer from '@/components/mp/Drawer';
@@ -38,6 +38,7 @@ export default function GelirGiderPage() {
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [totalPages]);
   useEffect(() => { setPage(1); }, [tab]);
   const pageStart = (page - 1) * PAGE_SIZE;
@@ -119,6 +120,7 @@ function TransactionDrawer({ open, onClose, banks }) {
     && f.transactionDate
     && (f.transactionCategory !== 'TRANSFER' || (f.transferAccountId && f.transferAccountId !== f.accountId));
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (!open) setF({ ...EMPTY, transactionDate: new Date().toISOString().slice(0, 10) }); }, [open]);
 
   const save = () => {

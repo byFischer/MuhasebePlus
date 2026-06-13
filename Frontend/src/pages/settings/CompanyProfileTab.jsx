@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCurrentCompany, useUpdateCurrentCompany } from '@/hooks/useCompany';
 
 export default function CompanyProfileTab() {

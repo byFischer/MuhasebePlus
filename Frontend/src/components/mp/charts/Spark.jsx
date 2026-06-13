@@ -1,4 +1,3 @@
-import React from 'react';
 
 export default function Spark({ data, color = 'currentColor', height = 28 }) {
   const w = 120, h = height;

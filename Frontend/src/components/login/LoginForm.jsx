@@ -159,7 +159,7 @@ export default function LoginForm() {
             Create account
           </Heading>
           <Text color="#9ca3af" fontSize="16px">
-            Muhasebe+'ya üye olun ve finansal kontrolü elinize alın
+            Muhasebe+&apos;ya üye olun ve finansal kontrolü elinize alın
           </Text>
         </VStack>
 

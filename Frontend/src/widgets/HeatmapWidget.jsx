@@ -4,6 +4,7 @@ const DAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
 export default function HeatmapWidget({ D, mode, variant }) {
   const v = variant || (mode === 'detail' ? 'l' : 'm');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const txns = D._transactions || [];
   const weeks = v === 's' ? 4 : v === 'l' ? 24 : 12;
 

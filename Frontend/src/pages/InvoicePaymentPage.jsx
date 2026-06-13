@@ -65,12 +65,14 @@ export default function InvoicePaymentPage() {
   );
 
   const invoiceTotalPages = Math.max(1, Math.ceil(filteredInvoices.length / INVOICE_PAGE_SIZE));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (invoicePage > invoiceTotalPages) setInvoicePage(invoiceTotalPages); }, [invoiceTotalPages]);
   const invoicePageStart = (invoicePage - 1) * INVOICE_PAGE_SIZE;
   const invoicePageEnd = Math.min(invoicePageStart + INVOICE_PAGE_SIZE, filteredInvoices.length);
   const pagedInvoices = filteredInvoices.slice(invoicePageStart, invoicePageEnd);
 
   const paymentTotalPages = Math.max(1, Math.ceil(payments.length / PAGE_SIZE));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (page > paymentTotalPages) setPage(paymentTotalPages); }, [paymentTotalPages]);
   useEffect(() => { setPage(1); setSelectedInvoiceId(null); setInvoicePage(1); setFormOpen(false); }, [tab]);
   const paymentPageStart = (page - 1) * PAGE_SIZE;

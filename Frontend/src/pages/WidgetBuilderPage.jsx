@@ -281,7 +281,7 @@ export default function WidgetBuilderPage() {
         </div>
         <div className="page-actions">
           <button className="btn ghost" onClick={() => onNav('/widgets')}>
-            <Icon name="folder" size={14} /> Widget'larım
+            <Icon name="folder" size={14} /> Widget&apos;larım
           </button>
         </div>
       </div>
@@ -357,7 +357,7 @@ export default function WidgetBuilderPage() {
 
                   {form.metricFunc !== 'COUNT' && (
                     <div className="col gap-6">
-                      <label className="wb-field-label">Hangi alanın {METRIC_LABELS[form.metricFunc]?.label.toLowerCase()}'ı?</label>
+                      <label className="wb-field-label">Hangi alanın {METRIC_LABELS[form.metricFunc]?.label.toLowerCase()}&apos;ı?</label>
                       <select className="input" value={form.metricField} onChange={e => update({ metricField: e.target.value })}>
                         <option value="">Alan seçin</option>
                         {aggregateFields.map(f => (
@@ -467,7 +467,7 @@ export default function WidgetBuilderPage() {
             <div className="col gap-16">
               <div>
                 <div className="wb-sec-title">Görünüm</div>
-                <div className="wb-sec-sub">Widget'ın nasıl görüneceğini seç.</div>
+                <div className="wb-sec-sub">Widget&apos;ın nasıl görüneceğini seç.</div>
               </div>
               <div className="wb-opt-grid cols-3">
                 {CHART_OPTIONS.map(c => (
@@ -541,7 +541,7 @@ export default function WidgetBuilderPage() {
           {!form.dataSource && <div className="wb-preview-empty">Önce bir veri kaynağı seç.</div>}
           {form.dataSource && !previewData && !previewLoading && (
             <div className="wb-preview-empty">
-              Ayarlarını yaptıktan sonra <b>Çalıştır</b>'a basarak gerçek verilerle önizle.
+              Ayarlarını yaptıktan sonra <b>Çalıştır</b>&apos;a basarak gerçek verilerle önizle.
             </div>
           )}
           {previewData && (

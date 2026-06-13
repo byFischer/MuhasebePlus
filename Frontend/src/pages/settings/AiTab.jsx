@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/services/api';
 import Icon from '@/components/mp/Icon';
@@ -38,12 +38,12 @@ export default function AiTab() {
       <div>
         <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>Yapay Zeka (Gemini)</h3>
         <p style={{ margin: '6px 0 0', fontSize: '0.85rem', color: 'var(--muted)' }}>
-          Widget Builder'ın AI özelliği için Google Gemini API anahtarı gereklidir.
+          Widget Builder&apos;ın AI özelliği için Google Gemini API anahtarı gereklidir.
           Anahtarınızı{' '}
           <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>
             Google AI Studio
           </a>
-          'dan ücretsiz alabilirsiniz.
+          &apos;dan ücretsiz alabilirsiniz.
         </p>
       </div>
 

@@ -1,6 +1,6 @@
-import React from 'react';
 import Icon from '@/components/mp/Icon';
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const getHeaderExtra = () => <span className="pill info">Scheduler</span>;
 
 export default function TasksWidget({ mode, variant }) {

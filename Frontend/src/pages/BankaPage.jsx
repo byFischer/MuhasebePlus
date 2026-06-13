@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Icon from '@/components/mp/Icon';
 import Drawer from '@/components/mp/Drawer';
 import AnimatedNumber from '@/components/mp/AnimatedNumber';
@@ -169,6 +169,7 @@ function BankAccountDrawer({ open, onClose }) {
   const ibanValid = IBAN_RE.test('TR' + f.iban);
   const valid = f.accountType === 'BANK' ? Boolean(f.bankName && ibanValid) : Boolean(f.bankName);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (!open) setF(EMPTY); }, [open]);
 
   const save = () => {

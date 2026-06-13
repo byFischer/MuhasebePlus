@@ -1,4 +1,3 @@
-import React from 'react';
 import { useCurrencyRates } from '@/hooks/useCurrencyRates';
 import SidebarWidget from '@/widgets/shell/SidebarWidget';
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Icon from '@/components/mp/Icon';
 import { LAYOUT_PRESETS, LAYOUT_KEYS } from '@/lib/dashboardLayouts';
 
