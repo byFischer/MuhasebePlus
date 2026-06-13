@@ -191,7 +191,8 @@ class WithholdingDeclarationServiceTest {
         assertThat(existing.isDeleted()).isTrue();
         assertThat(existing.getDeletedAt()).isNotNull();
         // bir kez mevcut taslağı silmek, bir kez yeni beyannameyi kaydetmek için
-        verify(repository, times(2)).save(any(WithholdingDeclaration.class));
+        verify(repository).saveAndFlush(existing);
+        verify(repository).save(any(WithholdingDeclaration.class));
     }
 
     @Test

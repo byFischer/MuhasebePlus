@@ -244,12 +244,11 @@ class VatDeclarationServiceTest {
         service.generate(request(YEAR, MONTH, new BigDecimal("10.00")));
 
         ArgumentCaptor<VatDeclaration> captor = ArgumentCaptor.forClass(VatDeclaration.class);
-        verify(declarationRepository, times(2)).save(captor.capture());
-        VatDeclaration softDeleted = captor.getAllValues().get(0);
-        assertThat(softDeleted).isSameAs(existingDraft);
-        assertThat(softDeleted.isDeleted()).isTrue();
-        assertThat(softDeleted.getDeletedAt()).isNotNull();
-        VatDeclaration regenerated = captor.getAllValues().get(1);
+        verify(declarationRepository).saveAndFlush(existingDraft);
+        assertThat(existingDraft.isDeleted()).isTrue();
+        assertThat(existingDraft.getDeletedAt()).isNotNull();
+        verify(declarationRepository).save(captor.capture());
+        VatDeclaration regenerated = captor.getValue();
         assertThat(regenerated.getStatus()).isEqualTo(DeclarationStatus.DRAFT);
         assertThat(regenerated.isDeleted()).isFalse();
     }

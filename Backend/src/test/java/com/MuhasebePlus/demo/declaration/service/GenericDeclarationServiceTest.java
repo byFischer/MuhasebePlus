@@ -219,7 +219,8 @@ class GenericDeclarationServiceTest {
 
         assertThat(existing.isDeleted()).isTrue();
         assertThat(existing.getDeletedAt()).isNotNull();
-        verify(repository, times(2)).save(any(GenericDeclaration.class));
+        verify(repository).saveAndFlush(existing);
+        verify(repository).save(any(GenericDeclaration.class));
     }
 
     @Test
