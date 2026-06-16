@@ -159,7 +159,7 @@ export default function WidgetBuilderPage() {
         .catch(e => {
           console.error(e);
           toast.err('Widget yüklenemedi');
-          onNav('/widgets');
+          onNav('/dashboard');
         });
     }
   }, [editId, isEdit, onNav]);
@@ -244,7 +244,7 @@ export default function WidgetBuilderPage() {
       if (isEdit) {
         def = await dashboardService.updateWidgetDefinition(editId, payload);
         toast.ok(`"${def.name}" güncellendi`);
-        onNav('/widgets');
+        onNav('/dashboard');
       } else {
         def = await dashboardService.createWidgetDefinition(payload);
         const layout = await dashboardService.getDefaultLayout();
@@ -280,8 +280,8 @@ export default function WidgetBuilderPage() {
           </p>
         </div>
         <div className="page-actions">
-          <button className="btn ghost" onClick={() => onNav('/widgets')}>
-            <Icon name="folder" size={14} /> Widget&apos;larım
+          <button className="btn ghost" onClick={() => onNav('/dashboard')}>
+            <Icon name="chevLeft" size={14} /> Dashboard&apos;a Dön
           </button>
         </div>
       </div>

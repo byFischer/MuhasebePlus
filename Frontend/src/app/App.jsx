@@ -25,7 +25,6 @@ import RaporPage from "@/pages/RaporPage";
 import BudgetPage from "@/pages/BudgetPage";
 import LogPage from "@/pages/LogPage";
 import WidgetBuilderPage from "@/pages/WidgetBuilderPage";
-import WidgetManagerPage from "@/pages/WidgetManagerPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
 import ChekPage from "@/pages/ChekPage";
 import HesapPlaniPage from "@/pages/HesapPlaniPage";
@@ -33,7 +32,6 @@ import YevmiyePage from "@/pages/YevmiyePage";
 import DonemPage from "@/pages/DonemPage";
 import BeyannamePage from "@/pages/beyanname/BeyannamePage";
 import EDefterPage from "@/pages/edefter/EDefterPage";
-import BankaMutabakatPage from "@/pages/BankaMutabakatPage";
 import SabitKiymetPage from "@/pages/SabitKiymetPage";
 
 // Admin sayfaları lazy yüklenir; normal kullanıcının bundle'ına dahil edilmez
@@ -84,7 +82,6 @@ export default function App() {
                 <Route path="/butce"       element={<BudgetPage />} />
                 <Route path="/log"         element={<LogPage />} />
                 <Route path="/widget-builder" element={<WidgetBuilderPage />} />
-                <Route path="/widgets" element={<WidgetManagerPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/cek"         element={<ChekPage />} />
                 <Route path="/hesap-plani" element={<HesapPlaniPage />} />
@@ -92,7 +89,6 @@ export default function App() {
                 <Route path="/donem"       element={<DonemPage />} />
                 <Route path="/beyanname"   element={<BeyannamePage />} />
                 <Route path="/edefter"     element={<EDefterPage />} />
-                <Route path="/banka-mutabakat" element={<BankaMutabakatPage />} />
                 <Route path="/sabit-kiymet"   element={<SabitKiymetPage />} />
                 <Route path="/admin"              element={<AdminPage><AdminDashboardPage /></AdminPage>} />
                 <Route path="/admin/kullanicilar" element={<AdminPage><AdminUsersPage /></AdminPage>} />

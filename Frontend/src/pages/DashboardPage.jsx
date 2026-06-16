@@ -9,6 +9,7 @@ import { useLowStock } from '@/hooks/useStock';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useTemplates } from '@/hooks/useTemplates';
 import dashboardService from '@/services/dashboardService';
+import { fetchWidgetPreview } from '@/services/widgetPreview';
 import { useAuth } from '@/context/AuthContext';
 
 import { WIDGET_REGISTRY, BACKEND_TYPE, FRONTEND_ID, WIDGET_DEF, isCustomWidgetType } from '@/widgets/registry';
@@ -445,9 +446,6 @@ export default function DashboardPage() {
           <button className="btn ghost" onClick={() => setLayoutSelectorOpen(true)}>
             <Icon name="grip" size={14} /> Layout
           </button>
-          <button className="btn ghost" onClick={() => onNav('/widgets')}>
-            <Icon name="folder" size={14} /> Widgetlarım
-          </button>
           <button className="btn ghost" onClick={() => onNav('/widget-builder')}>
             <Icon name="grid" size={14} /> Widget Oluştur
           </button>
@@ -599,26 +597,16 @@ function BuiltinPreview({ id, D, config }) {
   return <Comp D={D} onNav={() => {}} mode="card" variant="s" config={config} />;
 }
 
-// Önizleme sonuçlarını tanım bazında önbelleğe al — picker her açılışta aynı
-// sorguları tekrar çalıştırıp rate limit'i (60 istek/dk) doldurmasın.
-const customPreviewCache = new Map();
-function fetchCustomPreview(def) {
-  const key = `${def.definitionId}:${def.updatedAt || ''}`;
-  if (!customPreviewCache.has(key)) {
-    const promise = dashboardService.previewQuery(def.queryConfig)
-      .catch(err => { customPreviewCache.delete(key); throw err; });
-    customPreviewCache.set(key, promise);
-  }
-  return customPreviewCache.get(key);
-}
-
-// Picker'da custom (widget-builder) widget'ın önizlemesini previewQuery ile çeker
+// Picker'da custom (widget-builder) widget'ın önizlemesini previewQuery ile çeker.
+// Önbellek ve eşzamanlılık sınırı için ortak fetchWidgetPreview kullanılır;
+// böylece picker her açılışta aynı sorguları tekrar çalıştırıp rate limit'i
+// (60 istek/dk) doldurmaz.
 function CustomPreview({ def }) {
   const [st, setSt] = useState({ loading: true });
   useEffect(() => {
     let alive = true;
     if (!def?.queryConfig) { setSt({ loading: false, error: true }); return; }
-    fetchCustomPreview(def)
+    fetchWidgetPreview(def)
       .then(res => { if (alive) setSt(res?.success
         ? { loading: false, data: res.data, columns: res.columns }
         : { loading: false, error: true }); })
