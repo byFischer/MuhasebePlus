@@ -446,9 +446,6 @@ export default function DashboardPage() {
           <button className="btn ghost" onClick={() => setLayoutSelectorOpen(true)}>
             <Icon name="grip" size={14} /> Layout
           </button>
-          <button className="btn ghost" onClick={() => onNav('/widgets')}>
-            <Icon name="folder" size={14} /> Widgetlarım
-          </button>
           <button className="btn ghost" onClick={() => onNav('/widget-builder')}>
             <Icon name="grid" size={14} /> Widget Oluştur
           </button>

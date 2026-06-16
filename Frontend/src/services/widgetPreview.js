@@ -1,10 +1,10 @@
 import dashboardService from './dashboardService';
 
-// Widget önizleme sorgularını tek bir yerden yönetir. Hem "Widget'larım"
-// sayfası hem de dashboard picker'ı her kart için ayrı bir preview isteği
-// atar. Bunları sınırlamazsak çok sayıda widget'ı olan bir kullanıcıda
-// onlarca istek aynı anda gidip rate limit'i (60 istek/dk) doldurur ve
-// ardından gelen "Dashboard'a Ekle" isteği 429 alır.
+// Widget önizleme sorgularını tek bir yerden yönetir. Dashboard'daki widget
+// picker'ı her custom widget kartı için ayrı bir preview isteği atar. Bunları
+// sınırlamazsak çok sayıda widget'ı olan bir kullanıcıda onlarca istek aynı
+// anda gidip rate limit'i (60 istek/dk) doldurur ve ardından gelen istekler
+// 429 alır.
 //
 // İki koruma uygular:
 //  1) Tanım bazında önbellek — aynı widget (definitionId + updatedAt) için

@@ -24,7 +24,6 @@ import RaporPage from "@/pages/RaporPage";
 import BudgetPage from "@/pages/BudgetPage";
 import LogPage from "@/pages/LogPage";
 import WidgetBuilderPage from "@/pages/WidgetBuilderPage";
-import WidgetManagerPage from "@/pages/WidgetManagerPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
 import ChekPage from "@/pages/ChekPage";
 import HesapPlaniPage from "@/pages/HesapPlaniPage";
@@ -79,7 +78,6 @@ export default function App() {
                 <Route path="/butce"       element={<BudgetPage />} />
                 <Route path="/log"         element={<LogPage />} />
                 <Route path="/widget-builder" element={<WidgetBuilderPage />} />
-                <Route path="/widgets" element={<WidgetManagerPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/cek"         element={<ChekPage />} />
                 <Route path="/hesap-plani" element={<HesapPlaniPage />} />
