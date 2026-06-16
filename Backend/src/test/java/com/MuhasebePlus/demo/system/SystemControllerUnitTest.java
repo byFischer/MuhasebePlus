@@ -21,7 +21,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * SystemController için birim testleri. Bağımlılıklar mock'lanır; özellik bayrakları,
- * ilk kurulum koruması (User tablosu doluysa 403) ve AI ayarı güncelleme doğrulanır.
+ * ilk kurulum koruması (User tablosu doluysa 403) doğrulanır.
  */
 @ExtendWith(MockitoExtension.class)
 class SystemControllerUnitTest {
@@ -79,24 +79,6 @@ class SystemControllerUnitTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         verify(userSvc, never()).registerUser(any());
-    }
-
-    // ── updateAiSettings ──────────────────────────────────────────────────────
-
-    @Test
-    void updateAiSettings_persistsProvidedKey() {
-        ResponseEntity<Void> response = controller.updateAiSettings(Map.of("apiKey", "secret-123"));
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        verify(aiSettingsService).setApiKey("secret-123");
-    }
-
-    @Test
-    void updateAiSettings_defaultsToEmptyWhenKeyMissing() {
-        ResponseEntity<Void> response = controller.updateAiSettings(Map.of());
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        verify(aiSettingsService).setApiKey("");
     }
 
     private UserRequestDto userRequest() {

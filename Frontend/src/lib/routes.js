@@ -22,7 +22,6 @@ export const ROUTE_META = {
   '/admin':              { crumbs: ['Yönetim', 'Genel Bakış'],     icon: 'shield',   label: 'Yönetim Paneli',     adminOnly: true },
   '/admin/kullanicilar': { crumbs: ['Yönetim', 'Kullanıcılar'],    icon: 'users',    label: 'Kullanıcı Yönetimi', adminOnly: true },
   '/admin/sirketler':    { crumbs: ['Yönetim', 'Şirketler'],       icon: 'building', label: 'Şirket Yönetimi',    adminOnly: true },
-  '/admin/ayarlar':      { crumbs: ['Yönetim', 'Sistem Ayarları'], icon: 'settings', label: 'Sistem Ayarları',    adminOnly: true },
   '/admin/loglar':       { crumbs: ['Yönetim', 'Loglar & Denetim'],icon: 'log',      label: 'Loglar & Denetim',   adminOnly: true },
 };
 
@@ -57,6 +56,5 @@ export const NAV = [
   { to: '/admin',              label: 'Genel Bakış',      icon: 'shield',   adminOnly: true },
   { to: '/admin/kullanicilar', label: 'Kullanıcılar',     icon: 'users',    adminOnly: true },
   { to: '/admin/sirketler',    label: 'Şirketler',        icon: 'building', adminOnly: true },
-  { to: '/admin/ayarlar',      label: 'Sistem Ayarları',  icon: 'settings', adminOnly: true },
   { to: '/admin/loglar',       label: 'Loglar & Denetim', icon: 'log',      adminOnly: true },
 ];

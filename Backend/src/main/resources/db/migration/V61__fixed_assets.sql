@@ -1,4 +1,4 @@
-CREATE TABLE asset_category (
+CREATE TABLE IF NOT EXISTS asset_category (
   id                        BIGSERIAL PRIMARY KEY,
   company_id                BIGINT       NOT NULL REFERENCES company(company_id),
   name                      VARCHAR(100) NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE asset_category (
   updated_at                TIMESTAMP
 );
 
-CREATE TABLE fixed_asset (
+CREATE TABLE IF NOT EXISTS fixed_asset (
   id                       BIGSERIAL PRIMARY KEY,
   company_id               BIGINT       NOT NULL REFERENCES company(company_id),
   category_id              BIGINT                REFERENCES asset_category(id),
@@ -32,7 +32,7 @@ CREATE TABLE fixed_asset (
   updated_at               TIMESTAMP
 );
 
-CREATE TABLE depreciation_line (
+CREATE TABLE IF NOT EXISTS depreciation_line (
   id                       BIGSERIAL PRIMARY KEY,
   fixed_asset_id           BIGINT        NOT NULL REFERENCES fixed_asset(id),
   period_year              INT           NOT NULL,

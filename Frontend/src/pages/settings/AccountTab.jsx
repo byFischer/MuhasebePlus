@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useUpdateProfile, useChangePassword, useChangeEmail } from '@/hooks/useProfile';
+import { useUpdateProfile, useChangePassword } from '@/hooks/useProfile';
 import Icon from '@/components/mp/Icon';
 
 export default function AccountTab() {
   const { user } = useAuth();
   const updateProfile = useUpdateProfile();
   const changePassword = useChangePassword();
-  const changeEmail = useChangeEmail();
 
   const [profile, setProfile] = useState({
     firstName: user?.firstName || '',
@@ -17,8 +16,6 @@ export default function AccountTab() {
   });
 
   const [pw, setPw] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
-  const [newEmail, setNewEmail] = useState('');
-  const [emailSaving, setEmailSaving] = useState(false);
 
   const handleProfileSubmit = (e) => {
     e.preventDefault();
@@ -30,16 +27,6 @@ export default function AccountTab() {
     if (pw.newPassword !== pw.confirmPassword) return;
     changePassword.mutate({ currentPassword: pw.currentPassword, newPassword: pw.newPassword });
     setPw({ currentPassword: '', newPassword: '', confirmPassword: '' });
-  };
-
-  const handleEmailSubmit = (e) => {
-    e.preventDefault();
-    if (!newEmail) return;
-    setEmailSaving(true);
-    changeEmail.mutate(newEmail, {
-      onSettled: () => setEmailSaving(false),
-      onSuccess: () => setNewEmail(''),
-    });
   };
 
   const pwMismatch = pw.newPassword && pw.confirmPassword && pw.newPassword !== pw.confirmPassword;
@@ -103,26 +90,6 @@ export default function AccountTab() {
         </form>
       </div>
 
-      <div className="divider" />
-
-      <div className="settings-section">
-        <div className="settings-section-title"><Icon name="globe" size={14} /> E-posta Değiştir</div>
-        <form onSubmit={handleEmailSubmit}>
-          <div className="settings-fields">
-            <div className="field">
-              <label>Mevcut E-posta</label>
-              <input className="input settings-input" value={user?.email || ''} disabled />
-            </div>
-            <div className="field">
-              <label>Yeni E-posta</label>
-              <input className="input settings-input" type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} required placeholder="yeni@email.com" />
-            </div>
-          </div>
-          <button type="submit" className="btn primary settings-btn" disabled={emailSaving || !newEmail}>
-            {emailSaving ? 'Değiştiriliyor...' : 'E-posta Güncelle'}
-          </button>
-        </form>
-      </div>
     </div>
   );
 }

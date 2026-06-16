@@ -5,6 +5,7 @@ import { Provider } from "@/components/ui/provider";
 import { Toaster } from "@/components/ui/toaster";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/context/AuthContext";
+import { getHomepagePath } from "@/lib/preferences";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminRoute from "@/components/AdminRoute";
 import AppShell from "@/components/layout/AppShell";
@@ -39,7 +40,6 @@ import SabitKiymetPage from "@/pages/SabitKiymetPage";
 const AdminDashboardPage = lazy(() => import("@/pages/admin/AdminDashboardPage"));
 const AdminUsersPage     = lazy(() => import("@/pages/admin/AdminUsersPage"));
 const AdminCompaniesPage = lazy(() => import("@/pages/admin/AdminCompaniesPage"));
-const AdminSettingsPage  = lazy(() => import("@/pages/admin/AdminSettingsPage"));
 const AdminLogsPage      = lazy(() => import("@/pages/admin/AdminLogsPage"));
 
 function AdminPage({ children }) {
@@ -50,6 +50,10 @@ function AdminPage({ children }) {
       </Suspense>
     </AdminRoute>
   );
+}
+
+function HomeRedirect() {
+  return <Navigate to={getHomepagePath()} replace />;
 }
 
 const queryClient = new QueryClient({
@@ -93,11 +97,10 @@ export default function App() {
                 <Route path="/admin"              element={<AdminPage><AdminDashboardPage /></AdminPage>} />
                 <Route path="/admin/kullanicilar" element={<AdminPage><AdminUsersPage /></AdminPage>} />
                 <Route path="/admin/sirketler"    element={<AdminPage><AdminCompaniesPage /></AdminPage>} />
-                <Route path="/admin/ayarlar"      element={<AdminPage><AdminSettingsPage /></AdminPage>} />
                 <Route path="/admin/loglar"       element={<AdminPage><AdminLogsPage /></AdminPage>} />
-                <Route index element={<Navigate to="/dashboard" replace />} />
+                <Route index element={<HomeRedirect />} />
               </Route>
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              <Route path="*" element={<HomeRedirect />} />
             </Routes>
           </AuthProvider>
         </Router>

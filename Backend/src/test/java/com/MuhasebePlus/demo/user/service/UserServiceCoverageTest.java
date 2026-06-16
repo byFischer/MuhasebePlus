@@ -2,6 +2,8 @@ package com.MuhasebePlus.demo.user.service;
 
 import com.MuhasebePlus.demo.company.entity.Company;
 import com.MuhasebePlus.demo.company.repository.CompanyRepository;
+import com.MuhasebePlus.demo.notification.entity.Notification;
+import com.MuhasebePlus.demo.notification.repository.NotificationRepository;
 import com.MuhasebePlus.demo.user.dto.request.ChangePasswordRequestDto;
 import com.MuhasebePlus.demo.user.dto.request.UpdateProfileRequestDto;
 import com.MuhasebePlus.demo.user.dto.request.UserRequestDto;
@@ -25,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -37,12 +40,14 @@ class UserServiceCoverageTest {
     private PasswordEncoder passwordEncoder;
     @Mock
     private CompanyRepository companyRepository;
+    @Mock
+    private NotificationRepository notificationRepository;
 
     private UserService service;
 
     @BeforeEach
     void setUp() {
-        service = new UserService(userRepository, passwordEncoder, companyRepository);
+        service = new UserService(userRepository, passwordEncoder, companyRepository, notificationRepository);
         ReflectionTestUtils.setField(service, "maxLoginAttempts", 2);
     }
 
@@ -145,6 +150,7 @@ class UserServiceCoverageTest {
 
         service.incrementFailedLoginAttempts("missing@example.com");
         verify(userRepository, never()).save(org.mockito.ArgumentMatchers.argThat(saved -> saved != null && "missing@example.com".equals(saved.getEmail())));
+        verify(notificationRepository, times(2)).save(any(Notification.class));
 
         service.resetFailedLoginAttempts("ada@example.com");
         assertThat(user.getFailedLoginAttempts()).isZero();

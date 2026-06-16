@@ -3,7 +3,6 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import Icon from '@/components/mp/Icon';
 import { NAV } from '@/lib/routes';
 import { useAuth } from '@/context/AuthContext';
-import { toast } from '@/lib/toast';
 import LiveCurrencyRates from '@/components/layout/LiveCurrencyRates';
 
 export default function Sidebar({ onOpenCmdk }) {
@@ -110,8 +109,6 @@ function UserMenu({ onClose }) {
     return () => { clearTimeout(arm); document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
   }, [onClose]);
 
-  const click = (msg) => { toast.ok(msg); onClose(); };
-
   return (
     <div ref={ref} className="user-menu" onClick={(e) => e.stopPropagation()}>
       <div className="um-head">
@@ -123,17 +120,6 @@ function UserMenu({ onClose }) {
       </div>
       <div className="um-section">
         <div className="um-item" onClick={() => { navigate('/settings'); onClose(); }}><Icon name="settings" size={14} /> <span>Hesap ayarları</span></div>
-        <div className="um-item" onClick={() => click('Dil ayarı yakında')}><Icon name="globe" size={14} /> <span>Dil</span></div>
-        <div className="um-item" onClick={() => click('Bildirim tercihleri açılıyor')}><Icon name="bell" size={14} /> <span>Bildirimler</span></div>
-      </div>
-      <div className="um-section">
-        <div className="um-item" onClick={() => click('Yardım merkezi açılıyor')}><Icon name="help" size={14} /> <span>Yardım & destek</span></div>
-        <div className="um-item" onClick={() => click('Geri bildiriminiz iletildi')}><Icon name="message" size={14} /> <span>Geri bildirim gönder</span></div>
-        <div className="um-item" onClick={() => click('Yenilikler · v4.2')}><Icon name="sparkle" size={14} /> <span>Yenilikler</span> <span className="um-tag">Yeni</span></div>
-      </div>
-      <div className="um-section">
-        <div className="um-item" onClick={() => click('Plan yükseltme yakında')}><Icon name="crown" size={14} /> <span>Planı yükselt</span></div>
-        <div className="um-item" onClick={() => click('Entegrasyonlar yakında')}><Icon name="plug" size={14} /> <span>Entegrasyonlar</span></div>
       </div>
       <div className="um-section">
         <div className="um-item danger" onClick={() => { logoutUser(); navigate('/login'); }}>

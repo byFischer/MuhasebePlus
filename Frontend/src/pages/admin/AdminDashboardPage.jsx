@@ -6,7 +6,6 @@ import { useAdminStats } from '@/hooks/useAdmin';
 const QUICK_LINKS = [
   { to: '/admin/kullanicilar', icon: 'users',    label: 'Kullanıcılar' },
   { to: '/admin/sirketler',    icon: 'building', label: 'Şirketler' },
-  { to: '/admin/ayarlar',      icon: 'settings', label: 'Sistem Ayarları' },
   { to: '/admin/loglar',       icon: 'log',      label: 'Loglar & Denetim' },
 ];
 

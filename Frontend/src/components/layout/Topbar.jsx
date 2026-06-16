@@ -55,10 +55,8 @@ export default function Topbar() {
           </React.Fragment>
         ))}
       </div>
-      <button className="tb-icon-btn" style={{ marginLeft: 'auto' }} title="Hızlı Ekle"><Icon name="plus" size={14} /></button>
-
       {/* Notification bell */}
-      <div style={{ position: 'relative' }}>
+      <div style={{ position: 'relative', marginLeft: 'auto' }}>
         <button className="tb-icon-btn" title="Bildirimler" onClick={() => { setNotifOpen(o => !o); loadNotifications(); }}>
           <Icon name="bell" size={14} />
           {unreadCount > 0 && <span className="dot-badge" />}

@@ -4,6 +4,9 @@ import com.MuhasebePlus.demo.user.dto.request.ChangePasswordRequestDto;
 import com.MuhasebePlus.demo.user.dto.request.UpdateProfileRequestDto;
 import com.MuhasebePlus.demo.user.dto.request.UserRequestDto;
 import com.MuhasebePlus.demo.user.dto.response.UserResponseDto;
+import com.MuhasebePlus.demo.notification.entity.Notification;
+import com.MuhasebePlus.demo.notification.entity.NotificationType;
+import com.MuhasebePlus.demo.notification.repository.NotificationRepository;
 import com.MuhasebePlus.demo.user.entity.User;
 import com.MuhasebePlus.demo.user.entity.UserRole;
 import com.MuhasebePlus.demo.user.repository.UserRepository;
@@ -15,6 +18,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+
 @Slf4j
 @Service
 @Transactional
@@ -24,6 +29,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final CompanyRepository companyRepository;
+    private final NotificationRepository notificationRepository;
 
     @Value("${app.security.max-login-attempts:5}")
     private int maxLoginAttempts;
@@ -111,6 +117,7 @@ public class UserService {
                 log.warn("User account locked after {} failed attempts email={}", attempts, email);
             }
             userRepository.save(user);
+            createFailedLoginNotification(user, attempts);
         });
     }
 
@@ -137,6 +144,24 @@ public class UserService {
     private User findUserByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+    }
+
+    private void createFailedLoginNotification(User user, int attempts) {
+        if (user.getCompany() == null) {
+            return;
+        }
+
+        Notification notification = new Notification();
+        notification.setCompany(user.getCompany());
+        notification.setUser(user);
+        notification.setNotificationType(NotificationType.warning);
+        notification.setSubject("Hatalı şifre denemesi");
+        notification.setMessage("Hesabınız için hatalı şifre ile giriş denemesi yapıldı. Toplam başarısız deneme: "
+                + attempts
+                + (user.isLocked() ? ". Güvenlik nedeniyle hesabınız kilitlendi." : "."));
+        notification.setSentAt(LocalDateTime.now());
+        notification.setRecipientEmail(user.getEmail());
+        notificationRepository.save(notification);
     }
 
     private UserResponseDto toResponseDto(User user) {

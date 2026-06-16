@@ -18,6 +18,7 @@ import {
 } from "@chakra-ui/react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { getHomepagePath } from "@/lib/preferences";
 
 const inputStyles = {
   h: "40px",
@@ -111,7 +112,7 @@ export default function LoginForm() {
         password: loginData.password,
       });
 
-      navigate("/dashboard");
+      navigate(getHomepagePath());
     } catch (error) {
       setErrorMessage(error.message || "Giriş başarısız");
     } finally {
@@ -142,7 +143,7 @@ export default function LoginForm() {
         companyTaxNumber: registerData.companyTaxNumber,
       });
 
-      navigate("/dashboard");
+      navigate(getHomepagePath());
     } catch (error) {
       setErrorMessage(error.message || "Kayıt başarısız");
     } finally {

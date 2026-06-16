@@ -6,7 +6,6 @@ import com.MuhasebePlus.demo.user.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -46,12 +45,4 @@ public class SystemController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-    // Authenticated — AI API key'i DB'ye yazar
-    @PutMapping("/ai-settings")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> updateAiSettings(@RequestBody Map<String, String> body) {
-        String apiKey = body.getOrDefault("apiKey", "");
-        aiSettingsService.setApiKey(apiKey);
-        return ResponseEntity.ok().build();
-    }
 }
