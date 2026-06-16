@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Icon from '@/components/mp/Icon';
 import { toast } from '@/lib/toast';
 import dashboardService from '@/services/dashboardService';
+import { fetchWidgetPreview } from '@/services/widgetPreview';
 import DataWidget from '@/widgets/DataWidget';
 
 const CHART_TYPE_LABEL = {
@@ -145,7 +146,7 @@ function WidgetDefPreview({ def }) {
   useEffect(() => {
     let alive = true;
     if (!def?.queryConfig) { setSt({ loading: false, error: true }); return; }
-    dashboardService.previewQuery(def.queryConfig)
+    fetchWidgetPreview(def)
       .then(res => { if (alive) setSt(res?.success
         ? { loading: false, data: res.data, columns: res.columns }
         : { loading: false, error: true }); })
