@@ -80,9 +80,6 @@ export default function Sidebar({ onOpenCmdk }) {
           <div className="user-name">{fullName}</div>
           <div className="user-role">{role}</div>
         </div>
-        <button className="tb-icon-btn" title="Ayarlar" onClick={(e) => { e.stopPropagation(); setUserMenuOpen(o => !o); }}>
-          <Icon name="settings" size={14} />
-        </button>
         {userMenuOpen && <UserMenu onClose={() => setUserMenuOpen(false)} />}
       </div>
     </aside>

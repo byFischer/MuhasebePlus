@@ -3,14 +3,13 @@ import AccountTab from './AccountTab';
 import PreferencesTab from './PreferencesTab';
 import NotificationsTab from './NotificationsTab';
 import CompanyProfileTab from './CompanyProfileTab';
-import Icon from '@/components/mp/Icon';
 import '@/styles/settings.css';
 
 const TABS = {
-  account: { label: 'Hesap', icon: 'settings', component: AccountTab },
-  company: { label: 'Şirket Profili', icon: 'document', component: CompanyProfileTab },
-  preferences: { label: 'Tercihler', icon: 'edit', component: PreferencesTab },
-  notifications: { label: 'Bildirimler', icon: 'bell', component: NotificationsTab },
+  account: { label: 'Hesap', component: AccountTab },
+  company: { label: 'Şirket Profili', component: CompanyProfileTab },
+  preferences: { label: 'Tercihler', component: PreferencesTab },
+  notifications: { label: 'Bildirimler', component: NotificationsTab },
 };
 
 export default function SettingsPage() {
@@ -38,7 +37,7 @@ export default function SettingsPage() {
         <div className="tabs">
           {Object.entries(TABS).map(([key, tab]) => (
             <button key={key} className={activeTab === key ? 'on' : ''} onClick={() => setActiveTab(key)}>
-              <Icon name={tab.icon} size={13} /> {tab.label}
+              {tab.label}
             </button>
           ))}
         </div>
