@@ -1624,6 +1624,31 @@ button.filter:hover {
 .dd-item.danger { color: var(--neg); }
 .dd-item.danger:hover { background: var(--neg-soft); color: var(--neg); }
 
+/* ============ POPOVER (butondan açılan panel) ============ */
+.popover-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.16), 0 2px 6px rgba(0,0,0,0.08);
+  overflow: hidden;
+  max-width: calc(100vw - 16px);
+  transform-origin: top right;
+  animation: popIn 0.16s ease-out;
+}
+@keyframes popIn { from { opacity: 0; transform: translateY(-6px) scale(0.98); } }
+.popover-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.popover-head h3 { margin: 0; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.popover-body { padding: 14px 16px; max-height: 70vh; overflow-y: auto; overflow-x: hidden; }
+/* İçeriğin panel genişliğine sığması: flex çocuklar daralabilsin, satırlar gerekirse alta sarsın */
+.popover-body .input, .popover-body .field { min-width: 0; }
+.popover-body .row { flex-wrap: wrap; }
+.popover-body .table-wrap { overflow-x: auto; }
+
 /* View Transitions API — animated theme toggle */
 ::view-transition-old(root),
 ::view-transition-new(root) {

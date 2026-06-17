@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import Icon from '@/components/mp/Icon';
 import Pagination from '@/components/mp/Pagination';
 import Drawer from '@/components/mp/Drawer';
+import Popover from '@/components/mp/Popover';
 import { TRY } from '@/lib/format';
 import { useInvoices, useInvoice, useCreateInvoice, useDeleteInvoice, useConfirmInvoice, useCancelInvoice, useCreateReturnInvoice, useInvoiceSeries, useCreateInvoiceSeries, useNextInvoiceNumber } from '@/hooks/useInvoices';
 import { useCustomers } from '@/hooks/useCustomers';
@@ -12,7 +13,7 @@ import { useSearchParams } from 'react-router-dom';
 import { toast } from '@/lib/toast';
 import invoiceService from '@/services/invoiceService';
 import { useWithholdingCodes, useExemptionCodes } from '@/hooks/useTaxCodes';
-import ShareLinkModal from '@/components/invoice/ShareLinkModal';
+import ShareLinkPanel from '@/components/invoice/ShareLinkModal';
 
 function InvoicePill({ status, cancelled }) {
   if (cancelled) return <span className="pill neg"><span className="dot" />İptal</span>;
@@ -37,16 +38,23 @@ export default function FaturaPage() {
   const { data: seriesList = [] } = useInvoiceSeries();
   const createSeriesMut = useCreateInvoiceSeries();
   const [q, setQ] = useState('');
-  const [tab, setTab] = useState('hepsi');
   const [page, setPage] = useState(1);
   const [drawer, setDrawer] = useState(false);
   const [returnDrawer, setReturnDrawer] = useState(null);
-  const [gibOpen, setGibOpen] = useState(false);
-  const [seriesOpen, setSeriesOpen] = useState(false);
-  const [shareOpen, setShareOpen] = useState(false);
   const [detailInvoiceId, setDetailInvoiceId] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const PAGE_SIZE = 15;
+
+  //Odeme durumu linkten okunur
+  const tab = searchParams.get('status') || 'hepsi';
+  const typeFilter = searchParams.get('type') || 'hepsi';
+  const setUrlFilter = (key, val) => {
+    const next = new URLSearchParams(searchParams);
+    if (val === 'hepsi') next.delete(key); else next.set(key, val);
+    setSearchParams(next, { replace: true });
+  };
+  const setTab = (val) => setUrlFilter('status', val);
+  const setTypeFilter = (val) => setUrlFilter('type', val);
 
   useEffect(() => {
     const invId = searchParams.get('invoiceId');
@@ -119,17 +127,19 @@ export default function FaturaPage() {
   };
 
   const filtered = useMemo(() => list.filter(i => {
+    if (typeFilter === 'sale' && i.invoiceType !== 'sale') return false;
+    if (typeFilter === 'purchase' && i.invoiceType !== 'purchase') return false;
     if (tab === 'paid' && i.paymentStatus !== 'paid') return false;
     if (tab === 'unpaid' && i.paymentStatus === 'paid') return false;
     if (tab === 'pending' && i.paymentStatus !== 'pending') return false;
     if (q && !(String(i.invoiceId) + (i.customerName || '')).toLowerCase().includes(q.toLowerCase())) return false;
     return true;
-  }), [list, q, tab]);
+  }), [list, q, tab, typeFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [totalPages]);
-  useEffect(() => { setPage(1); }, [q, tab]);
+  useEffect(() => { setPage(1); }, [q, tab, typeFilter]);
   const pageStart = (page - 1) * PAGE_SIZE;
   const pageEnd = Math.min(pageStart + PAGE_SIZE, filtered.length);
   const paged = filtered.slice(pageStart, pageEnd);
@@ -142,9 +152,15 @@ export default function FaturaPage() {
       <div className="page-head">
         <div><h1 className="page-title">Fatura Yönetimi</h1><p className="page-sub">{list.length} fatura</p></div>
         <div className="page-actions">
-          <button className="btn ghost" onClick={() => setShareOpen(true)}><Icon name="share" size={14} /> Paylaş</button>
-          <button className="btn ghost" onClick={() => setSeriesOpen(true)}><Icon name="grip" size={14} /> Seriler</button>
-          <button className="btn ghost" onClick={() => setGibOpen(true)}><Icon name="globe" size={14} /> GİB</button>
+          <Popover icon="share" label="Paylaş" title="Müşavir Paylaşım Linki" width={440}>
+            {({ close }) => <ShareLinkPanel onClose={close} />}
+          </Popover>
+          <Popover icon="grip" label="Seriler" title="Fatura Serileri" width={460}>
+            {({ close }) => <SeriesPanel seriesList={seriesList} createMut={createSeriesMut} onClose={close} />}
+          </Popover>
+          <Popover icon="globe" label="GİB" title="GİB E-Arşiv Profili" width={380}>
+            {({ close }) => <GibProfilePanel onClose={close} />}
+          </Popover>
           <button className="btn primary" onClick={() => setDrawer(true)}><Icon name="plus" /> Yeni Fatura</button>
         </div>
       </div>
@@ -153,6 +169,11 @@ export default function FaturaPage() {
           <div className="tb-search" style={{ margin: 0, width: 280 }}>
             <Icon name="search" size={14} />
             <input value={q} onChange={e => setQ(e.target.value)} placeholder="Fatura no, müşteri ara..." />
+          </div>
+          <div className="seg">
+            {[['hepsi', 'Tümü'], ['sale', 'Satış'], ['purchase', 'Alış']].map(([k, l]) =>
+              <button key={k} className={typeFilter === k ? 'on' : ''} onClick={() => setTypeFilter(k)}>{l}</button>
+            )}
           </div>
           <div className="seg">
             {[['hepsi', 'Hepsi'], ['paid', 'Ödendi'], ['unpaid', 'Ödenmedi'], ['pending', 'Beklemede']].map(([k, l]) =>
@@ -221,9 +242,6 @@ export default function FaturaPage() {
       {returnDrawer && (
         <ReturnInvoiceDrawer original={returnDrawer} customers={customers} onClose={() => setReturnDrawer(null)} />
       )}
-      {gibOpen && <GibProfileModal onClose={() => setGibOpen(false)} />}
-      {shareOpen && <ShareLinkModal onClose={() => setShareOpen(false)} />}
-      {seriesOpen && <SeriesModal seriesList={seriesList} createMut={createSeriesMut} onClose={() => setSeriesOpen(false)} />}
     </div>
   );
 }
@@ -716,7 +734,7 @@ function ReturnInvoiceDrawer({ original, onClose }) {
   );
 }
 
-function GibProfileModal({ onClose }) {
+function GibProfilePanel({ onClose }) {
   const [alias, setAlias] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -735,32 +753,24 @@ function GibProfileModal({ onClose }) {
   };
 
   return (
-    <div className="drawer-scrim" onClick={onClose}>
-      <div className="drawer" style={{ maxWidth: 420, height: 'auto' }} onClick={e => e.stopPropagation()}>
-        <div className="drawer-head">
-          <h2>GİB E-Arşiv Profili</h2>
-          <button className="tb-icon-btn" onClick={onClose}><Icon name="x" /></button>
-        </div>
-        <div className="drawer-body col gap-12">
-          <div className="field">
-            <label>GİB Kullanıcı Kodu (Alias)</label>
-            <input className="input mono" value={alias} onChange={e => setAlias(e.target.value)} placeholder="örn: 3333333300" />
-          </div>
-          <div className="field">
-            <label>Şifre</label>
-            <input className="input mono" type="password" value={password} onChange={e => setPassword(e.target.value)} />
-          </div>
-          <p className="muted" style={{ fontSize: 11 }}>GİB test ortamı: efaturatest.efatura.gov.tr</p>
-          <button className="btn primary" disabled={loading || !alias.trim() || !password.trim()} onClick={save}>
-            {loading ? 'Kaydediliyor...' : 'Kaydet'}
-          </button>
-        </div>
+    <>
+      <div className="field">
+        <label>GİB Kullanıcı Kodu (Alias)</label>
+        <input className="input mono" value={alias} onChange={e => setAlias(e.target.value)} placeholder="örn: 3333333300" />
       </div>
-    </div>
+      <div className="field">
+        <label>Şifre</label>
+        <input className="input mono" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+      </div>
+      <p className="muted" style={{ fontSize: 11 }}>GİB test ortamı: efaturatest.efatura.gov.tr</p>
+      <button className="btn primary" disabled={loading || !alias.trim() || !password.trim()} onClick={save}>
+        {loading ? 'Kaydediliyor...' : 'Kaydet'}
+      </button>
+    </>
   );
 }
 
-function SeriesModal({ seriesList, createMut, onClose }) {
+function SeriesPanel({ seriesList, createMut, onClose }) {
   const [code, setCode] = useState('');
   const [type, setType] = useState('sale');
   const [prefix, setPrefix] = useState('');
@@ -777,55 +787,47 @@ function SeriesModal({ seriesList, createMut, onClose }) {
   };
 
   return (
-    <div className="drawer-scrim" onClick={onClose}>
-      <div className="drawer" style={{ maxWidth: 480, height: 'auto' }} onClick={e => e.stopPropagation()}>
-        <div className="drawer-head">
-          <h2>Fatura Serileri</h2>
-          <button className="tb-icon-btn" onClick={onClose}><Icon name="x" /></button>
+    <>
+      {(seriesList || []).length > 0 && (
+        <div className="table-wrap">
+          <table className="table">
+            <thead><tr><th>Kod</th><th>Tür</th><th>Son Sıra</th><th>Durum</th></tr></thead>
+            <tbody>
+              {seriesList.map(s => (
+                <tr key={s.seriesId}>
+                  <td className="mono"><b>{s.seriesCode}</b>{s.prefix && <span className="muted" style={{ fontSize: 10, marginLeft: 4 }}>({s.prefix})</span>}</td>
+                  <td><span className="pill">{s.invoiceType === 'sale' ? 'Satış' : 'Alış'}</span></td>
+                  <td className="mono">{s.lastSequenceNumber}</td>
+                  <td><span className={`pill ${s.isActive ? 'pos' : ''}`}>{s.isActive ? 'Aktif' : 'Pasif'}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <div className="drawer-body col gap-12">
-          {(seriesList || []).length > 0 && (
-            <div className="table-wrap">
-              <table className="table">
-                <thead><tr><th>Kod</th><th>Tür</th><th>Son Sıra</th><th>Durum</th></tr></thead>
-                <tbody>
-                  {seriesList.map(s => (
-                    <tr key={s.seriesId}>
-                      <td className="mono"><b>{s.seriesCode}</b>{s.prefix && <span className="muted" style={{ fontSize: 10, marginLeft: 4 }}>({s.prefix})</span>}</td>
-                      <td><span className="pill">{s.invoiceType === 'sale' ? 'Satış' : 'Alış'}</span></td>
-                      <td className="mono">{s.lastSequenceNumber}</td>
-                      <td><span className={`pill ${s.isActive ? 'pos' : ''}`}>{s.isActive ? 'Aktif' : 'Pasif'}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
-            <label style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, display: 'block' }}>Yeni Seri Ekle</label>
-            <div className="row gap-8" style={{ alignItems: 'flex-end' }}>
-              <div className="field" style={{ width: 100 }}>
-                <label style={{ fontSize: 11 }}>Kod *</label>
-                <input className="input mono" value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="A" maxLength={10} />
-              </div>
-              <div className="field" style={{ width: 100 }}>
-                <label style={{ fontSize: 11 }}>Tür</label>
-                <select className="input" value={type} onChange={e => setType(e.target.value)}>
-                  <option value="sale">Satış</option>
-                  <option value="purchase">Alış</option>
-                </select>
-              </div>
-              <div className="field" style={{ width: 100 }}>
-                <label style={{ fontSize: 11 }}>Önek</label>
-                <input className="input mono" value={prefix} onChange={e => setPrefix(e.target.value)} placeholder="ops." maxLength={20} />
-              </div>
-              <button className="btn primary sm" disabled={!code.trim() || createMut.isPending} onClick={save}>
-                {createMut.isPending ? '...' : 'Ekle'}
-              </button>
-            </div>
+      )}
+      <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
+        <label style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, display: 'block' }}>Yeni Seri Ekle</label>
+        <div className="row gap-8" style={{ alignItems: 'flex-end' }}>
+          <div className="field" style={{ width: 100 }}>
+            <label style={{ fontSize: 11 }}>Kod *</label>
+            <input className="input mono" value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="A" maxLength={10} />
           </div>
+          <div className="field" style={{ width: 100 }}>
+            <label style={{ fontSize: 11 }}>Tür</label>
+            <select className="input" value={type} onChange={e => setType(e.target.value)}>
+              <option value="sale">Satış</option>
+              <option value="purchase">Alış</option>
+            </select>
+          </div>
+          <div className="field" style={{ width: 100 }}>
+            <label style={{ fontSize: 11 }}>Önek</label>
+            <input className="input mono" value={prefix} onChange={e => setPrefix(e.target.value)} placeholder="ops." maxLength={20} />
+          </div>
+          <button className="btn primary sm" disabled={!code.trim() || createMut.isPending} onClick={save}>
+            {createMut.isPending ? '...' : 'Ekle'}
+          </button>
         </div>
       </div>
-    </div>
+    </>
   );
 }

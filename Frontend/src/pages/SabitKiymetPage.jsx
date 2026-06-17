@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Icon from '@/components/mp/Icon';
+import Popover from '@/components/mp/Popover';
 import {
   useFixedAssets, useCategories, useDepreciationSchedule,
   useCreateAsset, useUpdateAsset,
@@ -25,7 +26,6 @@ export default function SabitKiymetPage() {
   const [assetForm, setAssetForm]     = useState(null);   // null = closed, {} = new, {id,...} = edit
   const [catForm, setCatForm]         = useState(null);
   const [scheduleAssetId, setScheduleAssetId] = useState(null);
-  const [depModal, setDepModal]       = useState(false);
   const [depYear, setDepYear]         = useState(new Date().getFullYear());
   const [depMonth, setDepMonth]       = useState(new Date().getMonth() + 1);
   const [disposeModal, setDisposeModal] = useState(null);
@@ -137,10 +137,31 @@ export default function SabitKiymetPage() {
         </div>
         {isAdmin && (
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn ghost" onClick={() => setDepModal(true)}>
-              <Icon name="flash" size={14} style={{ marginRight: 4 }} />
-              Amortisman Çalıştır
-            </button>
+            <Popover icon="flash" label="Amortisman Çalıştır" title="Aylık Amortisman Çalıştır" width={320}>
+              {({ close }) => (
+                <>
+                  <div className="row gap-12">
+                    <div className="field" style={{ flex: 1 }}>
+                      <label>Yıl</label>
+                      <input className="input" type="number" value={depYear} onChange={e => setDepYear(Number(e.target.value))} />
+                    </div>
+                    <div className="field" style={{ flex: 1 }}>
+                      <label>Ay</label>
+                      <select className="input" value={depMonth} onChange={e => setDepMonth(Number(e.target.value))}>
+                        {MONTH_NAMES.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
+                    <button className="btn ghost" onClick={close}>İptal</button>
+                    <button className="btn primary" disabled={runDep.isPending}
+                      onClick={() => runDep.mutate({ year: depYear, month: depMonth }, { onSuccess: close })}>
+                      {runDep.isPending ? 'Hesaplanıyor…' : 'Çalıştır'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </Popover>
             <button className="btn primary" onClick={openNewAsset}>
               <Icon name="plus" size={14} style={{ marginRight: 4 }} />
               Yeni Demirbaş
@@ -394,37 +415,6 @@ export default function SabitKiymetPage() {
               <button className="btn ghost" onClick={closeCatForm}>İptal</button>
               <button className="btn primary" disabled={!catForm.name} onClick={handleSaveCat}>
                 {createCat.isPending ? 'Kaydediliyor…' : 'Kaydet'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Run Depreciation Modal */}
-      {depModal && (
-        <div className="scrim" onClick={() => setDepModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 360 }}>
-            <div className="drawer-h">
-              <h3>Aylık Amortisman Çalıştır</h3>
-              <button className="tb-icon-btn" onClick={() => setDepModal(false)}><Icon name="x" size={14} /></button>
-            </div>
-            <div className="drawer-b" style={{ display: 'flex', gap: 12 }}>
-              <div className="field" style={{ flex: 1 }}>
-                <label>Yıl</label>
-                <input className="input" type="number" value={depYear} onChange={e => setDepYear(Number(e.target.value))} />
-              </div>
-              <div className="field" style={{ flex: 1 }}>
-                <label>Ay</label>
-                <select className="input" value={depMonth} onChange={e => setDepMonth(Number(e.target.value))}>
-                  {MONTH_NAMES.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="drawer-f">
-              <button className="btn ghost" onClick={() => setDepModal(false)}>İptal</button>
-              <button className="btn primary" disabled={runDep.isPending}
-                onClick={() => runDep.mutate({ year: depYear, month: depMonth }, { onSuccess: () => setDepModal(false) })}>
-                {runDep.isPending ? 'Hesaplanıyor…' : 'Çalıştır'}
               </button>
             </div>
           </div>

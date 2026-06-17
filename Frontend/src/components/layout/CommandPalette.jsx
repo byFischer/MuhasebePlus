@@ -46,6 +46,11 @@ const PAGE_ITEMS = [
 ];
 
 const SUBPAGE_ITEMS = [
+  { kind: 'Alt Sayfa', label: 'Satış Faturaları', desc: 'Fatura > Satış faturaları', path: '/fatura?type=sale', icon: 'invoice', keywords: ['satış faturası', 'satis faturasi', 'satış faturaları', 'satis faturalari', 'kestiğim fatura', 'kestigim fatura', 'sales'] },
+  { kind: 'Alt Sayfa', label: 'Alış Faturaları', desc: 'Fatura > Alış faturaları', path: '/fatura?type=purchase', icon: 'invoice', keywords: ['alış faturası', 'alis faturasi', 'alış faturaları', 'alis faturalari', 'gelen fatura', 'tedarikçi faturası', 'tedarikci faturasi', 'purchase'] },
+  { kind: 'Alt Sayfa', label: 'Ödenmiş Faturalar', desc: 'Fatura > Ödendi', path: '/fatura?status=paid', icon: 'invoice', keywords: ['ödenmiş fatura', 'odenmis fatura', 'ödenen fatura', 'odenen fatura', 'tahsil edilen fatura', 'paid fatura'] },
+  { kind: 'Alt Sayfa', label: 'Ödenmemiş Faturalar', desc: 'Fatura > Ödenmedi', path: '/fatura?status=unpaid', icon: 'invoice', keywords: ['ödenmemiş fatura', 'odenmemis fatura', 'ödenmeyen fatura', 'odenmeyen fatura', 'açık fatura', 'acik fatura', 'borçlu fatura', 'borclu fatura', 'unpaid fatura'] },
+  { kind: 'Alt Sayfa', label: 'Bekleyen Faturalar', desc: 'Fatura > Beklemede', path: '/fatura?status=pending', icon: 'invoice', keywords: ['bekleyen fatura', 'beklemede fatura', 'pending fatura'] },
   { kind: 'Alt Sayfa', label: 'Gelirler', desc: 'Gelir / Gider içindeki gelir kayıtları', path: '/gelir-gider?tab=gelir', icon: 'swap', keywords: ['gelir', 'gelir kısmı', 'gelir kismi', 'gelir tabı', 'gelir tabi', 'gelir işlemleri', 'gelir islemleri'] },
   { kind: 'Alt Sayfa', label: 'Giderler', desc: 'Gelir / Gider içindeki gider kayıtları', path: '/gelir-gider?tab=gider', icon: 'swap', keywords: ['gider', 'gider kısmı', 'gider kismi', 'gider tabı', 'gider tabi', 'gider işlemleri', 'gider islemleri'] },
   { kind: 'Alt Sayfa', label: 'Tüm Gelir / Gider İşlemleri', desc: 'Gelir / Gider içindeki tüm kayıtlar', path: '/gelir-gider?tab=hepsi', icon: 'swap', keywords: ['tüm işlemler', 'tum islemler', 'hepsi gelir gider'] },
