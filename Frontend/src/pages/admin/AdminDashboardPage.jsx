@@ -6,7 +6,7 @@ import { useAdminStats } from '@/hooks/useAdmin';
 const QUICK_LINKS = [
   { to: '/admin/kullanicilar', icon: 'users',    label: 'Kullanıcılar' },
   { to: '/admin/sirketler',    icon: 'building', label: 'Şirketler' },
-  { to: '/admin/loglar',       icon: 'log',      label: 'Loglar & Denetim' },
+  { to: '/log',                icon: 'log',      label: 'Sistem Logları' },
 ];
 
 export default function AdminDashboardPage() {
@@ -87,7 +87,7 @@ export default function AdminDashboardPage() {
         <div className="card">
           <div className="card-h">
             <h3>Son Loglar</h3>
-            <Link to="/admin/loglar" className="btn sm">Tümü <Icon name="chevRight" size={12} /></Link>
+            <Link to="/log" className="btn sm">Tümü <Icon name="chevRight" size={12} /></Link>
           </div>
           <div className="card-b" style={{ maxHeight: 420, overflowY: 'auto' }}>
             {(stats.recentLogs ?? []).map(x => (

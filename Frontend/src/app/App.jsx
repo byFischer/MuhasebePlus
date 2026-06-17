@@ -38,7 +38,6 @@ import SabitKiymetPage from "@/pages/SabitKiymetPage";
 const AdminDashboardPage = lazy(() => import("@/pages/admin/AdminDashboardPage"));
 const AdminUsersPage     = lazy(() => import("@/pages/admin/AdminUsersPage"));
 const AdminCompaniesPage = lazy(() => import("@/pages/admin/AdminCompaniesPage"));
-const AdminLogsPage      = lazy(() => import("@/pages/admin/AdminLogsPage"));
 
 function AdminPage({ children }) {
   return (
@@ -93,7 +92,6 @@ export default function App() {
                 <Route path="/admin"              element={<AdminPage><AdminDashboardPage /></AdminPage>} />
                 <Route path="/admin/kullanicilar" element={<AdminPage><AdminUsersPage /></AdminPage>} />
                 <Route path="/admin/sirketler"    element={<AdminPage><AdminCompaniesPage /></AdminPage>} />
-                <Route path="/admin/loglar"       element={<AdminPage><AdminLogsPage /></AdminPage>} />
                 <Route index element={<HomeRedirect />} />
               </Route>
               <Route path="*" element={<HomeRedirect />} />

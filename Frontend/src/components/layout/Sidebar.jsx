@@ -60,7 +60,7 @@ export default function Sidebar({ onOpenCmdk }) {
             {expandedSections[n.to] && (
               <div className="nav-children">
                 {n.children.map((c) => (
-                  <NavLink key={c.to} to={c.to} className={({ isActive }) => `nav-item nav-child ${isActive ? 'on' : ''}`}>
+                  <NavLink key={c.to} to={c.to} end className={({ isActive }) => `nav-item nav-child ${isActive ? 'on' : ''}`}>
                     <span>{c.label}</span>
                   </NavLink>
                 ))}
@@ -68,7 +68,7 @@ export default function Sidebar({ onOpenCmdk }) {
             )}
           </div>
         ) : (
-          <NavLink key={n.to} to={n.to} className={({ isActive }) => `nav-item ${isActive ? 'on' : ''}`}>
+          <NavLink key={n.to} to={n.to} end className={({ isActive }) => `nav-item ${isActive ? 'on' : ''}`}>
             <Icon name={n.icon} size={15} />
             <span>{n.label}</span>
           </NavLink>
