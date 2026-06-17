@@ -558,76 +558,88 @@ function InvoiceDrawer({ open, onClose, customers, products, seriesList }) {
             <button className="btn ghost sm" onClick={addLine}><Icon name="plus" size={12} /> Kalem Ekle</button>
           </div>
           <div className="col gap-8">
-            {lines.map((l, i) => (
+            {lines.map((l, i) => {
+              const npActive = l.showNewProduct && isPurchase;
+              return (
               <div key={i} style={{ border: '1px solid var(--line)', borderRadius: 6, padding: 10 }}>
+                {npActive && (
+                  <div className="np-panel">
+                    <div className="np-panel-head">
+                      <span className="np-panel-title"><Icon name="box" size={13} /> Yeni Ürün Bilgileri</span>
+                      <button
+                        className="btn ghost sm"
+                        onClick={() => { updateLine(i, 'showNewProduct', false); updateLine(i, 'newProduct', null); }}
+                      >
+                        <Icon name="x" size={12} /> İptal
+                      </button>
+                    </div>
+                    <div className="np-grid">
+                      <div className="field" style={{ margin: 0, gridColumn: 'span 2' }}>
+                        <label>Barkod *</label>
+                        <input
+                          className="input mono"
+                          value={l.newProduct?.barcode || ''}
+                          onChange={e => updateNewProduct(i, 'barcode', e.target.value.replace(/\D/g, '').slice(0, 13))}
+                          placeholder="13 haneli barkod"
+                          maxLength={13}
+                        />
+                      </div>
+                      <div className="field" style={{ margin: 0, gridColumn: 'span 4' }}>
+                        <label>Ürün Adı *</label>
+                        <input className="input" value={l.newProduct?.name || ''} onChange={e => updateNewProduct(i, 'name', e.target.value)} placeholder="Ürün adı" />
+                      </div>
+                      <div className="field" style={{ margin: 0, gridColumn: 'span 2' }}>
+                        <label>Birim *</label>
+                        <input className="input" value={l.newProduct?.unit || 'adet'} onChange={e => updateNewProduct(i, 'unit', e.target.value)} placeholder="adet" />
+                      </div>
+                      <div className="field" style={{ margin: 0, gridColumn: 'span 2' }}>
+                        <label>Maliyet (₺) *</label>
+                        <input className="input mono" type="number" min="0.01" step="0.01" value={l.newProduct?.costPrice || ''} onChange={e => updateNewProduct(i, 'costPrice', e.target.value)} placeholder="0.00" />
+                      </div>
+                      <div className="field" style={{ margin: 0, gridColumn: 'span 2' }}>
+                        <label>Satış (₺) *</label>
+                        <input className="input mono" type="number" min="0.01" step="0.01" value={l.newProduct?.salePrice || ''} onChange={e => updateNewProduct(i, 'salePrice', e.target.value)} placeholder="0.00" />
+                      </div>
+                      <div className="field" style={{ margin: 0, gridColumn: 'span 3' }}>
+                        <label>KDV % *</label>
+                        <input className="input mono" type="number" min="0" max="100" value={l.newProduct?.vatRate || '18'} onChange={e => updateNewProduct(i, 'vatRate', e.target.value)} placeholder="18" />
+                      </div>
+                      <div className="field" style={{ margin: 0, gridColumn: 'span 3' }}>
+                        <label>Min. Stok</label>
+                        <input className="input mono" type="number" min="0" value={l.newProduct?.minQuantity || '0'} onChange={e => updateNewProduct(i, 'minQuantity', e.target.value)} placeholder="0" />
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="row gap-8" style={{ alignItems: 'flex-end' }}>
                   <div className="field" style={{ flex: 1, margin: 0 }}>
                     {i === 0 && <label style={{ fontSize: 11 }}>Ürün</label>}
-                    {isPurchase && !l.newProduct && (
-                      <button
-                        className="btn ghost sm"
-                        style={{ marginBottom: 4, fontSize: 11 }}
-                        onClick={() => {
-                          updateLine(i, 'showNewProduct', true);
-                          if (!l.newProduct) updateLine(i, 'newProduct', { barcode: '', name: '', unit: 'adet', salePrice: '', costPrice: '', vatRate: '18', minQuantity: '0' });
-                        }}
-                      >
-                        <Icon name="plus" size={10} /> Yeni ürün ekle
-                      </button>
-                    )}
-                    {l.showNewProduct && isPurchase ? (
-                      <div className="col gap-4">
-                        <div className="grid-2">
-                          <div className="field" style={{ margin: 0 }}>
-                            <label style={{ fontSize: 11 }}>Barkod *</label>
-                            <input
-                              className="input mono"
-                              value={l.newProduct?.barcode || ''}
-                              onChange={e => updateNewProduct(i, 'barcode', e.target.value.replace(/\D/g, '').slice(0, 13))}
-                              placeholder="13 haneli barkod"
-                              maxLength={13}
-                            />
-                          </div>
-                          <div className="field" style={{ margin: 0 }}>
-                            <label style={{ fontSize: 11 }}>Ürün Adı *</label>
-                            <input className="input" value={l.newProduct?.name || ''} onChange={e => updateNewProduct(i, 'name', e.target.value)} placeholder="Ürün adı" />
-                          </div>
-                        </div>
-                        <div className="grid-3">
-                          <div className="field" style={{ margin: 0 }}>
-                            <label style={{ fontSize: 11 }}>Birim *</label>
-                            <input className="input" value={l.newProduct?.unit || 'adet'} onChange={e => updateNewProduct(i, 'unit', e.target.value)} />
-                          </div>
-                          <div className="field" style={{ margin: 0 }}>
-                            <label style={{ fontSize: 11 }}>Maliyet *</label>
-                            <input className="input mono" type="number" min="0.01" step="0.01" value={l.newProduct?.costPrice || ''} onChange={e => updateNewProduct(i, 'costPrice', e.target.value)} placeholder="0.00" />
-                          </div>
-                          <div className="field" style={{ margin: 0 }}>
-                            <label style={{ fontSize: 11 }}>Satış *</label>
-                            <input className="input mono" type="number" min="0.01" step="0.01" value={l.newProduct?.salePrice || ''} onChange={e => updateNewProduct(i, 'salePrice', e.target.value)} placeholder="0.00" />
-                          </div>
-                        </div>
-                        <div className="grid-3">
-                          <div className="field" style={{ margin: 0 }}>
-                            <label style={{ fontSize: 11 }}>KDV % *</label>
-                            <input className="input mono" type="number" min="0" max="100" value={l.newProduct?.vatRate || '18'} onChange={e => updateNewProduct(i, 'vatRate', e.target.value)} />
-                          </div>
-                          <div className="field" style={{ margin: 0 }}>
-                            <label style={{ fontSize: 11 }}>Min. Stok</label>
-                            <input className="input mono" type="number" min="0" value={l.newProduct?.minQuantity || '0'} onChange={e => updateNewProduct(i, 'minQuantity', e.target.value)} />
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                            <button className="btn ghost sm" onClick={() => { updateLine(i, 'showNewProduct', false); updateLine(i, 'newProduct', null); }}>İptal</button>
-                          </div>
-                        </div>
+                    {npActive ? (
+                      <div className="np-chip">
+                        <Icon name="box" size={12} />
+                        <span>Yeni ürün: <b>{l.newProduct?.name?.trim() || 'bilgiler yukarıda'}</b></span>
                       </div>
                     ) : (
-                      <select className="input" value={l.productId} onChange={e => updateLine(i, 'productId', e.target.value)}>
-                        <option value="">Ürün seçin...</option>
-                        {products.map(p => (
-                          <option key={p.productId} value={p.productId}>{p.name} — {TRY(p.salePrice)}</option>
-                        ))}
-                      </select>
+                      <>
+                        {isPurchase && (
+                          <button
+                            className="btn ghost sm"
+                            style={{ marginBottom: 4, fontSize: 11 }}
+                            onClick={() => {
+                              updateLine(i, 'showNewProduct', true);
+                              if (!l.newProduct) updateLine(i, 'newProduct', { barcode: '', name: '', unit: 'adet', salePrice: '', costPrice: '', vatRate: '18', minQuantity: '0' });
+                            }}
+                          >
+                            <Icon name="plus" size={10} /> Yeni ürün ekle
+                          </button>
+                        )}
+                        <select className="input" value={l.productId} onChange={e => updateLine(i, 'productId', e.target.value)}>
+                          <option value="">Ürün seçin...</option>
+                          {products.map(p => (
+                            <option key={p.productId} value={p.productId}>{p.name} — {TRY(p.salePrice)}</option>
+                          ))}
+                        </select>
+                      </>
                     )}
                   </div>
                   <div className="field" style={{ width: 70, margin: 0 }}>
@@ -685,7 +697,8 @@ function InvoiceDrawer({ open, onClose, customers, products, seriesList }) {
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
           {!isPurchase && products.length === 0 && (
             <span style={{ fontSize: 11, color: 'var(--warn)', marginTop: 4, display: 'block' }}>Önce stok sayfasından ürün ekleyin</span>
