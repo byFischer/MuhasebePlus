@@ -4,6 +4,7 @@ import Drawer from '@/components/mp/Drawer';
 import AnimatedNumber from '@/components/mp/AnimatedNumber';
 import { TRY } from '@/lib/format';
 import { useBankAccounts, useCreateBankAccount, useDeleteBankAccount, useBankList } from '@/hooks/useBankAccounts';
+import CashIcon          from '@/icons/cash.png';
 import ZiraatLogo        from '@/icons/Ziraat_Bankasi_Logo_JPEG.jpg';
 import HalkbankLogo      from '@/icons/halkbank-logo-png_seeklogo-529774.png';
 import VakifbankLogo     from '@/icons/Vakifbank-Logo-Small.png';
@@ -60,7 +61,16 @@ const BANK_LOGOS = {
   'PTT':                PttLogo,
 };
 
-function BankLogo({ bankName }) {
+function BankLogo({ bankName, accountType }) {
+  if (accountType === 'CASH') {
+    return (
+      <img
+        src={CashIcon}
+        alt="Nakit Kasa"
+        style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'contain', background: '#fff', padding: 5 }}
+      />
+    );
+  }
   const logo = BANK_LOGOS[bankName];
   if (logo) {
     return (
@@ -99,7 +109,7 @@ export default function BankaPage() {
           <div key={b.bankAccountId || b.accountId} className="card">
             <div className="card-h">
               <div className="row gap-8">
-                <BankLogo bankName={b.accountName || b.bankName} />
+                <BankLogo bankName={b.accountName || b.bankName} accountType={b.accountType} />
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 13 }}>{b.accountName || b.bankName}</div>
                   <div className="muted" style={{ fontSize: 11 }}>
