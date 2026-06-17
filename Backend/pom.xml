@@ -126,6 +126,13 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- H2 — demo veritabanı (PostgreSQL uyumluluk modu) -->
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
 		<!-- Embedded Postgres — desktop profile için -->
 		<dependency>
 			<groupId>io.zonky.test</groupId>
