@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import Icon from '@/components/mp/Icon';
 
 const MONTHS_TR = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
 
@@ -57,43 +56,51 @@ export default function MonthCard({ year, month, run, onGenerate, onRegenerate, 
   const hasRun = !!run;
 
   return (
-    <div className={`edc ${hasRun ? 'done' : 'idle'}`}>
-      <div className="edc-head">
-        <div className="edc-month">{monthName}</div>
+    <div style={{
+      border: '1px solid var(--line)',
+      borderRadius: 8,
+      padding: 16,
+      background: hasRun ? 'var(--surface)' : 'var(--surface-2, var(--surface))',
+      minHeight: 130,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontWeight: 600, fontSize: 14 }}>{monthName}</div>
         {hasRun
-          ? <span className="chip ok"><span className="chip-dot" />Üretildi</span>
-          : <span className="chip idle">Üretilmedi</span>
+          ? <span className="pill yesil" style={{ fontSize: 11 }}><span className="dot" />Üretildi</span>
+          : <span className="pill" style={{ fontSize: 11, background: 'var(--surface-2)' }}>Üretilmedi</span>
         }
       </div>
 
       {hasRun ? (
         <>
-          <div className="edc-meta">
-            <span><span className="num">{run.journalEntryCount || 0}</span> fiş · <span className="num">{run.journalLineCount || 0}</span> satır</span>
+          <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
+            <span>{run.journalEntryCount || 0} fiş / {run.journalLineCount || 0} satır</span>
             {run.generatedAt && (
-              <span className="dt">{new Date(run.generatedAt).toLocaleDateString('tr-TR')}</span>
+              <span style={{ marginLeft: 8 }}>{new Date(run.generatedAt).toLocaleDateString('tr-TR')}</span>
             )}
           </div>
-          <div className="edc-dl">
-            <button className="btn ghost sm" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={handleDownloadJournal}>
-              <Icon name="download" size={13} /> Yevmiye XML İndir
+          <div className="col gap-4" style={{ marginTop: 4 }}>
+            <button className="btn ghost sm" style={{ width: '100%', fontSize: 12 }} onClick={handleDownloadJournal}>
+              Yevmiye XML İndir
             </button>
-            <button className="btn ghost sm" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={handleDownloadLedger}>
-              <Icon name="download" size={13} /> Kebir XML İndir
+            <button className="btn ghost sm" style={{ width: '100%', fontSize: 12 }} onClick={handleDownloadLedger}>
+              Kebir XML İndir
             </button>
-          </div>
-          <div className="edc-foot">
-            <button className="btn ghost sm" onClick={() => setRegenOpen(true)} disabled={isRegeneratePending}>
-              <Icon name="refresh" size={12} /> Yeniden Üret
-            </button>
-            <button className="btn ghost sm" style={{ color: 'var(--neg)' }} onClick={() => setDeleteOpen(true)} disabled={isDeletePending}>
-              <Icon name="trash" size={12} /> Sil
-            </button>
+            <div className="row gap-4">
+              <button className="btn ghost sm" style={{ flex: 1, fontSize: 11 }} onClick={() => setRegenOpen(true)} disabled={isRegeneratePending}>
+                Yeniden Üret
+              </button>
+              <button className="btn ghost sm" style={{ flex: 1, fontSize: 11, color: 'var(--red)' }} onClick={() => setDeleteOpen(true)} disabled={isDeletePending}>
+                Sil
+              </button>
+            </div>
           </div>
         </>
       ) : (
-        <div className="edc-empty">
-          <Icon className="ic" name="file" size={26} />
+        <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end' }}>
           <button className="btn primary sm" style={{ width: '100%' }} onClick={() => setGenerateOpen(true)} disabled={isGeneratePending}>
             {isGeneratePending ? 'Üretiliyor...' : 'Üret'}
           </button>

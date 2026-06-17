@@ -46,56 +46,32 @@ export default function DonemPage() {
     return found || { year, month, status: 'OPEN' };
   });
 
-  const closedCount = grid.filter(p => p.status === 'CLOSED').length;
-  const pct = Math.round((closedCount / 12) * 100);
-
   return (
     <div className="page">
       <div className="page-head">
-        <div className="mod-head">
-          <div className="mod-head-ic"><Icon name="calendar" size={22} /></div>
-          <div>
-            <h1 className="page-title">Muhasebe Dönemleri</h1>
-            <p className="page-sub">Dönemleri kapatarak geçmişe kayıt girilmesini engelleyin</p>
-          </div>
+        <div>
+          <h1 className="page-title">Muhasebe Dönemleri</h1>
+          <p className="page-sub">Dönemleri kapatarak geçmişe kayıt girilmesini engelleyin</p>
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button className="btn ghost" onClick={() => setYear(y => y - 1)}>
+            <Icon name="chevLeft" size={14} />
+          </button>
+          <span style={{ fontWeight: 600, fontSize: '1.1rem', minWidth: 60, textAlign: 'center' }}>{year}</span>
+          <button className="btn ghost" onClick={() => setYear(y => y + 1)} disabled={year >= currentYear + 1}>
+            <Icon name="chevRight" size={14} />
+          </button>
           {isAdmin && allClosed && !yearAlreadyClosed && (
-            <button className="btn danger" onClick={() => setYearEndModal(true)}>
-              <Icon name="lock" size={13} />
+            <button className="btn danger" style={{ marginLeft: 8 }} onClick={() => setYearEndModal(true)}>
+              <Icon name="lock" size={13} style={{ marginRight: 4 }} />
               Yıl Sonu Kapat
             </button>
           )}
           {isAdmin && yearAlreadyClosed && (
-            <span className="badge neg" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <span className="badge neg" style={{ marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <Icon name="lock" size={11} /> {year} Yılı Kapalı
             </span>
           )}
-        </div>
-      </div>
-
-      <div className="ovw">
-        <div className="ovw-left">
-          <div className="yr-step">
-            <button className="yr-btn" onClick={() => setYear(y => y - 1)} aria-label="Önceki yıl">
-              <Icon name="chevLeft" size={15} />
-            </button>
-            <span className="yr-val">{year}</span>
-            <button className="yr-btn" onClick={() => setYear(y => y + 1)} disabled={year >= currentYear + 1} aria-label="Sonraki yıl">
-              <Icon name="chevRight" size={15} />
-            </button>
-          </div>
-          <div className="ovw-stat">
-            <b>{closedCount}<span style={{ color: 'var(--ink-3)', fontWeight: 400 }}> / 12</span></b>
-            <span>dönem kapalı</span>
-          </div>
-        </div>
-        <div className="ovw-bar">
-          <div className="ovw-bar-label">
-            <span>{isLoading ? 'Yükleniyor…' : 'Kapanış durumu'}</span>
-            <span>%{pct}</span>
-          </div>
-          <div className="ovw-track"><div className="ovw-fill" style={{ width: `${pct}%` }} /></div>
         </div>
       </div>
 
@@ -110,18 +86,13 @@ export default function DonemPage() {
 
             return (
               <div key={p.month} className={`period-card${isClosed ? ' closed' : ' open'}`}>
-                <div className="period-card-top">
-                  <div className={`period-ic ${isClosed ? 'closed' : 'open'}`}>
-                    <Icon name={isClosed ? 'lock' : 'unlock'} size={16} />
-                  </div>
-                  <span className={`chip ${isClosed ? 'lock' : 'ok'}`}>
-                    {!isClosed && <span className="chip-dot" />}
+                <div className="period-month">{MONTH_NAMES[p.month - 1]}</div>
+                <div className="period-year">{p.year}</div>
+                <div style={{ marginTop: 4 }}>
+                  <span className={`badge${isClosed ? ' neg' : ' pos'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <Icon name={isClosed ? 'lock' : 'unlock'} size={11} />
                     {isClosed ? 'Kapalı' : 'Açık'}
                   </span>
-                </div>
-                <div style={{ marginTop: 10 }}>
-                  <div className="period-month">{MONTH_NAMES[p.month - 1]}</div>
-                  <div className="period-year">{p.year}</div>
                 </div>
                 {isClosed && p.closedAt && (
                   <div className="period-meta">{new Date(p.closedAt).toLocaleDateString('tr-TR')} tarihinde kapatıldı</div>
@@ -132,14 +103,14 @@ export default function DonemPage() {
                 {isAdmin && (
                   <div className="period-actions">
                     {!isClosed && isPast && (
-                      <button className="btn sm danger" style={{ width: '100%', justifyContent: 'center' }} onClick={() => handleClose(p.month)}
+                      <button className="btn sm danger" style={{ width: '100%' }} onClick={() => handleClose(p.month)}
                         disabled={closePeriod.isPending}>
-                        <Icon name="lock" size={12} /> Kapat
+                        Kapat
                       </button>
                     )}
                     {isClosed && (
-                      <button className="btn sm ghost" style={{ width: '100%', justifyContent: 'center' }} onClick={() => { setReopenModal({ year: p.year, month: p.month }); setReopenReason(''); }}>
-                        <Icon name="unlock" size={12} /> Yeniden Aç
+                      <button className="btn sm ghost" style={{ width: '100%' }} onClick={() => { setReopenModal({ year: p.year, month: p.month }); setReopenReason(''); }}>
+                        Yeniden Aç
                       </button>
                     )}
                   </div>
@@ -152,14 +123,14 @@ export default function DonemPage() {
 
       <div className="card" style={{ marginTop: 24 }}>
         <div className="card-h">
-          <h3><Icon name="info" size={14} /> Kapalı Dönem Politikası</h3>
+          <h3>Kapalı Dönem Politikası</h3>
         </div>
         <div className="card-b">
-          <ul className="policy-list">
-            <li><span className="pic"><Icon name="lock" size={13} /></span><span>Kapalı bir döneme geriye dönük fatura, ödeme veya işlem <strong>kaydedilemez</strong>.</span></li>
-            <li><span className="pic"><Icon name="shield" size={13} /></span><span>Kapalı dönemdeki kayıtlar <strong>silinemez veya güncellenemez</strong>.</span></li>
-            <li><span className="pic"><Icon name="log" size={13} /></span><span>Dönem yeniden açılırsa bu eylem <strong>sistem loguna</strong> yazılır.</span></li>
-            <li><span className="pic"><Icon name="check" size={13} /></span><span>KDV beyanı verildikten sonra ilgili dönemi kapatmanız önerilir.</span></li>
+          <ul style={{ margin: 0, padding: '0 0 0 16px', lineHeight: 2, fontSize: 12.5, color: 'var(--ink-2)' }}>
+            <li>Kapalı bir döneme geriye dönük fatura, ödeme veya işlem <strong>kaydedilemez</strong>.</li>
+            <li>Kapalı dönemdeki kayıtlar <strong>silinemez veya güncellenemez</strong>.</li>
+            <li>Dönem yeniden açılırsa bu eylem <strong>sistem loguna</strong> yazılır.</li>
+            <li>KDV beyanı verildikten sonra ilgili dönemi kapatmanız önerilir.</li>
           </ul>
         </div>
       </div>
