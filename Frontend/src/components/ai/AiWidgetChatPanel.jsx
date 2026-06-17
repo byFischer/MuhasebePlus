@@ -152,7 +152,7 @@ export default function AiWidgetChatPanel({ onClose }) {
       title="AI Widget Asistanı"
       width="420px"
       footer={
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
             <textarea
               ref={textareaRef}
