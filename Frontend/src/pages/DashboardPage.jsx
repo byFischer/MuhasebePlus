@@ -444,13 +444,13 @@ export default function DashboardPage() {
         </div>
         <div className="page-actions">
           <button className="btn ghost" onClick={() => setLayoutSelectorOpen(true)}>
-            <Icon name="grip" size={14} /> Layout
+            <Icon name="layout" size={15} /> Layout
           </button>
           <button className="btn ghost" onClick={() => onNav('/widget-builder')}>
-            <Icon name="grid" size={14} /> Widget Oluştur
+            <Icon name="grid" size={15} /> Widget Oluştur
           </button>
           <button className="btn primary" onClick={() => setAiPanelOpen(true)}>
-            <Icon name="sparkle" size={14} /> AI ile Oluştur
+            <Icon name="sparkle" size={15} /> AI ile Oluştur
           </button>
         </div>
       </div>

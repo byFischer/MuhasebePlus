@@ -22,6 +22,8 @@ const PATHS = {
   chevDoubleLeft: 'M11 17l-5-5 5-5 M18 17l-5-5 5-5',
   chevDoubleRight: 'M13 17l5-5-5-5 M6 17l5-5-5-5',
   grip: 'M9 6h.01 M15 6h.01 M9 12h.01 M15 12h.01 M9 18h.01 M15 18h.01',
+  layout: 'M4 4h16v16H4z M4 9h16 M9 9v11',
+  grid: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M17.5 14v7 M14 17.5h7',
   x: 'M6 6l12 12 M18 6L6 18',
   check: 'M5 12l5 5L20 7',
   undo: 'M3 7v6h6 M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6.7 3L3 13',

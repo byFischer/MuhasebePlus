@@ -1195,12 +1195,13 @@ button.filter:hover {
   font-family: var(--mono); font-size: 10px;
   background: var(--bg-2); border: 1px solid var(--line); padding: 1px 5px; border-radius: 3px;
 }
-.widget-picker { width: 760px; max-width: 94vw; }
+.widget-picker { width: 1040px; max-width: 95vw; }
+.widget-picker .cmdk-list { max-height: 72vh; }
 .widget-pick-item { padding: 10px 12px; align-items: flex-start; gap: 12px; }
 .widget-pick-item .widget-item-icon { width: 32px; height: 32px; flex: 0 0 32px; border-radius: 8px; }
 
-/* Widget picker — canlı önizlemeli 2 kolon grid */
-.wp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 6px; }
+/* Widget picker — canlı önizlemeli 3 kolon grid */
+.wp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 8px; }
 .wp-card {
   display: flex; flex-direction: column; text-align: left; padding: 0;
   background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-md);
@@ -1234,6 +1235,7 @@ button.filter:hover {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .wp-skel { height: 100%; display: grid; place-items: center; font-size: 11.5px; color: var(--ink-3); }
+@media (max-width: 900px) { .wp-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) { .wp-grid { grid-template-columns: 1fr; } }
 
 /* ============ DAILY BRIEF WIDGET ============ */
