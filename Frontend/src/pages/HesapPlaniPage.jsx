@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Icon from '@/components/mp/Icon';
 import Drawer from '@/components/mp/Drawer';
 import { useChartOfAccounts, useCreateAccount, useUpdateAccount, useDeleteAccount, useSeedTdhp } from '@/hooks/useChartOfAccounts';
 import { useAuth } from '@/context/AuthContext';
+import { useSearchParams } from 'react-router-dom';
 
 const TYPE_LABELS = {
   ASSET: 'Varlık', LIABILITY: 'Kaynak', EQUITY: 'Öz Kaynak',
@@ -23,6 +24,7 @@ const GROUP_NAMES = {
 export default function HesapPlaniPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -44,14 +46,29 @@ export default function HesapPlaniPage() {
     return list;
   }, [accounts, typeFilter, search]);
 
+  useEffect(() => {
+    if (searchParams.get('new') === '1' || searchParams.get('new') === 'true') {
+      setSelected(null);
+      setDrawerOpen(true);
+    }
+  }, [searchParams]);
+
   const openCreate = () => { setSelected(null); setDrawerOpen(true); };
+  const closeAccountDrawer = () => {
+    setDrawerOpen(false);
+    if (searchParams.get('new')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('new');
+      setSearchParams(next, { replace: true });
+    }
+  };
   const openEdit = (a) => { setSelected(a); setDrawerOpen(true); };
 
   const handleSave = (dto) => {
     if (selected) {
-      updateAccount.mutate({ id: selected.accountId, dto }, { onSuccess: () => setDrawerOpen(false) });
+      updateAccount.mutate({ id: selected.accountId, dto }, { onSuccess: closeAccountDrawer });
     } else {
-      createAccount.mutate(dto, { onSuccess: () => setDrawerOpen(false) });
+      createAccount.mutate(dto, { onSuccess: closeAccountDrawer });
     }
   };
 
@@ -193,7 +210,7 @@ export default function HesapPlaniPage() {
         open={drawerOpen}
         account={selected}
         accounts={accounts}
-        onClose={() => setDrawerOpen(false)}
+        onClose={closeAccountDrawer}
         onSave={handleSave}
         loading={createAccount.isPending || updateAccount.isPending}
       />

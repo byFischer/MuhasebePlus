@@ -7,12 +7,15 @@ import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } fro
 import { useStockMovements } from '@/hooks/useStock';
 import { MOVEMENT_LABELS, MOVEMENT_TYPE_COLORS } from '@/lib/movementLabels';
 import StockMovementForm from '@/components/mp/StockMovementForm';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+
+const VALID_FILTERS = new Set(['hepsi', 'saglikli', 'dusuk', 'tukenmis']);
 
 export default function StokPage() {
   const { data: list = [], isLoading, isError, refetch } = useProducts();
   const deleteMut = useDeleteProduct();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState('hepsi');
   const [page, setPage] = useState(1);
@@ -46,6 +49,34 @@ export default function StokPage() {
   const pageEnd = Math.min(pageStart + PAGE_SIZE, filtered.length);
   const paged = filtered.slice(pageStart, pageEnd);
 
+  useEffect(() => {
+    const filterParam = searchParams.get('filter');
+    if (VALID_FILTERS.has(filterParam) && filterParam !== filter) {
+      setFilter(filterParam);
+    }
+    if (searchParams.get('new') === '1' || searchParams.get('new') === 'true') {
+      setEditProduct(null);
+      setDrawer(true);
+    }
+  }, [searchParams, filter]);
+
+  const selectFilter = (nextFilter) => {
+    setFilter(nextFilter);
+    const next = new URLSearchParams(searchParams);
+    if (nextFilter === 'hepsi') next.delete('filter');
+    else next.set('filter', nextFilter);
+    setSearchParams(next, { replace: true });
+  };
+
+  const closeProductDrawer = () => {
+    setDrawer(false);
+    if (searchParams.get('new')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('new');
+      setSearchParams(next, { replace: true });
+    }
+  };
+
   const openMovements = (productId) => {
     setMovementProductId(productId);
     setMovementMode('list');
@@ -75,7 +106,7 @@ export default function StokPage() {
           </div>
           <div className="seg">
             {[['hepsi', 'Hepsi'], ['saglikli', 'Sağlıklı'], ['dusuk', 'Düşük'], ['tukenmis', 'Tükenmiş']].map(([k, l]) =>
-              <button key={k} className={filter === k ? 'on' : ''} onClick={() => setFilter(k)}>{l}</button>
+              <button key={k} className={filter === k ? 'on' : ''} onClick={() => selectFilter(k)}>{l}</button>
             )}
           </div>
         </div>
@@ -123,7 +154,7 @@ export default function StokPage() {
         <Pagination page={page} totalPages={totalPages} setPage={setPage} pageStart={pageStart} pageEnd={pageEnd} total={filtered.length} />
       </div>
 
-      <ProductDrawer open={drawer} onClose={() => setDrawer(false)} />
+      <ProductDrawer open={drawer} onClose={closeProductDrawer} />
       <ProductDrawer open={editProduct != null} onClose={() => setEditProduct(null)} editingProduct={editProduct} />
 
       <Drawer

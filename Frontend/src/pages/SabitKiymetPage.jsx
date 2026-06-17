@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Icon from '@/components/mp/Icon';
 import {
   useFixedAssets, useCategories, useDepreciationSchedule,
@@ -6,14 +6,17 @@ import {
   useCreateCategory, useRunDepreciation, useDisposeAsset,
 } from '@/hooks/useFixedAssets';
 import { useAuth } from '@/context/AuthContext';
+import { useSearchParams } from 'react-router-dom';
 
 const MONTH_NAMES = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 const EMPTY_ASSET = { name: '', serialNumber: '', categoryId: '', acquisitionDate: '', acquisitionCost: '', salvageValue: '0' };
 const EMPTY_CAT   = { name: '', depreciationMethod: 'STRAIGHT_LINE', usefulLifeMonths: 60, annualRate: '', assetAccountCode: '254', depreciationAccountCode: '257' };
+const VALID_TABS = new Set(['assets', 'categories', 'schedule']);
 
 export default function SabitKiymetPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const { data: assets = [], isLoading } = useFixedAssets();
   const { data: categories = [] } = useCategories();
@@ -38,6 +41,57 @@ export default function SabitKiymetPage() {
 
   const fmt = (v) => v != null ? Number(v).toLocaleString('tr-TR', { minimumFractionDigits: 2 }) : '—';
 
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (VALID_TABS.has(tabParam) && tabParam !== tab) {
+      setTab(tabParam);
+    }
+    if (searchParams.get('new') === '1' || searchParams.get('new') === 'true') {
+      setTab('assets');
+      setAssetForm({ ...EMPTY_ASSET });
+    }
+    if (searchParams.get('category') === '1' || searchParams.get('category') === 'true') {
+      setTab('categories');
+      setCatForm({ ...EMPTY_CAT });
+    }
+  }, [searchParams, tab]);
+
+  const selectTab = (nextTab) => {
+    setTab(nextTab);
+    const next = new URLSearchParams(searchParams);
+    if (nextTab === 'assets') next.delete('tab');
+    else next.set('tab', nextTab);
+    setSearchParams(next, { replace: true });
+  };
+
+  const openNewAsset = () => {
+    selectTab('assets');
+    setAssetForm({ ...EMPTY_ASSET });
+  };
+
+  const openNewCategory = () => {
+    selectTab('categories');
+    setCatForm({ ...EMPTY_CAT });
+  };
+
+  const closeAssetForm = () => {
+    setAssetForm(null);
+    if (searchParams.get('new')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('new');
+      setSearchParams(next, { replace: true });
+    }
+  };
+
+  const closeCatForm = () => {
+    setCatForm(null);
+    if (searchParams.get('category')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('category');
+      setSearchParams(next, { replace: true });
+    }
+  };
+
   const handleSaveAsset = () => {
     const payload = {
       ...assetForm,
@@ -46,9 +100,9 @@ export default function SabitKiymetPage() {
       categoryId: assetForm.categoryId ? Number(assetForm.categoryId) : null,
     };
     if (assetForm.id) {
-      updateAsset.mutate({ id: assetForm.id, data: payload }, { onSuccess: () => setAssetForm(null) });
+      updateAsset.mutate({ id: assetForm.id, data: payload }, { onSuccess: closeAssetForm });
     } else {
-      createAsset.mutate(payload, { onSuccess: () => setAssetForm(null) });
+      createAsset.mutate(payload, { onSuccess: closeAssetForm });
     }
   };
 
@@ -57,7 +111,7 @@ export default function SabitKiymetPage() {
       ...catForm,
       usefulLifeMonths: parseInt(catForm.usefulLifeMonths) || 60,
       annualRate: catForm.annualRate ? parseFloat(catForm.annualRate) : null,
-    }, { onSuccess: () => setCatForm(null) });
+    }, { onSuccess: closeCatForm });
   };
 
   const handleDispose = () => {
@@ -87,7 +141,7 @@ export default function SabitKiymetPage() {
               <Icon name="flash" size={14} style={{ marginRight: 4 }} />
               Amortisman Çalıştır
             </button>
-            <button className="btn primary" onClick={() => setAssetForm({ ...EMPTY_ASSET })}>
+            <button className="btn primary" onClick={openNewAsset}>
               <Icon name="plus" size={14} style={{ marginRight: 4 }} />
               Yeni Demirbaş
             </button>
@@ -100,7 +154,7 @@ export default function SabitKiymetPage() {
         {[['assets', 'Demirbaşlar'], ['categories', 'Kategoriler'], ['schedule', 'Amortisman Tablosu']].map(([key, label]) => (
           <button key={key} className={`btn ghost${tab === key ? ' active' : ''}`}
             style={{ borderRadius: '4px 4px 0 0', borderBottom: tab === key ? '2px solid var(--accent)' : 'none' }}
-            onClick={() => setTab(key)}>
+            onClick={() => selectTab(key)}>
             {label}
           </button>
         ))}
@@ -142,7 +196,7 @@ export default function SabitKiymetPage() {
                     <td>
                       <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
                         <button className="tb-icon-btn" title="Amortisman planı"
-                          onClick={() => { setScheduleAssetId(a.id); setTab('schedule'); }}>
+                          onClick={() => { setScheduleAssetId(a.id); selectTab('schedule'); }}>
                           <Icon name="chart" size={14} />
                         </button>
                         {isAdmin && a.status === 'ACTIVE' && (
@@ -172,7 +226,7 @@ export default function SabitKiymetPage() {
         <div>
           {isAdmin && (
             <button className="btn primary" style={{ marginBottom: 12 }}
-              onClick={() => setCatForm({ ...EMPTY_CAT })}>
+              onClick={openNewCategory}>
               <Icon name="plus" size={13} style={{ marginRight: 4 }} />
               Yeni Kategori
             </button>
@@ -253,11 +307,11 @@ export default function SabitKiymetPage() {
 
       {/* Asset Form Modal */}
       {assetForm && (
-        <div className="scrim" onClick={() => setAssetForm(null)}>
+        <div className="scrim" onClick={closeAssetForm}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="drawer-h">
               <h3>{assetForm.id ? 'Demirbaş Düzenle' : 'Yeni Demirbaş'}</h3>
-              <button className="tb-icon-btn" onClick={() => setAssetForm(null)}><Icon name="x" size={14} /></button>
+              <button className="tb-icon-btn" onClick={closeAssetForm}><Icon name="x" size={14} /></button>
             </div>
             <div className="drawer-b" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="field" style={{ gridColumn: '1 / -1' }}>
@@ -289,7 +343,7 @@ export default function SabitKiymetPage() {
               </div>
             </div>
             <div className="drawer-f">
-              <button className="btn ghost" onClick={() => setAssetForm(null)}>İptal</button>
+              <button className="btn ghost" onClick={closeAssetForm}>İptal</button>
               <button className="btn primary" disabled={!assetForm.name || !assetForm.acquisitionDate || !assetForm.acquisitionCost}
                 onClick={handleSaveAsset}>
                 {createAsset.isPending || updateAsset.isPending ? 'Kaydediliyor…' : 'Kaydet'}
@@ -301,11 +355,11 @@ export default function SabitKiymetPage() {
 
       {/* Category Form Modal */}
       {catForm && (
-        <div className="scrim" onClick={() => setCatForm(null)}>
+        <div className="scrim" onClick={closeCatForm}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="drawer-h">
               <h3>Yeni Kategori</h3>
-              <button className="tb-icon-btn" onClick={() => setCatForm(null)}><Icon name="x" size={14} /></button>
+              <button className="tb-icon-btn" onClick={closeCatForm}><Icon name="x" size={14} /></button>
             </div>
             <div className="drawer-b" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="field" style={{ gridColumn: '1 / -1' }}>
@@ -337,7 +391,7 @@ export default function SabitKiymetPage() {
               </div>
             </div>
             <div className="drawer-f">
-              <button className="btn ghost" onClick={() => setCatForm(null)}>İptal</button>
+              <button className="btn ghost" onClick={closeCatForm}>İptal</button>
               <button className="btn primary" disabled={!catForm.name} onClick={handleSaveCat}>
                 {createCat.isPending ? 'Kaydediliyor…' : 'Kaydet'}
               </button>

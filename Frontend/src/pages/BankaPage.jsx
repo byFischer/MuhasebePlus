@@ -5,6 +5,7 @@ import AnimatedNumber from '@/components/mp/AnimatedNumber';
 import { TRY } from '@/lib/format';
 import { useBankAccounts, useCreateBankAccount, useDeleteBankAccount, useBankList } from '@/hooks/useBankAccounts';
 import CashIcon          from '@/icons/cash.png';
+import { useSearchParams } from 'react-router-dom';
 import ZiraatLogo        from '@/icons/Ziraat_Bankasi_Logo_JPEG.jpg';
 import HalkbankLogo      from '@/icons/halkbank-logo-png_seeklogo-529774.png';
 import VakifbankLogo     from '@/icons/Vakifbank-Logo-Small.png';
@@ -91,7 +92,23 @@ function BankLogo({ bankName, accountType }) {
 export default function BankaPage() {
   const { data: list = [], isLoading, isError, refetch } = useBankAccounts();
   const deleteMut = useDeleteBankAccount();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [drawer, setDrawer] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('new') === '1' || searchParams.get('new') === 'true') {
+      setDrawer(true);
+    }
+  }, [searchParams]);
+
+  const closeBankDrawer = () => {
+    setDrawer(false);
+    if (searchParams.get('new')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('new');
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   if (isLoading) return <div className="page"><div className="card" style={{ height: 200 }} /></div>;
   if (isError) return <div className="page"><div className="card empty">Veri alınamadı <button className="btn sm" onClick={() => refetch()}>Tekrar Dene</button></div></div>;
@@ -135,7 +152,7 @@ export default function BankaPage() {
         ))}
         {list.length === 0 && <div className="card empty">Henüz hesap eklenmemiş</div>}
       </div>
-      <BankAccountDrawer open={drawer} onClose={() => setDrawer(false)} />
+      <BankAccountDrawer open={drawer} onClose={closeBankDrawer} />
     </div>
   );
 }

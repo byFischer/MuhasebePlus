@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Icon from '@/components/mp/Icon';
 import Drawer from '@/components/mp/Drawer';
 import { TRY, fmtDate, toIsoDate } from '@/lib/format';
@@ -31,7 +32,16 @@ const TYPE_LABELS_TR = {
 export default function YevmiyePage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
-  const [tab, setTab] = useState('journal');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const tab = TABS.some(t => t.id === tabParam) ? tabParam : 'journal';
+
+  const setTab = (nextTab) => {
+    const next = new URLSearchParams(searchParams);
+    if (nextTab === 'journal') next.delete('tab');
+    else next.set('tab', nextTab);
+    setSearchParams(next);
+  };
 
   const today = toIsoDate(new Date());
   const firstOfYear = `${new Date().getFullYear()}-01-01`;

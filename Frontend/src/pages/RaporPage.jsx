@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Icon from '@/components/mp/Icon';
 import BarLineChart from '@/components/mp/charts/BarLineChart';
 import {
@@ -46,6 +47,7 @@ const TYPE_LABELS = REPORT_TYPES.reduce((acc, t) => {
   acc[t.value] = t.label;
   return acc;
 }, {});
+const isKnownReportType = (value) => REPORT_TYPES.some(t => t.value === value);
 
 // Anlık (date-bağımsız) raporlar — UI'da tarih kontrolleri pasif görünür
 const SNAPSHOT_TYPES = new Set(['AR_AGING', 'STOCK_STATUS']);
@@ -238,7 +240,11 @@ function ReconciliationPreview({ data, loading }) {
 }
 
 export default function RaporPage() {
-  const [reportType, setReportType] = useState('PROFIT_LOSS');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [reportType, setReportType] = useState(() => {
+    const type = searchParams.get('type');
+    return isKnownReportType(type) ? type : 'PROFIT_LOSS';
+  });
   const [period, setPeriod] = useState('Bu ay');
   const initial = useMemo(() => computeRange('Bu ay'), []);
   const [startDate, setStartDate] = useState(initial.startDate);
@@ -247,6 +253,20 @@ export default function RaporPage() {
   const { data: customers = [] } = useCustomers();
 
   const showCustomer = CUSTOMER_TYPES.has(reportType);
+
+  useEffect(() => {
+    const type = searchParams.get('type');
+    if (isKnownReportType(type) && type !== reportType) {
+      setReportType(type);
+    }
+  }, [searchParams, reportType]);
+
+  const changeReportType = (nextType) => {
+    setReportType(nextType);
+    const next = new URLSearchParams(searchParams);
+    next.set('type', nextType);
+    setSearchParams(next, { replace: true });
+  };
 
   useEffect(() => {
     if (period === 'Özel') return;
@@ -321,7 +341,7 @@ export default function RaporPage() {
                 <select
                   className="select"
                   value={reportType}
-                  onChange={(e) => setReportType(e.target.value)}
+                  onChange={(e) => changeReportType(e.target.value)}
                 >
                   {REPORT_TYPES.map(t => (
                     <option key={t.value} value={t.value}>{t.label}</option>

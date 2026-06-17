@@ -42,7 +42,6 @@ export default function Sidebar({ onOpenCmdk }) {
       <div className="sb-search" onClick={onOpenCmdk} role="button" tabIndex={0}>
         <Icon name="search" size={14} />
         <input placeholder="Ara: müşteri, fatura..." readOnly />
-        <kbd>⌘K</kbd>
       </div>
       <nav className="nav">
         {NAV.filter(n => !n.adminOnly || user?.role === 'ADMIN').map((n, i) => n.section ? (

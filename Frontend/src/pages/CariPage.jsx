@@ -5,8 +5,9 @@ import Drawer from '@/components/mp/Drawer';
 import { CityFilter } from '@/components/mp/DropdownFilter';
 import { TRY } from '@/lib/format';
 import { validateEmail, validateTaxNumberByType } from '@/lib/validators';
-import { useCustomers, useCreateCustomer, useUpdateCustomer, useDeleteCustomer, useImportCustomers, useCustomerActivity } from '@/hooks/useCustomers';
+import { useCustomers, useCustomer, useCreateCustomer, useUpdateCustomer, useDeleteCustomer, useImportCustomers, useCustomerActivity } from '@/hooks/useCustomers';
 import { useInvoicesByCustomer } from '@/hooks/useInvoices';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from '@/lib/toast';
 import customerService from '@/services/customerService';
 import reportService from '@/services/reportService';
@@ -33,11 +34,13 @@ export default function CariPage() {
 
   const [selCustomerId, setSelCustomerId] = useState(null);
   const [detailTab, setDetailTab] = useState('activity');
+  const [searchParams, setSearchParams] = useSearchParams();
   const now = new Date();
   const [detailStart, setDetailStart] = useState(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10));
   const [detailEnd, setDetailEnd] = useState(now.toISOString().slice(0, 10));
 
-  const selCustomer = useMemo(() => list.find(c => c.customerId === selCustomerId), [list, selCustomerId]);
+  const { data: selectedCustomer } = useCustomer(selCustomerId);
+  const selCustomer = useMemo(() => list.find(c => c.customerId === selCustomerId) || selectedCustomer, [list, selCustomerId, selectedCustomer]);
   const { data: activity = [], isLoading: actLoading } = useCustomerActivity(selCustomerId, detailStart, detailEnd);
   const { data: customerInvoices = [] } = useInvoicesByCustomer(selCustomerId);
 
@@ -46,6 +49,36 @@ export default function CariPage() {
   const PAGE_SIZE = 15;
 
   const cities = useMemo(() => ['hepsi', ...Array.from(new Set(list.map(c => c.city).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'tr'))], [list]);
+
+  useEffect(() => {
+    const customerId = Number(searchParams.get('customerId'));
+    if (Number.isFinite(customerId) && customerId > 0) {
+      setSelCustomerId(customerId);
+      setDetailTab('activity');
+    }
+    if (searchParams.get('new') === '1' || searchParams.get('new') === 'true') {
+      setDrawer({ mode: 'new' });
+    }
+  }, [searchParams]);
+
+  const closeCustomerForm = () => {
+    setDrawer(null);
+    if (searchParams.get('new')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('new');
+      setSearchParams(next, { replace: true });
+    }
+  };
+
+  const closeCustomerDetail = () => {
+    setSelCustomerId(null);
+    setDetailTab('activity');
+    if (searchParams.get('customerId')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('customerId');
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   const filtered = useMemo(() => list.filter(c => {
     if (filter === 'borclu' && (c.currentBalance || 0) <= 0) return false;
@@ -171,11 +204,11 @@ export default function CariPage() {
         </div>
         <Pagination page={page} totalPages={totalPages} setPage={setPage} pageStart={pageStart} pageEnd={pageEnd} total={filtered.length} />
       </div>
-      <CustomerDrawer open={!!drawer} mode={drawer?.mode} customer={drawer?.c} onClose={() => setDrawer(null)}
+      <CustomerDrawer open={!!drawer} mode={drawer?.mode} customer={drawer?.c} onClose={closeCustomerForm}
         onSave={(dto) => {
           if (drawer?.mode === 'edit') updateMut.mutate({ id: drawer.c.customerId, dto });
           else createMut.mutate(dto);
-          setDrawer(null);
+          closeCustomerForm();
         }} />
 
       {/* Toplu İçe Aktarma Modal */}
@@ -235,7 +268,7 @@ export default function CariPage() {
           setDetailStart={setDetailStart}
           detailEnd={detailEnd}
           setDetailEnd={setDetailEnd}
-          onClose={() => { setSelCustomerId(null); setDetailTab('activity'); }}
+          onClose={closeCustomerDetail}
           onEdit={() => setDrawer({ mode: 'edit', c: selCustomer })}
         />
       )}
