@@ -49,12 +49,12 @@ public class SystemLogController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) Long userId) {
-        String csv = systemLogService.exportLogsAsCsv(level, startDate, endDate, userId);
-        byte[] data = csv.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] data = systemLogService.exportLogsAsExcel(level, startDate, endDate, userId);
 
         HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.parseMediaType("text/csv;charset=UTF-8"));
-        headers.setContentDisposition(ContentDisposition.attachment().filename("system_logs.csv").build());
+        headers.setContentType(MediaType.parseMediaType(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        headers.setContentDisposition(ContentDisposition.attachment().filename("system_logs.xlsx").build());
         headers.setContentLength(data.length);
 
         return ResponseEntity.ok().headers(headers).body(data);

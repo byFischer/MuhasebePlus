@@ -15,7 +15,7 @@ export function useExportSystemLogs() {
     onSuccess: (blob) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = `system_logs_${Date.now()}.csv`; a.click();
+      a.href = url; a.download = `system_logs_${Date.now()}.xlsx`; a.click();
       URL.revokeObjectURL(url);
     },
     onError: () => toast.err('Dışa aktarma başarısız'),

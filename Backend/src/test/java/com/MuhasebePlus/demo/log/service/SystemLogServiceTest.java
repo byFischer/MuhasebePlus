@@ -15,20 +15,25 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.io.ByteArrayInputStream;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -141,29 +146,37 @@ class SystemLogServiceTest {
     }
 
     @Test
-    void exportLogsAsCsv_requiresDateRangeAndEscapesCsvValues() {
+    void exportLogsAsExcel_buildsWorkbookWithHeaderAndRows_withoutRequiringDates() throws Exception {
         User user = new User();
         user.setEmail("ada@example.com");
         SystemLog first = log(1L, LogLevel.INFO, "Virgullu, detay", "10.0.0.1", 7L, user);
         SystemLog second = log(2L, null, "Satir\nsonu ve \"tırnak\"", null, null, null);
         when(companyContext.getCurrentCompanyId()).thenReturn(1L);
-        when(systemLogRepository.findAll(any(Specification.class))).thenReturn(List.of(first, second));
+        when(systemLogRepository.findAll(any(Specification.class), any(Sort.class)))
+                .thenReturn(List.of(first, second));
 
-        String csv = service.exportLogsAsCsv(
-                LogLevel.INFO,
-                LocalDate.of(2026, 1, 1),
-                LocalDate.of(2026, 1, 31),
-                7L
-        );
+        // Tarih verilmeden de çalışmalı (Sistem Logları ekranında tarih filtresi yok)
+        byte[] xlsx = service.exportLogsAsExcel(LogLevel.INFO, null, null, 7L);
 
-        assertThat(csv).startsWith("LogID,Level,Timestamp");
-        assertThat(csv).contains("\"Virgullu, detay\"");
-        assertThat(csv).contains("\"Satir\nsonu ve \"\"tırnak\"\"\"");
-        assertThat(csv).contains("ada@example.com");
+        try (Workbook wb = new XSSFWorkbook(new ByteArrayInputStream(xlsx))) {
+            Sheet sheet = wb.getSheetAt(0);
 
-        assertThatThrownBy(() -> service.exportLogsAsCsv(LogLevel.INFO, null, LocalDate.of(2026, 1, 31), null))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Export");
+            Row header = sheet.getRow(0);
+            assertThat(header.getCell(0).getStringCellValue()).isEqualTo("Log ID");
+            assertThat(header.getCell(1).getStringCellValue()).isEqualTo("Seviye");
+            assertThat(header.getCell(5).getStringCellValue()).isEqualTo("Mesaj");
+
+            Row row1 = sheet.getRow(1);
+            assertThat(row1.getCell(1).getStringCellValue()).isEqualTo("INFO");
+            assertThat(row1.getCell(3).getStringCellValue()).isEqualTo("10.0.0.1");
+            assertThat(row1.getCell(4).getStringCellValue()).isEqualTo("ada@example.com");
+            assertThat(row1.getCell(5).getStringCellValue()).isEqualTo("Virgullu, detay");
+
+            Row row2 = sheet.getRow(2);
+            assertThat(row2.getCell(1).getStringCellValue()).isEmpty();
+            assertThat(row2.getCell(4).getStringCellValue()).isEmpty();
+            assertThat(row2.getCell(5).getStringCellValue()).isEqualTo("Satir\nsonu ve \"tırnak\"");
+        }
     }
 
     private SystemLog log(Long id, LogLevel level, String details, String ipAddress, Long userId, User user) {

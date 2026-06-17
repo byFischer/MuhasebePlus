@@ -14,7 +14,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -49,10 +48,11 @@ class SystemLogControllerUnitTest {
     }
 
     @Test
-    void exportLogs_setsCsvHeadersAndUtf8Body() {
+    void exportLogs_setsXlsxHeadersAndBody() {
         SystemLogController controller = new SystemLogController(systemLogService);
-        when(systemLogService.exportLogsAsCsv(LogLevel.ERROR, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), null))
-                .thenReturn("LogID,Level\n1,ERROR\n");
+        byte[] body = {1, 2, 3, 4};
+        when(systemLogService.exportLogsAsExcel(LogLevel.ERROR, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), null))
+                .thenReturn(body);
 
         ResponseEntity<byte[]> result = controller.exportLogs(
                 LogLevel.ERROR,
@@ -63,10 +63,11 @@ class SystemLogControllerUnitTest {
 
         assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(result.getHeaders().getContentType())
-                .isEqualTo(MediaType.parseMediaType("text/csv;charset=UTF-8"));
-        assertThat(result.getHeaders().getContentDisposition().getFilename()).isEqualTo("system_logs.csv");
-        assertThat(result.getHeaders().getContentLength()).isEqualTo(result.getBody().length);
-        assertThat(new String(result.getBody(), StandardCharsets.UTF_8)).contains("ERROR");
+                .isEqualTo(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        assertThat(result.getHeaders().getContentDisposition().getFilename()).isEqualTo("system_logs.xlsx");
+        assertThat(result.getHeaders().getContentLength()).isEqualTo(body.length);
+        assertThat(result.getBody()).isEqualTo(body);
     }
 
     private SystemLogResponseDto response() {
