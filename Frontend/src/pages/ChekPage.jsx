@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Icon from '@/components/mp/Icon';
 import Drawer from '@/components/mp/Drawer';
 import { TRY, fmtDate, toIsoDate } from '@/lib/format';
+import { useSearchParams } from 'react-router-dom';
 import {
   useCheques, useCreateCheque, useDeleteCheque,
   useDepositCheque, useCollectCheque, useBounceCheque, useCancelCheque,
@@ -30,6 +31,7 @@ const KIND_LABELS = { CHEQUE: 'Çek', PROMISSORY_NOTE: 'Senet' };
 const TYPE_LABELS = { RECEIVABLE: 'Alacak', PAYABLE: 'Borç' };
 
 export default function ChekPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filter, setFilter] = useState({ status: '', chequeType: '', chequeKind: '' });
   const [drawerMode, setDrawerMode] = useState(null);
   const [selected, setSelected] = useState(null);
@@ -50,7 +52,22 @@ export default function ChekPage() {
   const bounceCheque = useBounceCheque();
   const cancelCheque = useCancelCheque();
 
+  useEffect(() => {
+    if (searchParams.get('new') === '1' || searchParams.get('new') === 'true') {
+      setSelected(null);
+      setDrawerMode('create');
+    }
+  }, [searchParams]);
+
   const openCreate = () => { setSelected(null); setDrawerMode('create'); };
+  const closeCreate = () => {
+    setDrawerMode(null);
+    if (searchParams.get('new')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('new');
+      setSearchParams(next, { replace: true });
+    }
+  };
   const openDetail = (c) => { setSelected(c); setDrawerMode('detail'); };
   const openAction = (c, type) => { setSelected(c); setActionType(type); setActionData({}); setDrawerMode('action'); };
 
@@ -188,9 +205,9 @@ export default function ChekPage() {
 
       <ChequeFormDrawer
         open={drawerMode === 'create'}
-        onClose={() => setDrawerMode(null)}
+        onClose={closeCreate}
         customers={customers}
-        onSave={(dto) => createCheque.mutate(dto, { onSuccess: () => setDrawerMode(null) })}
+        onSave={(dto) => createCheque.mutate(dto, { onSuccess: closeCreate })}
         loading={createCheque.isPending}
       />
 

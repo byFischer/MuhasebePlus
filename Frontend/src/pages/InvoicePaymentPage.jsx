@@ -6,6 +6,7 @@ import { useInvoices } from '@/hooks/useInvoices';
 import { useInvoicePayments, useCreateInvoicePayment, useDeleteInvoicePayment, useInvoicePromises, useCreatePromise, useFulfillPromise } from '@/hooks/useInvoicePayments';
 import { useLateFee } from '@/hooks/useInvoices';
 import { useBankAccounts } from '@/hooks/useBankAccounts';
+import { useSearchParams } from 'react-router-dom';
 
 function PaymentMethodPill({ method }) {
   const map = {
@@ -30,6 +31,7 @@ function StatusPill({ status }) {
 
 export default function InvoicePaymentPage() {
   const { data: invoices = [] } = useInvoices();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState('sale');
   const [selectedInvoiceId, setSelectedInvoiceId] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -79,18 +81,47 @@ export default function InvoicePaymentPage() {
   const paymentPageEnd = Math.min(paymentPageStart + PAGE_SIZE, payments.length);
   const pagedPayments = payments.slice(paymentPageStart, paymentPageEnd);
 
+  const clearNewPaymentParam = () => {
+    if (searchParams.get('new')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('new');
+      setSearchParams(next, { replace: true });
+    }
+  };
+
+  useEffect(() => {
+    const newParam = searchParams.get('new');
+    if (!newParam) return;
+
+    const requestedTab = ['purchase', 'payment', 'odeme', 'ödeme'].includes(newParam) ? 'purchase' : 'sale';
+    if (tab !== requestedTab) {
+      setTab(requestedTab);
+      return;
+    }
+
+    const firstInvoice = filteredInvoices[0];
+    if (firstInvoice) {
+      setSelectedInvoiceId(firstInvoice.invoiceId);
+      setFormOpen(true);
+    }
+  }, [filteredInvoices, searchParams, tab]);
+
   const openPaymentForm = (invoiceId) => {
     setSelectedInvoiceId(invoiceId);
     setFormOpen(true);
   };
 
   // Form Vazgeç/X → formu kapat, seçili faturanın detayını göstermeye devam et
-  const closeForm = () => setFormOpen(false);
+  const closeForm = () => {
+    setFormOpen(false);
+    clearNewPaymentParam();
+  };
 
   // Ödeme kaydedildikten sonra: kısmi ödemede detay açık kalır;
   // fatura tamamen ödendiyse seçim kapatılır (paid fatura listeden de düşer)
   const handlePaymentSuccess = (fullyPaid) => {
     setFormOpen(false);
+    clearNewPaymentParam();
     if (fullyPaid) setSelectedInvoiceId(null);
   };
 

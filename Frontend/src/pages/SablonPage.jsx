@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Icon from '@/components/mp/Icon';
 import { TRY } from '@/lib/format';
 import TemplateDrawer from '@/components/template/TemplateDrawer';
+import { useSearchParams } from 'react-router-dom';
 import {
   useTemplates,
   useDeleteTemplate,
@@ -109,8 +110,16 @@ export default function SablonPage() {
   const { data: list = [], isLoading, isError, refetch } = useTemplates();
   const deleteMut = useDeleteTemplate();
   const applyMut = useApplyTemplate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState(null);
+
+  useEffect(() => {
+    if (searchParams.get('new') === '1' || searchParams.get('new') === 'true') {
+      setEditingTemplate(null);
+      setDrawerOpen(true);
+    }
+  }, [searchParams]);
 
   const typeLabel = (type) => TYPE_CONFIG[type]?.label || type;
   const typePillClass = (type) => TYPE_CONFIG[type]?.pill || 'accent';
@@ -118,6 +127,11 @@ export default function SablonPage() {
   const handleCloseDrawer = () => {
     setDrawerOpen(false);
     setEditingTemplate(null);
+    if (searchParams.get('new')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('new');
+      setSearchParams(next, { replace: true });
+    }
   };
 
   const handleEdit = (tp) => {

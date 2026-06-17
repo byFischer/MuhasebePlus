@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import AccountTab from './AccountTab';
 import PreferencesTab from './PreferencesTab';
 import NotificationsTab from './NotificationsTab';
@@ -14,8 +14,17 @@ const TABS = {
 };
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState('account');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const activeTab = TABS[tabParam] ? tabParam : 'account';
   const ActiveComponent = TABS[activeTab].component;
+
+  const setActiveTab = (nextTab) => {
+    const next = new URLSearchParams(searchParams);
+    if (nextTab === 'account') next.delete('tab');
+    else next.set('tab', nextTab);
+    setSearchParams(next);
+  };
 
   return (
     <div className="page">

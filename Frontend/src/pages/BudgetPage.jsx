@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Icon from '@/components/mp/Icon';
 import { TRY } from '@/lib/format';
 import { useBudgets, useCreateBudget, useUpdateBudget, useDeleteBudget } from '@/hooks/useBudgets';
+import { useSearchParams } from 'react-router-dom';
 
 const MONTHS = [
   'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
@@ -21,6 +22,7 @@ const BLANK_FORM = {
 };
 
 export default function BudgetPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filterYear, setFilterYear] = useState(CURRENT_YEAR);
   const [form, setForm] = useState(BLANK_FORM);
   const [editId, setEditId] = useState(null);
@@ -35,6 +37,16 @@ export default function BudgetPage() {
   const setField = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
   const resetForm = () => { setForm(BLANK_FORM); setEditId(null); };
+
+  useEffect(() => {
+    if (searchParams.get('new') === '1' || searchParams.get('new') === 'true') {
+      setForm(BLANK_FORM);
+      setEditId(null);
+      const next = new URLSearchParams(searchParams);
+      next.delete('new');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const onEdit = (b) => {
     setEditId(b.budgetId);

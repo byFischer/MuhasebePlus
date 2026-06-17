@@ -5,8 +5,10 @@ import Drawer from '@/components/mp/Drawer';
 import { TRY } from '@/lib/format';
 import { useTransactions, useCreateTransaction } from '@/hooks/useTransactions';
 import { useBankAccounts } from '@/hooks/useBankAccounts';
+import { useSearchParams } from 'react-router-dom';
 
 const TODAY = new Date().toISOString().slice(0, 10);
+const VALID_TABS = new Set(['hepsi', 'gelir', 'gider']);
 const TX_CATEGORY_OPTIONS = [
   ['GENERAL', 'Genel'],
   ['BANK_FEE', 'Banka Masrafi'],
@@ -19,6 +21,7 @@ const TX_CATEGORY_LABELS = Object.fromEntries(TX_CATEGORY_OPTIONS);
 export default function GelirGiderPage() {
   const { data: list = [], isLoading, isError, refetch } = useTransactions();
   const { data: banks = [] } = useBankAccounts();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState('hepsi');
   const [page, setPage] = useState(1);
   const [drawer, setDrawer] = useState(false);
@@ -45,6 +48,33 @@ export default function GelirGiderPage() {
   const pageEnd = Math.min(pageStart + PAGE_SIZE, filtered.length);
   const paged = filtered.slice(pageStart, pageEnd);
 
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (VALID_TABS.has(tabParam) && tabParam !== tab) {
+      setTab(tabParam);
+    }
+    if (searchParams.get('new') === '1' || searchParams.get('new') === 'true') {
+      setDrawer(true);
+    }
+  }, [searchParams, tab]);
+
+  const selectTab = (nextTab) => {
+    setTab(nextTab);
+    const next = new URLSearchParams(searchParams);
+    if (nextTab === 'hepsi') next.delete('tab');
+    else next.set('tab', nextTab);
+    setSearchParams(next, { replace: true });
+  };
+
+  const closeTransactionDrawer = () => {
+    setDrawer(false);
+    if (searchParams.get('new')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('new');
+      setSearchParams(next, { replace: true });
+    }
+  };
+
   if (isLoading) return <div className="page"><div className="card" style={{ height: 200 }} /></div>;
   if (isError) return <div className="page"><div className="card empty">Veri alınamadı <button className="btn sm" onClick={() => refetch()}>Tekrar Dene</button></div></div>;
 
@@ -63,9 +93,9 @@ export default function GelirGiderPage() {
       </div>
       <div className="card">
         <div className="tabs">
-          <button className={tab === 'hepsi' ? 'on' : ''} onClick={() => setTab('hepsi')}>Hepsi</button>
-          <button className={tab === 'gelir' ? 'on' : ''} onClick={() => setTab('gelir')}>Gelirler</button>
-          <button className={tab === 'gider' ? 'on' : ''} onClick={() => setTab('gider')}>Giderler</button>
+          <button className={tab === 'hepsi' ? 'on' : ''} onClick={() => selectTab('hepsi')}>Hepsi</button>
+          <button className={tab === 'gelir' ? 'on' : ''} onClick={() => selectTab('gelir')}>Gelirler</button>
+          <button className={tab === 'gider' ? 'on' : ''} onClick={() => selectTab('gider')}>Giderler</button>
         </div>
         <div className="table-wrap">
           <table className="table">
@@ -95,7 +125,7 @@ export default function GelirGiderPage() {
         </div>
         <Pagination page={page} totalPages={totalPages} setPage={setPage} pageStart={pageStart} pageEnd={pageEnd} total={filtered.length} />
       </div>
-      <TransactionDrawer open={drawer} onClose={() => setDrawer(false)} banks={banks} />
+      <TransactionDrawer open={drawer} onClose={closeTransactionDrawer} banks={banks} />
     </div>
   );
 }

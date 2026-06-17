@@ -1,18 +1,15 @@
-import { CheckIcon, EyeOpenIcon } from "@radix-ui/react-icons";
+import { EyeOpenIcon } from "@radix-ui/react-icons";
 import { useState } from "react";
 import {
   Box,
   Button,
-  Checkbox,
   Field,
   Heading,
-  HStack,
   IconButton,
   Input,
   InputGroup,
   Link,
   SimpleGrid,
-  Span,
   Text,
   VStack,
 } from "@chakra-ui/react";
@@ -42,14 +39,6 @@ function Logo() {
     <Box w="180px" mx="auto">
       <img src={logoImage} alt="Muhasebe Plus Logo" style={{ width: "100%", height: "auto" }} />
     </Box>
-  );
-}
-
-function GoogleMark() {
-  return (
-    <Span color="#8ab4f8" fontSize="22px" fontWeight="700" lineHeight="1">
-      G
-    </Span>
   );
 }
 
@@ -385,28 +374,11 @@ export default function LoginForm() {
         </FormField>
       </VStack>
 
-      <HStack justify="space-between" w="full">
-        <Checkbox.Root defaultChecked>
-          <Checkbox.HiddenInput />
-          <Checkbox.Control
-            boxSize="18px"
-            borderRadius="3px"
-            borderColor="#2f6df6"
-            bg="#2f6df6"
-          >
-            <Checkbox.Indicator color="white">
-              <CheckIcon />
-            </Checkbox.Indicator>
-          </Checkbox.Control>
-          <Checkbox.Label color="#f5f7fb" fontSize="14px" fontWeight="700">
-            Remember me
-          </Checkbox.Label>
-        </Checkbox.Root>
-
+      <Box w="full" textAlign="right">
         <Link asChild color="#7bb2ff" fontSize="14px" fontWeight="700">
           <RouterLink to="/forgot-password">Forgot password</RouterLink>
         </Link>
-      </HStack>
+      </Box>
 
       {errorMessage && (
         <Text color="#f87171" fontSize="13px" alignSelf="flex-start">
@@ -414,39 +386,19 @@ export default function LoginForm() {
         </Text>
       )}
 
-      <VStack gap="4" w="full">
-        <Button
-          type="submit"
-          w="full"
-          h="40px"
-          borderRadius="4px"
-          bg="#2f6df6"
-          color="white"
-          fontWeight="700"
-          loading={isSubmitting}
-          _hover={{ bg: "#2760dc" }}
-        >
-          Sign in
-        </Button>
-
-        <Button
-          type="button"
-          w="full"
-          h="40px"
-          borderRadius="3px"
-          border="1px solid"
-          borderColor="#1f4aa3"
-          bg="transparent"
-          color="#f5f7fb"
-          fontWeight="700"
-          _hover={{ bg: "rgba(47, 109, 246, 0.08)" }}
-        >
-          <HStack gap="2">
-            <GoogleMark />
-            <Span>Sign in with Google</Span>
-          </HStack>
-        </Button>
-      </VStack>
+      <Button
+        type="submit"
+        w="full"
+        h="40px"
+        borderRadius="4px"
+        bg="#2f6df6"
+        color="white"
+        fontWeight="700"
+        loading={isSubmitting}
+        _hover={{ bg: "#2760dc" }}
+      >
+        Sign in
+      </Button>
 
       <Text color="#9ca3af" fontSize="14px" pt="3">
         Don&apos;t have an account?{" "}

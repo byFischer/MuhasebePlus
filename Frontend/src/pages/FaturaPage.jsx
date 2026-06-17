@@ -53,7 +53,19 @@ export default function FaturaPage() {
     if (invId) {
       setDetailInvoiceId(Number(invId));
     }
+    if (searchParams.get('new') === '1' || searchParams.get('new') === 'true') {
+      setDrawer(true);
+    }
   }, [searchParams]);
+
+  const closeInvoiceDrawer = () => {
+    setDrawer(false);
+    if (searchParams.get('new')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('new');
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   const closeDetail = () => {
     setDetailInvoiceId(null);
@@ -204,7 +216,7 @@ export default function FaturaPage() {
         </div>
         <Pagination page={page} totalPages={totalPages} setPage={setPage} pageStart={pageStart} pageEnd={pageEnd} total={filtered.length} />
       </div>
-      <InvoiceDrawer open={drawer} onClose={() => setDrawer(false)} customers={customers} products={products} seriesList={seriesList} />
+      <InvoiceDrawer open={drawer} onClose={closeInvoiceDrawer} customers={customers} products={products} seriesList={seriesList} />
       <InvoiceDetailDrawer open={detailInvoiceId != null} onClose={closeDetail} invoiceId={detailInvoiceId} />
       {returnDrawer && (
         <ReturnInvoiceDrawer original={returnDrawer} customers={customers} onClose={() => setReturnDrawer(null)} />
