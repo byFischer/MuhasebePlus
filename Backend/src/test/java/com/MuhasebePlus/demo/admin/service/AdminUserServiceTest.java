@@ -289,7 +289,7 @@ class AdminUserServiceTest {
         return user;
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     private void exerciseSpec(Specification<User> spec) {
         spec.toPredicate(
                 (Root<User>) mock(Root.class, org.mockito.Mockito.RETURNS_DEEP_STUBS),

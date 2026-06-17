@@ -168,7 +168,7 @@ class AdminLogAndStatsServiceTest {
         return log;
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     private void exerciseSpec(Specification<SystemLog> spec) {
         spec.toPredicate(
                 (Root<SystemLog>) mock(Root.class, org.mockito.Mockito.RETURNS_DEEP_STUBS),

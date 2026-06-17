@@ -16,7 +16,6 @@ import com.MuhasebePlus.demo.customer.repository.CustomerRepository;
 import com.MuhasebePlus.demo.invoice.entity.Invoice;
 import com.MuhasebePlus.demo.invoice.entity.InvoicePayment;
 import com.MuhasebePlus.demo.invoice.entity.InvoiceType;
-import com.MuhasebePlus.demo.invoice.entity.PaymentStatus;
 import com.MuhasebePlus.demo.invoice.repository.InvoicePaymentRepository;
 import com.MuhasebePlus.demo.invoice.repository.InvoiceRepository;
 import com.MuhasebePlus.demo.report.dto.response.ReconciliationItemDto;

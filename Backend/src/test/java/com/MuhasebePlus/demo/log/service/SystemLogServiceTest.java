@@ -13,8 +13,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.jpa.domain.Specification;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -23,7 +25,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -127,7 +128,7 @@ class SystemLogServiceTest {
         user.setEmail("ada@example.com");
         SystemLog log = log(1L, LogLevel.WARNING, "Detay", "10.0.0.1", 7L, user);
         when(companyContext.getCurrentCompanyId()).thenReturn(1L);
-        when(systemLogRepository.findAll(any(Specification.class), any(PageRequest.class)))
+        when(systemLogRepository.findAll(ArgumentMatchers.<Specification<SystemLog>>any(), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(log)));
 
         Page<SystemLogResponseDto> result = service.getLogs(
@@ -152,7 +153,7 @@ class SystemLogServiceTest {
         SystemLog first = log(1L, LogLevel.INFO, "Virgullu, detay", "10.0.0.1", 7L, user);
         SystemLog second = log(2L, null, "Satir\nsonu ve \"tırnak\"", null, null, null);
         when(companyContext.getCurrentCompanyId()).thenReturn(1L);
-        when(systemLogRepository.findAll(any(Specification.class), any(Sort.class)))
+        when(systemLogRepository.findAll(ArgumentMatchers.<Specification<SystemLog>>any(), any(Sort.class)))
                 .thenReturn(List.of(first, second));
 
         // Tarih verilmeden de çalışmalı (Sistem Logları ekranında tarih filtresi yok)

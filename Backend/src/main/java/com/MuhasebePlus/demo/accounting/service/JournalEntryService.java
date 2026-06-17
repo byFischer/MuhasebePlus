@@ -23,7 +23,6 @@ import com.MuhasebePlus.demo.company.repository.CompanyRepository;
 import com.MuhasebePlus.demo.customer.entity.Customer;
 import com.MuhasebePlus.demo.customer.entity.CustomerRole;
 import com.MuhasebePlus.demo.customer.repository.CustomerRepository;
-import com.MuhasebePlus.demo.financial.entity.BankAccount;
 import com.MuhasebePlus.demo.financial.entity.Transaction;
 import com.MuhasebePlus.demo.financial.entity.BankAccountType;
 import com.MuhasebePlus.demo.financial.entity.TransactionCategory;

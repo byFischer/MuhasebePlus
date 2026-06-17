@@ -513,7 +513,6 @@ public class ReportService implements HardDeletable {
 
     private ReportPreviewResponseDto previewSlowInventory(Long companyId) {
         LocalDate today = LocalDate.now();
-        LocalDateTime todayStart = today.atStartOfDay();
         LocalDateTime twelveMonthsAgo = today.minusMonths(12).atStartOfDay();
 
         List<Stock> stocks = stockRepository.findActiveStocks(companyId);
@@ -536,7 +535,6 @@ public class ReportService implements HardDeletable {
         BigDecimal totalBoundCapital = BigDecimal.ZERO;
         long slowMovingCount = 0;
         BigDecimal totalSoldQty12Months = BigDecimal.ZERO;
-        int productsWithSales = 0;
 
         long b1 = 0, b2 = 0, b3 = 0, b4 = 0;
 
@@ -572,20 +570,11 @@ public class ReportService implements HardDeletable {
             BigDecimal soldQty = soldQty12MonthsMap.get(stock.getProductId());
             if (soldQty != null) {
                 totalSoldQty12Months = totalSoldQty12Months.add(soldQty);
-                productsWithSales++;
             }
         }
 
         BigDecimal avgStock = stocks.isEmpty() ? BigDecimal.ZERO
                 : totalSoldQty12Months.divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
-
-        BigDecimal avgDailySales = avgStock.signum() > 0
-                ? totalSoldQty12Months.divide(BigDecimal.valueOf(365), 2, RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
-
-        BigDecimal avgDaysOnHand = avgDailySales.signum() > 0
-                ? avgStock.divide(avgDailySales, 1, RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
 
         BigDecimal avgTurnover = avgStock.signum() > 0
                 ? totalSoldQty12Months.divide(avgStock, 2, RoundingMode.HALF_UP)

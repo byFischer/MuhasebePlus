@@ -1,14 +1,20 @@
 package com.MuhasebePlus.demo.report.service;
 
+import com.MuhasebePlus.demo.common.service.CompanyContext;
+import com.MuhasebePlus.demo.company.entity.Company;
+import com.MuhasebePlus.demo.company.repository.CompanyRepository;
+import com.MuhasebePlus.demo.customer.dto.response.CustomerActivityDto;
+import com.MuhasebePlus.demo.customer.entity.Customer;
+import com.MuhasebePlus.demo.customer.repository.CustomerRepository;
+import com.MuhasebePlus.demo.customer.service.CustomerService;
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.Comparator;
 import java.util.List;
-
+import lombok.RequiredArgsConstructor;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -17,16 +23,6 @@ import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.springframework.stereotype.Service;
-
-import com.MuhasebePlus.demo.common.service.CompanyContext;
-import com.MuhasebePlus.demo.company.entity.Company;
-import com.MuhasebePlus.demo.company.repository.CompanyRepository;
-import com.MuhasebePlus.demo.customer.dto.response.CustomerActivityDto;
-import com.MuhasebePlus.demo.customer.entity.Customer;
-import com.MuhasebePlus.demo.customer.repository.CustomerRepository;
-import com.MuhasebePlus.demo.customer.service.CustomerService;
-
-import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -40,17 +36,30 @@ public class PdfStatementService {
     private static final float A4_W = 595;
     private static final float A4_H = 842;
     private static final float MARGIN = 40;
-    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+    private static final DateTimeFormatter DATE_FMT =
+        DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
-    public byte[] generatePdf(Long customerId, LocalDate startDate, LocalDate endDate) {
+    public byte[] generatePdf(
+        Long customerId,
+        LocalDate startDate,
+        LocalDate endDate
+    ) {
         Long companyId = companyContext.getCurrentCompanyId();
         Company company = companyRepository.findById(companyId).orElse(null);
-        Customer customer = customerRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(customerId, companyId)
-                .orElseThrow(() -> new RuntimeException("Customer not found"));
+        Customer customer = customerRepository
+            .findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(
+                customerId,
+                companyId
+            )
+            .orElseThrow(() -> new RuntimeException("Customer not found"));
 
-        List<CustomerActivityDto> activity = customerService.getCustomerActivity(customerId, startDate, endDate);
+        List<CustomerActivityDto> activity =
+            customerService.getCustomerActivity(customerId, startDate, endDate);
 
-        BigDecimal opening = customer.getOpeningBalance() != null ? customer.getOpeningBalance() : BigDecimal.ZERO;
+        BigDecimal opening =
+            customer.getOpeningBalance() != null
+                ? customer.getOpeningBalance()
+                : BigDecimal.ZERO;
         BigDecimal totalDebit = BigDecimal.ZERO;
         BigDecimal totalCredit = BigDecimal.ZERO;
         BigDecimal closingBalance = opening;
@@ -89,9 +98,30 @@ public class PdfStatementService {
                 }
 
                 String[][] info = {
-                    {"Musdeti:", customer.getName(), "Hesap Kodu:", customer.getAccountCode() != null ? customer.getAccountCode() : "—"},
-                    {"VKN/TCKN:", customer.getTaxNumber(), "Vergi Dairesi:", customer.getTaxOffice() != null ? customer.getTaxOffice() : "—"},
-                    {"Donem:", startDate.format(DATE_FMT) + " - " + endDate.format(DATE_FMT), "", ""},
+                    {
+                        "Musdeti:",
+                        customer.getName(),
+                        "Hesap Kodu:",
+                        customer.getAccountCode() != null
+                            ? customer.getAccountCode()
+                            : "—",
+                    },
+                    {
+                        "VKN/TCKN:",
+                        customer.getTaxNumber(),
+                        "Vergi Dairesi:",
+                        customer.getTaxOffice() != null
+                            ? customer.getTaxOffice()
+                            : "—",
+                    },
+                    {
+                        "Donem:",
+                        startDate.format(DATE_FMT) +
+                            " - " +
+                            endDate.format(DATE_FMT),
+                        "",
+                        "",
+                    },
                 };
 
                 for (String[] row : info) {
@@ -125,8 +155,24 @@ public class PdfStatementService {
                 }
                 y -= 10;
 
-                float[] cx = {MARGIN, MARGIN + 65, MARGIN + 130, MARGIN + 260, MARGIN + 330, MARGIN + 400, MARGIN + 470};
-                String[] headers = {"Tarih", "Tur", "Aciklama", "Belge No", "Borc", "Alacak", "Bakiye"};
+                float[] cx = {
+                    MARGIN,
+                    MARGIN + 65,
+                    MARGIN + 130,
+                    MARGIN + 260,
+                    MARGIN + 330,
+                    MARGIN + 400,
+                    MARGIN + 470,
+                };
+                String[] headers = {
+                    "Tarih",
+                    "Tur",
+                    "Aciklama",
+                    "Belge No",
+                    "Borc",
+                    "Alacak",
+                    "Bakiye",
+                };
 
                 cs.setLineWidth(0.5f);
                 cs.setStrokingColor(new Color(0xCC, 0xCC, 0xCC));
@@ -150,7 +196,9 @@ public class PdfStatementService {
                     cs.setFont(font, 7);
                     cs.setNonStrokingColor(new Color(0x55, 0x55, 0x55));
                     cs.newLineAtOffset(cx[0], y);
-                    cs.showText(a.date() != null ? a.date().format(DATE_FMT) : "—");
+                    cs.showText(
+                        a.date() != null ? a.date().format(DATE_FMT) : "—"
+                    );
                     cs.endText();
 
                     cs.beginText();
@@ -174,21 +222,41 @@ public class PdfStatementService {
 
                     cs.beginText();
                     cs.setFont(font, 7);
-                    cs.setNonStrokingColor(a.debit().compareTo(BigDecimal.ZERO) > 0 ? new Color(0xCC, 0x44, 0x44) : new Color(0x55, 0x55, 0x55));
+                    cs.setNonStrokingColor(
+                        a.debit().compareTo(BigDecimal.ZERO) > 0
+                            ? new Color(0xCC, 0x44, 0x44)
+                            : new Color(0x55, 0x55, 0x55)
+                    );
                     cs.newLineAtOffset(cx[4], y);
-                    cs.showText(a.debit().compareTo(BigDecimal.ZERO) > 0 ? fmt(a.debit()) : "");
+                    cs.showText(
+                        a.debit().compareTo(BigDecimal.ZERO) > 0
+                            ? fmt(a.debit())
+                            : ""
+                    );
                     cs.endText();
 
                     cs.beginText();
                     cs.setFont(font, 7);
-                    cs.setNonStrokingColor(a.credit().compareTo(BigDecimal.ZERO) > 0 ? new Color(0x44, 0x88, 0x44) : new Color(0x55, 0x55, 0x55));
+                    cs.setNonStrokingColor(
+                        a.credit().compareTo(BigDecimal.ZERO) > 0
+                            ? new Color(0x44, 0x88, 0x44)
+                            : new Color(0x55, 0x55, 0x55)
+                    );
                     cs.newLineAtOffset(cx[5], y);
-                    cs.showText(a.credit().compareTo(BigDecimal.ZERO) > 0 ? fmt(a.credit()) : "");
+                    cs.showText(
+                        a.credit().compareTo(BigDecimal.ZERO) > 0
+                            ? fmt(a.credit())
+                            : ""
+                    );
                     cs.endText();
 
                     cs.beginText();
                     cs.setFont(font, 7);
-                    cs.setNonStrokingColor(a.balance().compareTo(BigDecimal.ZERO) < 0 ? new Color(0xCC, 0x44, 0x44) : Color.BLACK);
+                    cs.setNonStrokingColor(
+                        a.balance().compareTo(BigDecimal.ZERO) < 0
+                            ? new Color(0xCC, 0x44, 0x44)
+                            : Color.BLACK
+                    );
                     cs.newLineAtOffset(cx[6], y);
                     cs.showText(fmt(a.balance()));
                     cs.endText();
@@ -230,7 +298,10 @@ public class PdfStatementService {
             doc.save(baos);
             return baos.toByteArray();
         } catch (Exception e) {
-            throw new RuntimeException("PDF ekstre olusturulamadi: " + e.getMessage(), e);
+            throw new RuntimeException(
+                "PDF ekstre olusturulamadi: " + e.getMessage(),
+                e
+            );
         }
     }
 
@@ -241,7 +312,9 @@ public class PdfStatementService {
         } catch (Exception ignored) {
             // Custom font not bundled in classpath — fall back to built-in Helvetica.
         }
-        return new org.apache.pdfbox.pdmodel.font.PDType1Font(Standard14Fonts.FontName.HELVETICA);
+        return new org.apache.pdfbox.pdmodel.font.PDType1Font(
+            Standard14Fonts.FontName.HELVETICA
+        );
     }
 
     private String truncate(String s, int max) {

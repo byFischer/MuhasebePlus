@@ -39,7 +39,6 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -155,7 +154,7 @@ class ReconciliationServiceTest {
         );
         when(bankAccountRepository.findByAccountIdAndCompanyCompanyId(ACCOUNT_ID, COMPANY_ID))
                 .thenReturn(Optional.of(bankAccount));
-        ArgumentCaptor<List<BankStatementLine>> linesCaptor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<BankStatementLine>> linesCaptor = ArgumentCaptor.captor();
 
         BankStatementResponseDto result = service.importCsv(
                 file,
@@ -184,7 +183,7 @@ class ReconciliationServiceTest {
         );
         when(bankAccountRepository.findByAccountIdAndCompanyCompanyId(ACCOUNT_ID, COMPANY_ID))
                 .thenReturn(Optional.of(bankAccount));
-        ArgumentCaptor<List<BankStatementLine>> linesCaptor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<BankStatementLine>> linesCaptor = ArgumentCaptor.captor();
 
         service.importCsv(
                 file,

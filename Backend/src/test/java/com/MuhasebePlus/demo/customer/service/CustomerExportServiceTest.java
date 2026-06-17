@@ -34,7 +34,7 @@ class CustomerExportServiceTest {
 
     @Test
     void exportToExcel_writesCustomerHeadersAndRows() throws Exception {
-        CustomerExcelService service = new CustomerExcelService(companyContext, customerService);
+        CustomerExcelService service = new CustomerExcelService(customerService);
         when(customerService.getAllCustomers()).thenReturn(List.of(response(10L, "ABC Ltd", true)));
 
         byte[] data = service.exportToExcel();

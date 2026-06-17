@@ -8,7 +8,6 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 
-import com.MuhasebePlus.demo.common.service.CompanyContext;
 import com.MuhasebePlus.demo.customer.dto.response.CustomerResponseDto;
 
 import lombok.RequiredArgsConstructor;
@@ -17,7 +16,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CustomerExcelService {
 
-    private final CompanyContext companyContext;
     private final CustomerService customerService;
 
     public byte[] exportToExcel() {

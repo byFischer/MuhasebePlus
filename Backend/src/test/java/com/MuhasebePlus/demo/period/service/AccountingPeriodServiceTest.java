@@ -227,7 +227,7 @@ class AccountingPeriodServiceTest {
     void initializePeriodsForCompany_whenAllMissing_savesThirtySixOpenPeriods() {
         when(periodRepository.existsByCompanyCompanyIdAndYearAndMonth(eq(COMPANY_ID), any(Integer.class), any(Integer.class)))
                 .thenReturn(false);
-        ArgumentCaptor<List<AccountingPeriod>> captor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<AccountingPeriod>> captor = ArgumentCaptor.captor();
 
         service.initializePeriodsForCompany(COMPANY_ID);
 

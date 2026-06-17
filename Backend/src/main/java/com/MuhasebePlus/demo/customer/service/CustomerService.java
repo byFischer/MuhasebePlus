@@ -23,9 +23,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -341,60 +339,6 @@ public class CustomerService implements HardDeletable {
                     event.debit(), event.credit(), runningBalance[0]
                 ));
             });
-        return lines;
-    }
-
-    private List<CustomerActivityDto> getCustomerActivityLegacy(Long customerId, LocalDate startDate, LocalDate endDate) {
-        Long companyId = companyContext.getCurrentCompanyId();
-        Customer customer = findCustomerEntityById(customerId);
-
-        BigDecimal opening = customer.getOpeningBalance() != null ? customer.getOpeningBalance() : BigDecimal.ZERO;
-
-        List<CustomerActivityDto> lines = new java.util.ArrayList<>();
-
-        if (opening.compareTo(BigDecimal.ZERO) != 0) {
-            lines.add(new CustomerActivityDto(
-                customer.getOpeningBalanceDate(), "ACILIS", "Acilis Bakiyesi", "—",
-                opening.compareTo(BigDecimal.ZERO) > 0 ? opening : BigDecimal.ZERO,
-                opening.compareTo(BigDecimal.ZERO) < 0 ? opening.negate() : BigDecimal.ZERO,
-                opening
-            ));
-        }
-
-        List<Invoice> invoices = invoiceRepository.findByCustomerIdAndCompanyCompanyIdAndIsDeletedFalse(customerId, companyId)
-            .stream()
-            .filter(i -> !i.getInvoiceDate().isBefore(startDate) && !i.getInvoiceDate().isAfter(endDate))
-            .sorted(Comparator.comparing(Invoice::getInvoiceDate))
-            .toList();
-
-        BigDecimal runningBalance = opening;
-        for (Invoice inv : invoices) {
-            boolean isSale = inv.getInvoiceType() == InvoiceType.sale;
-            String desc = isSale ? "Satis Faturasi" : "Alis Faturasi";
-            if (inv.isCancelled()) desc += " (IPTAL)";
-
-            if (isSale) runningBalance = runningBalance.add(inv.getTotalAmount());
-            else runningBalance = runningBalance.subtract(inv.getTotalAmount());
-
-            lines.add(new CustomerActivityDto(
-                inv.getInvoiceDate(), "FATURA", desc, inv.getInvoiceNumber(),
-                isSale ? inv.getTotalAmount() : BigDecimal.ZERO,
-                !isSale ? inv.getTotalAmount() : BigDecimal.ZERO,
-                runningBalance
-            ));
-
-            List<InvoicePayment> payments = invoicePaymentRepository.findByInvoiceIdAndCompanyCompanyIdAndIsDeletedFalse(inv.getInvoiceId(), companyId);
-            for (InvoicePayment pmt : payments) {
-                if (pmt.getPaymentDate().isBefore(startDate) || pmt.getPaymentDate().isAfter(endDate)) continue;
-                runningBalance = runningBalance.subtract(pmt.getAmount());
-                lines.add(new CustomerActivityDto(
-                    pmt.getPaymentDate(), "TAHSILAT", "Tahsilat / Odeme", "#PMT" + pmt.getPaymentId(),
-                    BigDecimal.ZERO, pmt.getAmount(), runningBalance
-                ));
-            }
-        }
-
-        lines.sort(Comparator.comparing(CustomerActivityDto::date));
         return lines;
     }
 

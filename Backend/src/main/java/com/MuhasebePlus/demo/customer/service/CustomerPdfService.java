@@ -50,7 +50,6 @@ public class CustomerPdfService {
                     MARGIN + 680, MARGIN + 740};
             String[] headers = {"Hesap K.", "Ad", "Tip", "VKN", "Sehir", "Bakiye", "Doviz",
                     "Durum", "Grup", "Rol", "Tel", "E-posta"};
-            float[] widths = {60, 95, 50, 75, 70, 90, 60, 50, 60, 50, 60, 90};
 
             float y = LANDSCAPE_H - MARGIN;
             int pageNum = 1;

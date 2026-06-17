@@ -125,10 +125,7 @@ public class UblTrBuilder {
     }
 
     private static void appendParty(StringBuilder xml, String tag, Company company) {
-        String type;
-        String idScheme;
-        if (tag.equals("AccountingSupplierParty")) { type = "SATICI"; idScheme = "VKN"; }
-        else { type = "ALICI"; idScheme = "VKN"; }
+        String idScheme = "VKN";
 
         xml.append("  <cac:").append(tag).append(">\n");
         xml.append("    <cac:Party>\n");
@@ -186,10 +183,8 @@ public class UblTrBuilder {
 
     private static void appendLineItem(StringBuilder xml, InvoiceLineItem li, Product product, int lineNum, String currency) {
         String name = product != null ? product.getName() : ("#" + li.getProductId());
-        BigDecimal qty = BigDecimal.valueOf(li.getQuantity());
         BigDecimal net = calcNet(li);
         BigDecimal vat = calcVat(li);
-        BigDecimal total = net.add(vat);
 
         xml.append("  <cac:InvoiceLine>\n");
         xml.append("    <cbc:ID>").append(lineNum).append("</cbc:ID>\n");

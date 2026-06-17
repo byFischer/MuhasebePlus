@@ -1,15 +1,13 @@
 package com.MuhasebePlus.demo.template.mapper;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.MuhasebePlus.demo.template.dto.request.TemplateRequestDto;
 import com.MuhasebePlus.demo.template.dto.response.TemplateResponseDto;
 import com.MuhasebePlus.demo.template.entity.Template;
 import com.MuhasebePlus.demo.template.entity.TemplateType;
-import org.junit.jupiter.api.Test;
-
-import java.time.LocalDateTime;
 import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 /**
  * TemplateMapper için saf birim testleri: DTO ↔ entity dönüşümleri ve
@@ -21,8 +19,13 @@ class TemplateMapperTest {
 
     private TemplateRequestDto request() {
         return new TemplateRequestDto(
-                "TPL-1", "Aylık Kira", TemplateType.EXPENSE, "Açıklama", "MONTHLY",
-                Map.of("amount", 1500));
+            "TPL-1",
+            "Aylık Kira",
+            TemplateType.EXPENSE,
+            "Açıklama",
+            "MONTHLY",
+            Map.of("amount", 1500)
+        );
     }
 
     @Test

@@ -7,17 +7,11 @@ public final class XssSanitizer {
     private static final Pattern SCRIPT_PATTERN =
             Pattern.compile("<\\s*script\\b[^>]*>.*?<\\s*/\\s*script\\s*>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
-    private static final Pattern TAG_PATTERN =
-            Pattern.compile("<[^>]*>");
-
     private static final Pattern EVENT_HANDLER_PATTERN =
             Pattern.compile("\\bon\\w+\\s*=\\s*[\"'][^\"']*[\"']", Pattern.CASE_INSENSITIVE);
 
     private static final Pattern JAVASCRIPT_PATTERN =
             Pattern.compile("javascript\\s*:", Pattern.CASE_INSENSITIVE);
-
-    private static final Pattern ENCODED_SCRIPT_PATTERN =
-            Pattern.compile("&#x?[0-9a-f]+;?", Pattern.CASE_INSENSITIVE);
 
     private XssSanitizer() {
     }
