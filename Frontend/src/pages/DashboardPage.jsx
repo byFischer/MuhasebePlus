@@ -352,6 +352,22 @@ export default function DashboardPage() {
     }
   };
 
+  // Özel (widget-builder) widget tanımını kalıcı olarak sil
+  const deleteCustomDef = async (def) => {
+    if (!def?.definitionId) return;
+    if (!window.confirm(`"${def.name}" özel widget'ı kalıcı olarak silinsin mi?`)) return;
+    try {
+      await dashboardService.deleteWidgetDefinition(def.definitionId);
+      setCustomDefs(prev => prev.filter(d => d.definitionId !== def.definitionId));
+      // Bu tanıma bağlı slot'lardaki widget'ları da listeden düşür
+      setWidgetsData(prev => prev.filter(w => w.definitionId !== def.definitionId));
+      toast.ok(`${def.name} silindi`);
+    } catch (e) {
+      console.error(e);
+      toast.err(e?.response?.data?.message || 'Widget silinemedi');
+    }
+  };
+
   const closePicker = () => { setPickerSlot(null); setPickerQuery(''); };
 
   // Picker listesi — arama + zaten eklenmiş built-in'leri ele
@@ -546,6 +562,16 @@ export default function DashboardPage() {
                       <span className="wp-card-icon"><Icon name="grid" size={13} /></span>
                       <span className="wp-card-title">{def.name}</span>
                       <span className="wp-card-tag">Özel</span>
+                      <button
+                        type="button"
+                        className="wp-card-del"
+                        title="Özel widget'ı sil"
+                        aria-label={`${def.name} widget'ını sil`}
+                        onClick={e => { e.stopPropagation(); deleteCustomDef(def); }}
+                        onKeyDown={e => e.stopPropagation()}
+                      >
+                        <Icon name="trash" size={13} />
+                      </button>
                     </div>
                     <div className="wp-card-body">
                       <CustomPreview def={def} />

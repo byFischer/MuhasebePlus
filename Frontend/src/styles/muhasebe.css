@@ -1225,6 +1225,16 @@ button.filter:hover {
   color: var(--accent-ink); background: var(--accent-soft);
   padding: 2px 6px; border-radius: 999px;
 }
+.wp-card-del {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 26px; height: 26px; padding: 0; border-radius: 6px;
+  border: 1px solid var(--neg, #dc2626);
+  background: color-mix(in oklab, var(--neg, #dc2626) 12%, transparent);
+  color: var(--neg, #dc2626);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.wp-card-del:hover { background: var(--neg, #dc2626); color: #fff; }
 .wp-card-body {
   height: 138px; overflow: hidden; padding: 10px;
   pointer-events: none; background: var(--surface);
