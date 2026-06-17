@@ -1,13 +1,26 @@
 package com.MuhasebePlus.demo.log.service;
 
+import java.io.ByteArrayOutputStream;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
+import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,29 +75,66 @@ public class SystemLogService {
                 .map(this::toResponseDto);
     }
 
-    public String exportLogsAsCsv(LogLevel level, LocalDate startDate, LocalDate endDate, Long userId) {
-        if (startDate == null || endDate == null) {
-            throw new IllegalArgumentException("Export için başlangıç ve bitiş tarihi zorunludur.");
-        }
+    // Tarih aralığı opsiyoneldir: Sistem Logları ekranında tarih filtresi yoktur,
+    // verilmediğinde mevcut şirketin (ve varsa seviye filtresinin) tüm logları aktarılır.
+    public byte[] exportLogsAsExcel(LogLevel level, LocalDate startDate, LocalDate endDate, Long userId) {
         Long companyId = companyContext.getCurrentCompanyId();
-        LocalDateTime start = startDate.atStartOfDay();
-        LocalDateTime end = endDate.atTime(23, 59, 59);
+        LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
+        LocalDateTime end = endDate != null ? endDate.atTime(23, 59, 59) : null;
 
-        List<SystemLog> logs = systemLogRepository.findAll(buildSpec(companyId, level, userId, start, end));
+        List<SystemLog> logs = systemLogRepository.findAll(
+                buildSpec(companyId, level, userId, start, end),
+                Sort.by(Sort.Direction.DESC, "timestamp"));
 
-        StringBuilder csv = new StringBuilder();
-        csv.append("LogID,Level,Timestamp,IPAddress,UserID,UserEmail,Details\n");
-        for (SystemLog log : logs) {
-            csv.append(log.getLogId()).append(",")
-               .append(log.getLogLevel() != null ? log.getLogLevel().name() : "").append(",")
-               .append(log.getTimestamp()).append(",")
-               .append(csvEscape(log.getIpAddress())).append(",")
-               .append(log.getUserId() != null ? log.getUserId() : "").append(",")
-               .append(csvEscape(resolveUserEmail(log))).append(",")
-               .append(csvEscape(log.getDetails()))
-               .append("\n");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet("Sistem Loglari");
+
+            CellStyle headerStyle = wb.createCellStyle();
+            Font headerFont = wb.createFont();
+            headerFont.setBold(true);
+            headerFont.setColor(IndexedColors.WHITE.getIndex());
+            headerStyle.setFont(headerFont);
+            headerStyle.setFillForegroundColor(IndexedColors.GREY_50_PERCENT.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            applyBorders(headerStyle);
+
+            CellStyle cellStyle = wb.createCellStyle();
+            cellStyle.setWrapText(true);
+            applyBorders(cellStyle);
+
+            String[] headers = {"Log ID", "Seviye", "Tarih/Saat", "IP Adresi", "Kullanici", "Mesaj"};
+            Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+            }
+
+            DateTimeFormatter tsFmt = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
+            int r = 1;
+            for (SystemLog log : logs) {
+                Row row = sheet.createRow(r++);
+                set(row, 0, log.getLogId() != null ? String.valueOf(log.getLogId()) : "", cellStyle);
+                set(row, 1, log.getLogLevel() != null ? log.getLogLevel().name() : "", cellStyle);
+                set(row, 2, log.getTimestamp() != null ? log.getTimestamp().format(tsFmt) : "", cellStyle);
+                set(row, 3, log.getIpAddress(), cellStyle);
+                set(row, 4, resolveUserEmail(log), cellStyle);
+                set(row, 5, log.getDetails(), cellStyle);
+            }
+
+            for (int i = 0; i < headers.length; i++) {
+                sheet.autoSizeColumn(i);
+                int w = sheet.getColumnWidth(i);
+                sheet.setColumnWidth(i, Math.min(Math.max(w, 2500), 18000));
+            }
+            sheet.createFreezePane(0, 1);
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            wb.write(baos);
+            return baos.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("Excel olusturulamadi: " + e.getMessage(), e);
         }
-        return csv.toString();
     }
 
 
@@ -142,13 +192,17 @@ public class SystemLogService {
         }
     }
 
-    private String csvEscape(String value) {
-        if (value == null) return "";
-        String escaped = value.replace("\"", "\"\"");
-        if (escaped.contains(",") || escaped.contains("\"") || escaped.contains("\n") || escaped.contains("\r")) {
-            return "\"" + escaped + "\"";
-        }
-        return escaped;
+    private void applyBorders(CellStyle style) {
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+    }
+
+    private void set(Row row, int col, String value, CellStyle style) {
+        Cell cell = row.createCell(col);
+        cell.setCellValue(value != null ? value : "");
+        cell.setCellStyle(style);
     }
 
     private SystemLogResponseDto toResponseDto(SystemLog log) {

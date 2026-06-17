@@ -90,26 +90,3 @@ export function useSetCompanyActive() {
     ({ id, active }) => active ? adminService.activateCompany(id) : adminService.deactivateCompany(id),
     'Şirket durumu güncellendi', 'İşlem başarısız');
 }
-
-// Loglar
-
-export function useAdminLogs(params) {
-  return useQuery({
-    queryKey: ['admin', 'logs', params],
-    queryFn: () => adminService.listLogs(params),
-    placeholderData: (prev) => prev,
-  });
-}
-
-export function useExportAdminLogs() {
-  return useMutation({
-    mutationFn: (params) => adminService.exportLogs(params),
-    onSuccess: (blob) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `admin_logs_${Date.now()}.csv`; a.click();
-      URL.revokeObjectURL(url);
-    },
-    onError: (err) => toast.err(errMsg(err, 'Dışa aktarma başarısız')),
-  });
-}

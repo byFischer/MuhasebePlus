@@ -21,10 +21,6 @@ const adminService = {
   getCompany:        (id)     => api.get(`${BASE}/companies/${id}`).then(r => r.data),
   activateCompany:   (id)     => api.put(`${BASE}/companies/${id}/activate`),
   deactivateCompany: (id)     => api.put(`${BASE}/companies/${id}/deactivate`),
-
-  // Loglar (tüm şirketler)
-  listLogs:   (params) => api.get(`${BASE}/logs`, { params: { size: 50, ...params } }).then(r => r.data),
-  exportLogs: (params) => api.get(`${BASE}/logs/export`, { params, responseType: 'blob' }).then(r => r.data),
 };
 
 export default adminService;
