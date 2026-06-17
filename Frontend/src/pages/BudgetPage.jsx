@@ -120,11 +120,6 @@ export default function BudgetPage() {
           <h1 className="page-title">Bütçe Yönetimi</h1>
           <p className="page-sub">Aylık gelir ve gider planlarını yönetin</p>
         </div>
-        <div className="page-actions">
-          <button className="btn" onClick={resetForm}>
-            <Icon name="plus" /> Yeni Kalem
-          </button>
-        </div>
       </div>
 
       {/* KPI row */}

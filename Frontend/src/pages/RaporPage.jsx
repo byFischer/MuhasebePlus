@@ -412,7 +412,8 @@ export default function RaporPage() {
             )}
 
             <button
-              className="btn primary"
+              className="btn primary sm"
+              style={{ alignSelf: 'flex-start' }}
               onClick={onGenerate}
               disabled={generateMut.isPending}
             >
@@ -520,9 +521,6 @@ export default function RaporPage() {
                     <div className="row gap-4">
                       <button className="tb-icon-btn" title="İndir" onClick={() => downloadMut.mutate(r.reportId)}>
                         <Icon name="download" size={14} />
-                      </button>
-                      <button className="tb-icon-btn" title="Görüntüle" onClick={() => downloadMut.mutate(r.reportId)}>
-                        <Icon name="eye" size={14} />
                       </button>
                       <button className="tb-icon-btn" title="Sil" onClick={() => onDelete(r.reportId)}>
                         <Icon name="trash" size={14} />
