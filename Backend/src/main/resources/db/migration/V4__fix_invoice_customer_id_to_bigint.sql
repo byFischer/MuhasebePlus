@@ -1,0 +1,1 @@
+ALTER TABLE invoice ALTER COLUMN customer_id TYPE BIGINT;

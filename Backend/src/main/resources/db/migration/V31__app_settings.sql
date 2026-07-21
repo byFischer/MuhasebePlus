@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS app_settings (
+    key     VARCHAR(100) PRIMARY KEY,
+    value   TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

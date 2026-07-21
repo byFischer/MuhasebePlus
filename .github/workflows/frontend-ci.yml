@@ -1,0 +1,39 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'Frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'Frontend/**'
+
+jobs:
+  build-and-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Bağımlılıkları yükle
+        working-directory: ./Frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: ./Frontend
+        run: npm run lint
+
+      - name: Build
+        working-directory: ./Frontend
+        run: npm run build
